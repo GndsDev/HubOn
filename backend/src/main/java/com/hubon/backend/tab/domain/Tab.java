@@ -56,4 +56,36 @@ public class Tab {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    void prePersist() {
+        LocalDateTime now = LocalDateTime.now();
+        if (status == null) {
+            status = TabStatus.OPEN;
+        }
+        if (openedAt == null) {
+            openedAt = now;
+        }
+        if (totalAmount == null) {
+            totalAmount = BigDecimal.ZERO;
+        }
+        if (serviceFee == null) {
+            serviceFee = BigDecimal.ZERO;
+        }
+        if (discountAmount == null) {
+            discountAmount = BigDecimal.ZERO;
+        }
+        if (finalAmount == null) {
+            finalAmount = totalAmount.add(serviceFee).subtract(discountAmount).max(BigDecimal.ZERO);
+        }
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

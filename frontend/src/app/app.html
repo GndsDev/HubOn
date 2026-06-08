@@ -1,16 +1,138 @@
-<main class="home-shell" aria-labelledby="hubon-title">
-  <section class="hero-card">
-    <div class="brand-badge" aria-hidden="true">H</div>
-
-    <div class="copy">
-      <h1 id="hubon-title">HubOn</h1>
-      <p class="subtitle">Sistema de gestão para restaurantes</p>
-      <p class="description">
-        Plataforma local para controle de mesas, comandas, pedidos, cozinha e
-        caixa.
-      </p>
+<main class="hub-shell">
+  <aside class="hub-sidebar" [class.open]="navOpen()">
+    <div class="brand-row">
+      <div class="brand-mark">H</div>
+      <div>
+        <strong>HubOn</strong>
+        <span>Restaurante local</span>
+      </div>
     </div>
+
+    <nav class="side-nav" aria-label="Navegação principal">
+      @for (item of navItems; track item.key) {
+        <button
+          type="button"
+          class="side-nav-item"
+          [class.active]="activeView() === item.key"
+          (click)="setActiveView(item.key)"
+        >
+          <i [class]="item.icon"></i>
+          <span>{{ item.label }}</span>
+        </button>
+      }
+    </nav>
+
+    <div class="sidebar-card">
+      <span>Turno atual</span>
+      <strong>Jantar · 18:00-23:30</strong>
+      <small>Equipe sincronizada localmente</small>
+    </div>
+  </aside>
+
+  <section class="hub-main">
+    <header class="hub-topbar">
+      <button type="button" class="mobile-menu-button" (click)="toggleNav()" aria-label="Abrir menu">
+        <i class="pi pi-bars"></i>
+      </button>
+
+      <div class="topbar-title">
+        <span>{{ currentLabel() }}</span>
+        <strong>Operação premium</strong>
+      </div>
+
+      <div class="topbar-actions">
+        <span class="local-status">
+          <i class="pi pi-circle-fill"></i>
+          Online local
+        </span>
+        <div class="admin-chip">
+          <span>AD</span>
+          <div>
+            <strong>Admin</strong>
+            <small>Administrador</small>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="content-surface">
+      @switch (activeView()) {
+        @case ('dashboard') {
+          <app-dashboard-page [snapshot]="dashboard" />
+        }
+        @case ('tables') {
+          <app-tables-page [tables]="tables" />
+        }
+        @case ('tabs') {
+          <app-collection-page
+            kicker="Atendimento"
+            title="Comandas"
+            description="Acompanhe comandas abertas, responsáveis e totais em andamento."
+            actionLabel="Abrir comanda"
+            actionIcon="pi pi-plus"
+            sectionEyebrow="Salão"
+            sectionTitle="Comandas ativas"
+            [items]="tabsCollection"
+          />
+        }
+        @case ('orders') {
+          <app-collection-page
+            kicker="Pedidos"
+            title="Pedidos"
+            description="Pedidos recentes com status, mesa e valor da venda."
+            actionLabel="Novo pedido"
+            actionIcon="pi pi-shopping-cart"
+            sectionEyebrow="Fluxo de venda"
+            sectionTitle="Pedidos do turno"
+            [items]="ordersCollection"
+          />
+        }
+        @case ('kitchen') {
+          <app-kitchen-page [orders]="kitchenOrders" />
+        }
+        @case ('products') {
+          <app-products-page [products]="products" />
+        }
+        @case ('categories') {
+          <app-collection-page
+            kicker="Cardápio"
+            title="Categorias"
+            description="Organize produtos por grupos de venda e disponibilidade."
+            actionLabel="Nova categoria"
+            actionIcon="pi pi-tags"
+            sectionEyebrow="Estrutura do cardápio"
+            sectionTitle="Categorias cadastradas"
+            [items]="categoriesCollection"
+          />
+        }
+        @case ('cashier') {
+          <app-cashier-page [cashier]="cashier" />
+        }
+        @case ('reports') {
+          <app-collection-page
+            kicker="Inteligência"
+            title="Relatórios"
+            description="Indicadores gerenciais para avaliar vendas, produção e performance."
+            actionLabel="Exportar relatório"
+            actionIcon="pi pi-download"
+            sectionEyebrow="Indicadores"
+            sectionTitle="Resumo analítico"
+            [items]="reportsCollection"
+          />
+        }
+        @case ('users') {
+          <app-collection-page
+            kicker="Equipe"
+            title="Usuários"
+            description="Perfis operacionais do MVP para salão, cozinha, caixa e administração."
+            actionLabel="Novo usuário"
+            actionIcon="pi pi-user-plus"
+            sectionEyebrow="Acessos"
+            sectionTitle="Equipe ativa"
+            [items]="usersCollection"
+          />
+        }
+      }
+    </section>
   </section>
 </main>
-
-<router-outlet />

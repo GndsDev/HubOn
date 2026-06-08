@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: hubon-postgres
+    environment:
+      POSTGRES_DB: hubon_db
+      POSTGRES_USER: hubon_user
+      POSTGRES_PASSWORD: hubon_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - hubon_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  hubon_postgres_data:
