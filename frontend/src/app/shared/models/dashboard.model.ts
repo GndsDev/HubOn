@@ -1,3 +1,39 @@
+export interface DashboardBestSellingProduct {
+  name: string;
+  category: string;
+  quantity: number;
+  revenue: number;
+}
+
+export interface DashboardRecentOrder {
+  id: number;
+  tableNumber: number;
+  status: string;
+  amount: number;
+  createdAt: string;
+}
+
+export interface DashboardSummary {
+  todaySales: number;
+  openTabs: number;
+  ordersInPreparation: number;
+  averageTicket: number;
+  bestSellingProducts: DashboardBestSellingProduct[];
+  tableSummary: {
+    available: number;
+    occupied: number;
+    reserved: number;
+    disabled: number;
+    total: number;
+  };
+  cashSummary: {
+    received: number;
+    openAmount: number;
+    cancelledAmount: number;
+  };
+  recentOrders: DashboardRecentOrder[];
+}
+
 export type MetricTone = 'blue' | 'purple' | 'emerald' | 'amber';
 
 export interface StatMetric {
@@ -7,41 +43,4 @@ export interface StatMetric {
   icon: string;
   tone: MetricTone;
   trend: string;
-}
-
-export interface RecentOrder {
-  id: string;
-  table: string;
-  status: string;
-  amount: string;
-  time: string;
-  tone: 'info' | 'warning' | 'success';
-}
-
-export interface BestSeller {
-  name: string;
-  category: string;
-  quantity: number;
-  revenue: string;
-}
-
-export interface TableStatusSummary {
-  label: string;
-  value: number;
-  total: number;
-  tone: 'free' | 'occupied' | 'reserved' | 'disabled';
-}
-
-export interface CashierSummary {
-  label: string;
-  value: string;
-  detail: string;
-}
-
-export interface DashboardSnapshot {
-  stats: StatMetric[];
-  recentOrders: RecentOrder[];
-  bestSellers: BestSeller[];
-  tableStatus: TableStatusSummary[];
-  cashier: CashierSummary[];
 }

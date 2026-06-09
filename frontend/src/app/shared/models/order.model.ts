@@ -1,35 +1,48 @@
-export type KitchenColumnStatus = 'received' | 'preparing' | 'ready';
-export type KitchenPriority = 'normal' | 'high' | 'urgent';
+export type OrderStatus =
+  | 'CREATED'
+  | 'SENT_TO_KITCHEN'
+  | 'PREPARING'
+  | 'READY'
+  | 'DELIVERED'
+  | 'CANCELLED';
+export type OrderType = 'TABLE' | 'COUNTER' | 'TAKEAWAY';
 
-export interface KitchenOrderItem {
+export interface OrderItem {
+  id: number;
+  productId: number;
+  productNameSnapshot: string;
+  unitPriceSnapshot: number;
   quantity: number;
-  name: string;
+  notes: string | null;
+  status: 'ACTIVE' | 'CANCELLED';
+  subtotal: number;
 }
 
-export interface KitchenOrder {
-  id: string;
-  table: string;
-  elapsed: string;
-  priority: KitchenPriority;
-  notes: string;
-  status: KitchenColumnStatus;
-  items: KitchenOrderItem[];
-}
-
-export interface OrderListItem {
-  id: string;
-  table: string;
-  status: string;
-  total: string;
-  items: string;
+export interface RestaurantOrder {
+  id: number;
+  tabId: number;
+  tableId: number;
+  tableNumber: number;
+  status: OrderStatus;
+  type: OrderType;
+  createdByUserId: number;
+  createdByUserName: string;
+  notes: string | null;
   createdAt: string;
+  updatedAt: string;
+  items: OrderItem[];
 }
 
-export interface TabListItem {
-  id: string;
-  table: string;
-  waiter: string;
-  openedAt: string;
-  total: string;
-  status: string;
+export interface OrderItemRequest {
+  productId: number;
+  quantity: number;
+  notes: string | null;
+}
+
+export interface RestaurantOrderRequest {
+  tabId: number;
+  createdByUserId: number;
+  type: OrderType;
+  notes: string | null;
+  items: OrderItemRequest[];
 }

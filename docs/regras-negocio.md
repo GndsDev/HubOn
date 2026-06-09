@@ -1,34 +1,37 @@
-# Regras de Negocio do HubOn MVP
+# Regras de negócio do HubOn MVP
+
+## Cadastros
+
+- Categoria exige nome e pode ser ativada ou desativada sem apagar o histórico.
+- Produto exige nome, categoria e preço maior ou igual a zero.
+- Produto inativo não pode ser incluído em pedido.
+- Número da mesa é obrigatório e único.
+- Mesa usa `AVAILABLE`, `OCCUPIED`, `RESERVED` ou `DISABLED`.
 
 ## Mesas e comandas
 
-- Uma mesa nao pode ter mais de uma comanda aberta.
-- Mesa desativada ou com status `DISABLED` nao pode abrir comanda.
-- Ao abrir uma comanda, a mesa passa para `OCCUPIED`.
-- Ao fechar ou cancelar uma comanda, a mesa volta para `AVAILABLE`.
-- Comanda com status `CLOSED` ou `CANCELLED` nao pode receber pedidos ou pagamentos.
+- Uma mesa não pode ter mais de uma comanda aberta.
+- Mesa `OCCUPIED` ou `DISABLED` não pode abrir outra comanda.
+- Ao abrir comanda, a mesa muda para `OCCUPIED`.
+- Enquanto houver comanda aberta, a mesa deve continuar `OCCUPIED`.
+- Comanda `CLOSED` ou `CANCELLED` não recebe pedidos nem pagamentos.
+- Ao fechar ou cancelar comanda, a mesa volta para `AVAILABLE`.
+- O fechamento exige pagamento integral.
 
-## Produtos e pedidos
+## Pedidos
 
-- Produto inativo nao pode ser vendido.
-- Pedido so pode ser criado em comanda aberta.
-- O preco do produto e congelado no item em `unitPriceSnapshot`.
-- O nome do produto e congelado no item em `productNameSnapshot`.
-- O subtotal do item e calculado por `unitPriceSnapshot * quantity`.
-- Pedido cancelado nao entra no total da comanda.
-- Itens cancelados nao entram no total da comanda.
+- Pedido pertence a uma comanda aberta e começa como `CREATED`.
+- O envio para cozinha muda o pedido para `SENT_TO_KITCHEN`.
+- A cozinha avança sequencialmente: `SENT_TO_KITCHEN` → `PREPARING` → `READY` → `DELIVERED`.
+- Pedido entregue não pode ser cancelado.
+- Pedido cancelado não entra no total da comanda.
+- Nome e preço são congelados em `productNameSnapshot` e `unitPriceSnapshot`.
+- O subtotal é `unitPriceSnapshot * quantity`.
 
-## Pagamentos
+## Pagamentos e totais
 
-- Pagamento deve ter valor maior que zero.
-- A soma dos pagamentos nao pode ultrapassar `finalAmount` da comanda.
-- Para fechar a comanda, a soma dos pagamentos deve cobrir o valor final.
-
-## Totais da comanda
-
-O backend recalcula os valores principais da comanda a partir dos pedidos:
-
-- `totalAmount`: soma dos subtotais dos itens ativos de pedidos nao cancelados.
-- `serviceFee`: taxa de servico informada na abertura, com default zero.
-- `discountAmount`: desconto informado na abertura, com default zero.
-- `finalAmount`: `totalAmount + serviceFee - discountAmount`, nunca menor que zero.
+- Pagamento deve ser maior que zero e usar `CASH`, `CREDIT_CARD`, `DEBIT_CARD`, `PIX` ou `VOUCHER`.
+- A soma paga não pode ultrapassar `finalAmount`.
+- `totalAmount` soma os itens ativos de pedidos não cancelados.
+- `finalAmount` é `totalAmount + serviceFee - discountAmount`, nunca menor que zero.
+- A consulta de pagamentos retorna `totalAmount`, `paidAmount`, `remainingAmount` e o histórico.

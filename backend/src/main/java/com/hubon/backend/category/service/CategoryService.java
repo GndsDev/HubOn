@@ -26,6 +26,11 @@ public class CategoryService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public CategoryResponse getById(Long id) {
+        return toResponse(findEntityById(id));
+    }
+
     @Transactional
     public CategoryResponse create(CategoryRequest request) {
         if (categoryRepository.existsByNameIgnoreCase(request.name())) {
@@ -45,6 +50,11 @@ public class CategoryService {
     @Transactional
     public CategoryResponse update(Long id, CategoryRequest request) {
         Category category = findEntityById(id);
+        if (!category.getName().equalsIgnoreCase(request.name().trim())
+                && categoryRepository.existsByNameIgnoreCase(request.name().trim())) {
+            throw new BusinessException("Já existe uma categoria com este nome");
+        }
+
         category.setName(request.name().trim());
         category.setDescription(request.description());
         category.setDisplayOrder(request.displayOrder() == null ? 0 : request.displayOrder());

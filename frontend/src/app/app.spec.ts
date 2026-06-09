@@ -1,10 +1,29 @@
 import { TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
 import { App } from './app';
+import { DashboardApiService } from './core/services/dashboard-api.service';
+
+const dashboardSummary = {
+  todaySales: 0,
+  openTabs: 0,
+  ordersInPreparation: 0,
+  averageTicket: 0,
+  bestSellingProducts: [],
+  tableSummary: { available: 0, occupied: 0, reserved: 0, disabled: 0, total: 0 },
+  cashSummary: { received: 0, openAmount: 0, cancelledAmount: 0 },
+  recentOrders: [],
+};
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
+      providers: [
+        {
+          provide: DashboardApiService,
+          useValue: { getSummary: () => of(dashboardSummary) },
+        },
+      ],
     }).compileComponents();
   });
 

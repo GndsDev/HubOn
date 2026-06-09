@@ -3,6 +3,7 @@ package com.hubon.backend.payment.service;
 import com.hubon.backend.payment.domain.Payment;
 import com.hubon.backend.payment.dto.PaymentRequest;
 import com.hubon.backend.payment.dto.PaymentResponse;
+import com.hubon.backend.payment.dto.PaymentSummaryResponse;
 import com.hubon.backend.payment.repository.PaymentRepository;
 import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.shared.exception.ResourceNotFoundException;
@@ -61,15 +62,26 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentResponse> listByTab(Long tabId) {
-        if (!tabRepository.existsById(tabId)) {
-            throw new ResourceNotFoundException("Comanda não encontrada");
-        }
+    public PaymentSummaryResponse getSummaryByTab(Long tabId) {
+        Tab tab = tabRepository.findById(tabId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comanda não encontrada"));
+        accountingService.refreshAmounts(tab);
 
-        return paymentRepository.findAllByTabIdOrderByPaidAtAsc(tabId)
+        List<PaymentResponse> payments = paymentRepository.findAllByTabIdOrderByPaidAtAsc(tabId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
+
+        BigDecimal paidAmount = accountingService.paidAmount(tabId);
+        BigDecimal remainingAmount = tab.getFinalAmount().subtract(paidAmount).max(BigDecimal.ZERO);
+
+        return new PaymentSummaryResponse(
+                tabId,
+                tab.getFinalAmount(),
+                paidAmount,
+                remainingAmount,
+                payments
+        );
     }
 
     private PaymentResponse toResponse(Payment payment) {

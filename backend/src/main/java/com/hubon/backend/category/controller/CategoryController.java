@@ -30,6 +30,11 @@ public class CategoryController {
         return categoryService.listAll();
     }
 
+    @GetMapping("/{id}")
+    public CategoryResponse getById(@PathVariable Long id) {
+        return categoryService.getById(id);
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CategoryResponse create(@Valid @RequestBody CategoryRequest request) {

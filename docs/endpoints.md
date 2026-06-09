@@ -2,86 +2,63 @@
 
 Base local: `http://localhost:8080/api`
 
-## Roles
+## Consulta e cadastros
 
-| Metodo | Endpoint | Descricao |
+| Método | Endpoint | Descrição |
 | --- | --- | --- |
-| GET | `/roles` | Lista perfis do sistema. |
-
-## Users
-
-| Metodo | Endpoint | Descricao |
-| --- | --- | --- |
-| GET | `/users` | Lista usuarios locais para operacao do MVP. |
-
-## Categories
-
-| Metodo | Endpoint | Descricao |
-| --- | --- | --- |
+| GET | `/roles` | Lista os perfis do sistema. |
+| GET | `/users` | Lista os usuários locais disponíveis para a operação. |
 | GET | `/categories` | Lista categorias. |
-| POST | `/categories` | Cria categoria. |
-| PUT | `/categories/{id}` | Atualiza categoria. |
-| PATCH | `/categories/{id}/activate` | Ativa categoria. |
-| PATCH | `/categories/{id}/deactivate` | Desativa categoria. |
-
-## Products
-
-| Metodo | Endpoint | Descricao |
-| --- | --- | --- |
+| GET | `/categories/{id}` | Busca uma categoria. |
+| POST | `/categories` | Cria uma categoria. |
+| PUT | `/categories/{id}` | Atualiza uma categoria. |
+| PATCH | `/categories/{id}/activate` | Ativa uma categoria. |
+| PATCH | `/categories/{id}/deactivate` | Desativa uma categoria. |
 | GET | `/products` | Lista produtos. |
-| GET | `/products/{id}` | Busca produto por id. |
-| POST | `/products` | Cria produto. |
-| PUT | `/products/{id}` | Atualiza produto. |
-| PATCH | `/products/{id}/activate` | Ativa produto. |
-| PATCH | `/products/{id}/deactivate` | Desativa produto. |
-
-## Tables
-
-| Metodo | Endpoint | Descricao |
-| --- | --- | --- |
+| GET | `/products/{id}` | Busca um produto. |
+| POST | `/products` | Cria um produto. |
+| PUT | `/products/{id}` | Atualiza um produto. |
+| PATCH | `/products/{id}/activate` | Ativa um produto. |
+| PATCH | `/products/{id}/deactivate` | Desativa um produto. |
 | GET | `/tables` | Lista mesas. |
-| GET | `/tables/{id}` | Busca mesa por id. |
-| POST | `/tables` | Cria mesa. |
-| PUT | `/tables/{id}` | Atualiza mesa. |
-| PATCH | `/tables/{id}/status` | Atualiza status da mesa. |
-| GET | `/tables/{tableId}/current-tab` | Busca comanda aberta da mesa. |
+| GET | `/tables/{id}` | Busca uma mesa. |
+| POST | `/tables` | Cria uma mesa. |
+| PUT | `/tables/{id}` | Atualiza uma mesa. |
+| PATCH | `/tables/{id}/status` | Atualiza o status da mesa. |
+| GET | `/tables/{tableId}/current-tab` | Busca a comanda aberta da mesa. |
 
-## Tabs
+## Comandas, pedidos e pagamentos
 
-| Metodo | Endpoint | Descricao |
+| Método | Endpoint | Descrição |
 | --- | --- | --- |
 | GET | `/tabs/open` | Lista comandas abertas. |
-| GET | `/tabs/{id}` | Busca comanda por id. |
-| POST | `/tabs/open` | Abre comanda para uma mesa. |
-| POST | `/tabs/{id}/close` | Fecha comanda apos pagamento completo. |
-| POST | `/tabs/{id}/cancel` | Cancela comanda aberta. |
-
-## Orders
-
-| Metodo | Endpoint | Descricao |
-| --- | --- | --- |
+| GET | `/tabs/{id}` | Busca uma comanda. |
+| POST | `/tabs/open` | Abre uma comanda para uma mesa disponível. |
+| POST | `/tabs/{id}/close` | Fecha uma comanda com pagamento completo. |
+| POST | `/tabs/{id}/cancel` | Cancela uma comanda aberta. |
 | GET | `/orders` | Lista pedidos. |
-| GET | `/orders/{id}` | Busca pedido por id. |
-| POST | `/orders` | Cria pedido com itens. |
-| POST | `/orders/{id}/send-to-kitchen` | Envia pedido criado para cozinha. |
-| PATCH | `/orders/{id}/status` | Atualiza status do pedido. |
-| POST | `/orders/{id}/cancel` | Cancela pedido. |
-
-## Payments
-
-| Metodo | Endpoint | Descricao |
-| --- | --- | --- |
+| GET | `/orders/{id}` | Busca um pedido. |
+| POST | `/orders` | Cria um pedido com um ou mais itens. |
+| POST | `/orders/{id}/send-to-kitchen` | Envia um pedido criado para a cozinha. |
+| PATCH | `/orders/{id}/status` | Avança o status do pedido. |
+| POST | `/orders/{id}/cancel` | Cancela um pedido não entregue. |
 | POST | `/payments` | Registra pagamento em uma comanda aberta. |
-| GET | `/payments/tab/{tabId}` | Lista pagamentos de uma comanda. |
+| GET | `/payments/tab/{tabId}` | Retorna total, pago, restante e histórico de pagamentos. |
+
+## Dashboard
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| GET | `/dashboard/summary` | Retorna vendas do dia, comandas abertas, pedidos em preparo, ticket médio, produtos mais vendidos, mesas, caixa e pedidos recentes. |
 
 ## Erros
 
-Os erros sao retornados em JSON:
+Erros de validação, negócio e recursos não encontrados usam o mesmo formato:
 
 ```json
 {
-  "message": "Descricao do erro",
+  "message": "Descrição do erro",
   "status": 400,
-  "timestamp": "2026-06-08T10:00:00"
+  "timestamp": "2026-06-09T10:00:00"
 }
 ```

@@ -1,33 +1,55 @@
-<main class="hub-shell">
-  <aside class="hub-sidebar" [class.open]="navOpen()">
-    <div class="brand-row">
-      <div class="brand-mark">H</div>
-      <div>
-        <strong>HubOn</strong>
-        <span>Restaurante local</span>
+<main class="hub-shell" [class.sidebar-collapsed]="sidebarCollapsed()">
+  <aside class="hub-sidebar" [class.open]="navOpen()" [class.collapsed]="sidebarCollapsed()">
+    <div class="sidebar-header">
+      <div class="brand-row">
+        <div class="brand-mark">H</div>
+        <div class="brand-copy">
+          <strong>HubOn</strong>
+          <span>Operação local</span>
+        </div>
       </div>
+      <button
+        type="button"
+        class="sidebar-toggle"
+        (click)="toggleSidebar()"
+        [attr.aria-label]="sidebarCollapsed() ? 'Expandir menu lateral' : 'Recolher menu lateral'"
+        [attr.title]="sidebarCollapsed() ? 'Expandir menu' : 'Recolher menu'"
+      >
+        <i [class]="sidebarCollapsed() ? 'pi pi-angle-right' : 'pi pi-angle-left'"></i>
+      </button>
     </div>
 
     <nav class="side-nav" aria-label="Navegação principal">
-      @for (item of navItems; track item.key) {
-        <button
-          type="button"
-          class="side-nav-item"
-          [class.active]="activeView() === item.key"
-          (click)="setActiveView(item.key)"
-        >
-          <i [class]="item.icon"></i>
-          <span>{{ item.label }}</span>
-        </button>
+      @for (group of navGroups; track group.label) {
+        <section class="nav-group" [attr.aria-label]="group.label">
+          <span class="nav-group-title">{{ group.label }}</span>
+          @for (item of group.items; track item.key) {
+            <button
+              type="button"
+              class="side-nav-item"
+              [class.active]="activeView() === item.key"
+              [attr.aria-current]="activeView() === item.key ? 'page' : null"
+              [attr.title]="sidebarCollapsed() ? item.label : null"
+              (click)="setActiveView(item.key)"
+            >
+              <i [class]="item.icon"></i>
+              <span>{{ item.label }}</span>
+            </button>
+          }
+        </section>
       }
     </nav>
 
     <div class="sidebar-card">
       <span>Turno atual</span>
-      <strong>Jantar · 18:00-23:30</strong>
-      <small>Equipe sincronizada localmente</small>
+      <strong>Jantar · 18:00–23:30</strong>
+      <small>Ambiente local sincronizado</small>
     </div>
   </aside>
+
+  @if (navOpen()) {
+    <button type="button" class="sidebar-backdrop" aria-label="Fechar menu" (click)="toggleNav()"></button>
+  }
 
   <section class="hub-main">
     <header class="hub-topbar">
@@ -36,14 +58,13 @@
       </button>
 
       <div class="topbar-title">
-        <span>{{ currentLabel() }}</span>
-        <strong>Operação premium</strong>
+        <strong>{{ currentLabel() }}</strong>
       </div>
 
       <div class="topbar-actions">
         <span class="local-status">
           <i class="pi pi-circle-fill"></i>
-          Online local
+          Ambiente local
         </span>
         <div class="admin-chip">
           <span>AD</span>
@@ -58,55 +79,28 @@
     <section class="content-surface">
       @switch (activeView()) {
         @case ('dashboard') {
-          <app-dashboard-page [snapshot]="dashboard" />
+          <app-dashboard-page />
         }
         @case ('tables') {
-          <app-tables-page [tables]="tables" />
+          <app-tables-page />
         }
         @case ('tabs') {
-          <app-collection-page
-            kicker="Atendimento"
-            title="Comandas"
-            description="Acompanhe comandas abertas, responsáveis e totais em andamento."
-            actionLabel="Abrir comanda"
-            actionIcon="pi pi-plus"
-            sectionEyebrow="Salão"
-            sectionTitle="Comandas ativas"
-            [items]="tabsCollection"
-          />
+          <app-tabs-page />
         }
         @case ('orders') {
-          <app-collection-page
-            kicker="Pedidos"
-            title="Pedidos"
-            description="Pedidos recentes com status, mesa e valor da venda."
-            actionLabel="Novo pedido"
-            actionIcon="pi pi-shopping-cart"
-            sectionEyebrow="Fluxo de venda"
-            sectionTitle="Pedidos do turno"
-            [items]="ordersCollection"
-          />
+          <app-orders-page />
         }
         @case ('kitchen') {
-          <app-kitchen-page [orders]="kitchenOrders" />
+          <app-kitchen-page />
         }
         @case ('products') {
-          <app-products-page [products]="products" />
+          <app-products-page />
         }
         @case ('categories') {
-          <app-collection-page
-            kicker="Cardápio"
-            title="Categorias"
-            description="Organize produtos por grupos de venda e disponibilidade."
-            actionLabel="Nova categoria"
-            actionIcon="pi pi-tags"
-            sectionEyebrow="Estrutura do cardápio"
-            sectionTitle="Categorias cadastradas"
-            [items]="categoriesCollection"
-          />
+          <app-categories-page />
         }
         @case ('cashier') {
-          <app-cashier-page [cashier]="cashier" />
+          <app-cashier-page />
         }
         @case ('reports') {
           <app-collection-page
@@ -118,6 +112,7 @@
             sectionEyebrow="Indicadores"
             sectionTitle="Resumo analítico"
             [items]="reportsCollection"
+            (action)="developmentNotice()"
           />
         }
         @case ('users') {
@@ -130,9 +125,11 @@
             sectionEyebrow="Acessos"
             sectionTitle="Equipe ativa"
             [items]="usersCollection"
+            (action)="developmentNotice()"
           />
         }
       }
     </section>
   </section>
+  <app-feedback-toast />
 </main>

@@ -108,6 +108,17 @@ public class RestaurantOrderService {
             return cancel(id);
         }
 
+        OrderStatus expectedNextStatus = switch (order.getStatus()) {
+            case SENT_TO_KITCHEN -> OrderStatus.PREPARING;
+            case PREPARING -> OrderStatus.READY;
+            case READY -> OrderStatus.DELIVERED;
+            default -> null;
+        };
+
+        if (expectedNextStatus == null || request.status() != expectedNextStatus) {
+            throw new BusinessException("Transição de status do pedido não permitida");
+        }
+
         order.setStatus(request.status());
         return toResponse(order, orderItemRepository.findAllByOrderId(order.getId()));
     }
@@ -116,6 +127,13 @@ public class RestaurantOrderService {
     public RestaurantOrderResponse cancel(Long id) {
         RestaurantOrder order = findEntityById(id);
         ensureOrderTabOpen(order);
+
+        if (order.getStatus() == OrderStatus.DELIVERED) {
+            throw new BusinessException("Pedido entregue não pode ser cancelado");
+        }
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new BusinessException("Pedido já está cancelado");
+        }
 
         order.setStatus(OrderStatus.CANCELLED);
         accountingService.refreshAmounts(order.getTab());

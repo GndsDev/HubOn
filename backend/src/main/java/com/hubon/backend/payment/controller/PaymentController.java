@@ -2,6 +2,7 @@ package com.hubon.backend.payment.controller;
 
 import com.hubon.backend.payment.dto.PaymentRequest;
 import com.hubon.backend.payment.dto.PaymentResponse;
+import com.hubon.backend.payment.dto.PaymentSummaryResponse;
 import com.hubon.backend.payment.service.PaymentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,8 +14,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -30,7 +29,7 @@ public class PaymentController {
     }
 
     @GetMapping("/tab/{tabId}")
-    public List<PaymentResponse> listByTab(@PathVariable Long tabId) {
-        return paymentService.listByTab(tabId);
+    public PaymentSummaryResponse listByTab(@PathVariable Long tabId) {
+        return paymentService.getSummaryByTab(tabId);
     }
 }

@@ -1,79 +1,95 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input } from '@angular/core';
-import { KitchenColumnStatus, KitchenOrder, KitchenPriority } from '../../shared/models/order.model';
+import { Component, inject, OnInit, signal } from '@angular/core';
+import { finalize } from 'rxjs';
+import { FeedbackService } from '../../core/services/feedback.service';
+import { OrderApiService } from '../../core/services/order-api.service';
+import { OrderStatus, RestaurantOrder } from '../../shared/models/order.model';
+import { apiErrorMessage } from '../../shared/util/api-error';
+import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 
 @Component({
   selector: 'app-kitchen-page',
   standalone: true,
-  imports: [CommonModule, PageHeaderComponent, StatusBadgeComponent],
+  imports: [CommonModule, EmptyStateComponent, PageHeaderComponent, StatusBadgeComponent],
   template: `
-    <app-page-header
-      kicker="Produção"
-      title="Cozinha"
-      description="Kanban operacional para acompanhar preparo, prioridade e entrega dos pedidos."
-    >
-      <button type="button" class="ghost-button">
-        <i class="pi pi-volume-up"></i>
-        Modo chamada
-      </button>
+    <app-page-header kicker="Produção" title="Cozinha" description="Kanban real de pedidos recebidos, em preparo e prontos.">
+      <button type="button" class="ghost-button" (click)="feedback.info()"><i class="pi pi-volume-up"></i>Modo chamada</button>
     </app-page-header>
 
-    <section class="kitchen-kanban">
-      @for (column of columns; track column.status) {
-        <article class="kanban-column">
-          <div class="kanban-header">
-            <div>
-              <span>{{ column.label }}</span>
-              <strong>{{ ordersByStatus(column.status).length }}</strong>
+    @if (loading()) {
+      <section class="kitchen-kanban">@for (item of [1,2,3]; track item) { <div class="kanban-column loading-card"></div> }</section>
+    } @else if (error()) {
+      <div class="error-panel"><i class="pi pi-exclamation-triangle"></i><div><strong>Não foi possível carregar</strong><p>{{ error() }}</p></div>
+        <button type="button" class="ghost-button" (click)="load()"><i class="pi pi-refresh"></i>Tentar novamente</button>
+      </div>
+    } @else {
+      <section class="kitchen-kanban">
+        @for (column of columns; track column.status) {
+          <article class="kanban-column">
+            <div class="kanban-header">
+              <div><span>{{ column.label }}</span><strong>{{ ordersByStatus(column.status).length }}</strong></div>
+              <i [class]="column.icon"></i>
             </div>
-            <i [class]="column.icon"></i>
-          </div>
-
-          <div class="kanban-list">
-            @for (order of ordersByStatus(column.status); track order.id) {
-              <article class="kitchen-order-card" [ngClass]="order.priority">
-                <div class="kitchen-order-top">
-                  <strong>{{ order.id }}</strong>
-                  <app-status-badge [label]="priorityLabel(order.priority)" [tone]="priorityTone(order.priority)" />
-                </div>
-                <div class="kitchen-order-meta">
-                  <span><i class="pi pi-table"></i>{{ order.table }}</span>
-                  <span><i class="pi pi-clock"></i>{{ order.elapsed }}</span>
-                </div>
-                <div class="kitchen-items">
-                  @for (item of order.items; track item.name) {
-                    <span>{{ item.quantity }}x {{ item.name }}</span>
-                  }
-                </div>
-                <p>{{ order.notes }}</p>
-              </article>
-            }
-          </div>
-        </article>
-      }
-    </section>
+            <div class="kanban-list">
+              @for (order of ordersByStatus(column.status); track order.id) {
+                <article class="kitchen-order-card" [class.urgent]="elapsedMinutes(order.createdAt) > 25">
+                  <div class="kitchen-order-top">
+                    <strong>#{{ order.id }} · Mesa {{ order.tableNumber }}</strong>
+                    <app-status-badge [label]="elapsed(order.createdAt)" [tone]="elapsedMinutes(order.createdAt) > 25 ? 'danger' : 'info'" />
+                  </div>
+                  <div class="kitchen-items">
+                    @for (item of order.items; track item.id) { <span>{{ item.quantity }}x {{ item.productNameSnapshot }}</span> }
+                  </div>
+                  @if (order.notes) { <p>{{ order.notes }}</p> }
+                  <button type="button" class="primary-button kitchen-action" (click)="advance(order)">
+                    <i [class]="column.actionIcon"></i>{{ column.actionLabel }}
+                  </button>
+                </article>
+              } @empty {
+                <app-empty-state icon="pi pi-check" title="Fila vazia" description="Nenhum pedido nesta etapa." />
+              }
+            </div>
+          </article>
+        }
+      </section>
+    }
   `,
 })
-export class KitchenPageComponent {
-  @Input({ required: true }) orders: KitchenOrder[] = [];
-
-  readonly columns: Array<{ status: KitchenColumnStatus; label: string; icon: string }> = [
-    { status: 'received', label: 'Recebidos', icon: 'pi pi-inbox' },
-    { status: 'preparing', label: 'Preparando', icon: 'pi pi-cog' },
-    { status: 'ready', label: 'Prontos', icon: 'pi pi-check-circle' },
+export class KitchenPageComponent implements OnInit {
+  private readonly api = inject(OrderApiService);
+  readonly feedback = inject(FeedbackService);
+  readonly orders = signal<RestaurantOrder[]>([]);
+  readonly loading = signal(true);
+  readonly error = signal<string | null>(null);
+  readonly columns: Array<{ status: OrderStatus; label: string; icon: string; actionLabel: string; actionIcon: string }> = [
+    { status: 'SENT_TO_KITCHEN', label: 'Recebidos', icon: 'pi pi-inbox', actionLabel: 'Iniciar preparo', actionIcon: 'pi pi-play' },
+    { status: 'PREPARING', label: 'Preparando', icon: 'pi pi-cog', actionLabel: 'Marcar como pronto', actionIcon: 'pi pi-check' },
+    { status: 'READY', label: 'Prontos', icon: 'pi pi-check-circle', actionLabel: 'Marcar como entregue', actionIcon: 'pi pi-send' },
   ];
 
-  ordersByStatus(status: KitchenColumnStatus): KitchenOrder[] {
-    return this.orders.filter((order) => order.status === status);
+  ngOnInit(): void { this.load(); }
+  load(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.api.getAll().pipe(finalize(() => this.loading.set(false))).subscribe({
+      next: (orders) => this.orders.set(orders),
+      error: (error) => this.error.set(apiErrorMessage(error)),
+    });
   }
-
-  priorityLabel(priority: KitchenPriority): string {
-    return { normal: 'Normal', high: 'Alta', urgent: 'Urgente' }[priority];
+  ordersByStatus(status: OrderStatus): RestaurantOrder[] { return this.orders().filter((order) => order.status === status); }
+  advance(order: RestaurantOrder): void {
+    const next: OrderStatus = order.status === 'SENT_TO_KITCHEN'
+      ? 'PREPARING'
+      : order.status === 'PREPARING'
+        ? 'READY'
+        : 'DELIVERED';
+    this.api.updateStatus(order.id, next).subscribe({
+      next: () => { this.feedback.success('Status do pedido atualizado.'); this.load(); },
+      error: (error) => this.feedback.error(apiErrorMessage(error)),
+    });
   }
-
-  priorityTone(priority: KitchenPriority): string {
-    return { normal: 'neutral', high: 'warning', urgent: 'danger' }[priority];
-  }
+  elapsedMinutes(value: string): number { return Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000)); }
+  elapsed(value: string): string { const minutes = this.elapsedMinutes(value); return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h ${minutes % 60}min`; }
 }

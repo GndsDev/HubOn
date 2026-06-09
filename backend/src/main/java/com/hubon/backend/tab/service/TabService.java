@@ -63,6 +63,10 @@ public class TabService {
             throw new BusinessException("Mesa desativada não pode abrir comanda");
         }
 
+        if (table.getStatus() == TableStatus.OCCUPIED) {
+            throw new BusinessException("Mesa ocupada não pode abrir outra comanda");
+        }
+
         if (tabRepository.existsByRestaurantTableIdAndStatus(table.getId(), TabStatus.OPEN)) {
             throw new BusinessException("Mesa já possui uma comanda aberta");
         }

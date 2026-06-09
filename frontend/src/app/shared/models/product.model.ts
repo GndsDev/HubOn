@@ -1,18 +1,21 @@
-export type ProductStatus = 'active' | 'inactive';
-
-export interface ProductView {
+export interface Product {
   id: number;
+  categoryId: number;
+  categoryName: string;
   name: string;
-  category: string;
-  price: string;
-  margin: string;
-  status: ProductStatus;
+  description: string | null;
+  price: number;
+  active: boolean;
+  imageUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface CategoryView {
-  id: number;
+export interface ProductRequest {
+  categoryId: number;
   name: string;
-  description: string;
-  products: number;
-  status: ProductStatus;
+  description: string | null;
+  price: number;
+  active: boolean;
+  imageUrl: string | null;
 }

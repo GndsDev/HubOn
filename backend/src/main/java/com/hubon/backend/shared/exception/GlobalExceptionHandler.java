@@ -1,5 +1,6 @@
 package com.hubon.backend.shared.exception;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.LocalDateTime;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -45,7 +47,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiErrorResponse> handleGeneric() {
+    public ResponseEntity<ApiErrorResponse> handleGeneric(Exception exception) {
+        log.error("Erro não tratado na API", exception);
         return buildResponse("Erro interno do servidor", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
