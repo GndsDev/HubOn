@@ -9,7 +9,7 @@ import { TabApiService } from '../../core/services/tab-api.service';
 import { UserApiService } from '../../core/services/user-api.service';
 import { OrderItemRequest, OrderStatus, RestaurantOrder } from '../../shared/models/order.model';
 import { Product } from '../../shared/models/product.model';
-import { Tab } from '../../shared/models/tab.model';
+import { Tab, TabStatus } from '../../shared/models/tab.model';
 import { User } from '../../shared/models/user.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
@@ -40,7 +40,11 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
           @for (order of orders(); track order.id) {
             <article class="order-card">
               <div class="order-card-head">
-                <div><span>Pedido #{{ order.id }}</span><strong>Mesa {{ order.tableNumber }}</strong></div>
+                <div>
+                  <span>Pedido #{{ order.id }}</span>
+                  <strong>Mesa {{ order.tableNumber }}</strong>
+                  <small>Comanda #{{ order.tabId }} · {{ tabStatusLabel(effectiveTabStatus(order)) }}</small>
+                </div>
                 <app-status-badge [label]="statusLabel(order.status)" [tone]="statusTone(order.status)" />
               </div>
               <div class="order-item-list">
@@ -52,11 +56,17 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
               <div class="order-card-footer">
                 <strong>{{ currency(orderTotal(order)) }}</strong>
                 <div class="action-cluster">
-                  @if (order.status === 'CREATED') {
+                  @if (canSendToKitchen(order)) {
                     <button type="button" class="primary-button compact-button" (click)="send(order)"><i class="pi pi-send"></i>Enviar à cozinha</button>
                   }
-                  @if (order.status !== 'CANCELLED' && order.status !== 'DELIVERED') {
-                    <button type="button" class="danger-button compact-button" (click)="cancel(order)"><i class="pi pi-times"></i>Cancelar</button>
+                  @if (canCancel(order)) {
+                    <button type="button" class="danger-button compact-button" (click)="cancel(order)"><i class="pi pi-times"></i>Cancelar pedido</button>
+                  }
+                  @if (orderStateMessage(order); as message) {
+                    <span class="order-state-note" [class.blocked]="effectiveTabStatus(order) !== 'OPEN'">
+                      <i [class]="orderStateIcon(order)"></i>
+                      {{ message }}
+                    </span>
                   }
                 </div>
               </div>
@@ -184,7 +194,36 @@ export class OrdersPageComponent implements OnInit {
     });
   }
 
+  canSendToKitchen(order: RestaurantOrder): boolean {
+    return order.status === 'CREATED' && this.effectiveTabStatus(order) === 'OPEN';
+  }
+
+  canCancel(order: RestaurantOrder): boolean {
+    return order.status !== 'DELIVERED'
+      && order.status !== 'CANCELLED'
+      && this.effectiveTabStatus(order) !== 'CLOSED';
+  }
+
+  orderStateMessage(order: RestaurantOrder): string | null {
+    if (order.status === 'DELIVERED') return 'Pedido entregue';
+    if (order.status === 'CANCELLED') return 'Pedido cancelado';
+    if (this.effectiveTabStatus(order) === 'CANCELLED') return 'Comanda cancelada: cancele este pedido para regularizar o registro.';
+    if (this.effectiveTabStatus(order) === 'CLOSED') return 'Comanda fechada: nenhuma ação está disponível.';
+    return null;
+  }
+
+  effectiveTabStatus(order: RestaurantOrder): TabStatus {
+    return order.tabStatus ?? 'OPEN';
+  }
+
+  orderStateIcon(order: RestaurantOrder): string {
+    if (order.status === 'DELIVERED') return 'pi pi-check-circle';
+    if (order.status === 'CANCELLED') return 'pi pi-ban';
+    return 'pi pi-exclamation-triangle';
+  }
+
   orderTotal(order: RestaurantOrder): number { return order.items.filter((item) => item.status === 'ACTIVE').reduce((total, item) => total + item.subtotal, 0); }
+  tabStatusLabel(status: TabStatus): string { return { OPEN: 'Aberta', CLOSED: 'Fechada', CANCELLED: 'Cancelada' }[status]; }
   statusLabel(status: OrderStatus): string { return { CREATED: 'Criado', SENT_TO_KITCHEN: 'Recebido', PREPARING: 'Preparando', READY: 'Pronto', DELIVERED: 'Entregue', CANCELLED: 'Cancelado' }[status]; }
   statusTone(status: OrderStatus): string { return { CREATED: 'info', SENT_TO_KITCHEN: 'info', PREPARING: 'warning', READY: 'success', DELIVERED: 'success', CANCELLED: 'danger' }[status]; }
   currency(value: number): string { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }

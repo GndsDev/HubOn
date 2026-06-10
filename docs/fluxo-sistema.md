@@ -10,8 +10,9 @@
 6. O pedido pode ser enviado para a cozinha.
 7. A cozinha evolui o pedido por status: criado, enviado, preparando, pronto e entregue.
 8. O caixa registra pagamentos da comanda.
-9. Quando o pagamento cobre o valor final, a comanda pode ser fechada.
-10. Ao fechar a comanda, a mesa volta para `AVAILABLE`.
+9. Todos os pedidos precisam estar entregues ou cancelados antes de encerrar a comanda.
+10. Quando o pagamento cobre o valor final, a comanda pode ser fechada.
+11. Ao fechar a comanda, a mesa volta para `AVAILABLE`.
 
 ## Status principais
 

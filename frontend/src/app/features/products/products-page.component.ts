@@ -75,8 +75,24 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
               <b>{{ currency(product.price) }}</b>
               <app-status-badge [label]="product.active ? 'Ativo' : 'Inativo'" [tone]="product.active ? 'success' : 'neutral'" />
               <div class="row-actions">
-                <button type="button" title="Editar produto" (click)="openEdit(product)"><i class="pi pi-pencil"></i></button>
-                <button type="button" [title]="product.active ? 'Desativar produto' : 'Ativar produto'" (click)="toggle(product)">
+                <button
+                  type="button"
+                  class="icon-action-button"
+                  title="Editar produto"
+                  [attr.aria-label]="'Editar produto ' + product.name"
+                  (click)="openEdit(product)"
+                >
+                  <i class="pi pi-pencil"></i>
+                </button>
+                <button
+                  type="button"
+                  class="icon-action-button"
+                  [class.danger]="product.active"
+                  [class.success]="!product.active"
+                  [title]="product.active ? 'Desativar produto' : 'Ativar produto'"
+                  [attr.aria-label]="(product.active ? 'Desativar produto ' : 'Ativar produto ') + product.name"
+                  (click)="toggle(product)"
+                >
                   <i [class]="product.active ? 'pi pi-ban' : 'pi pi-check'"></i>
                 </button>
               </div>

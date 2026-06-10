@@ -69,7 +69,7 @@ public class RestaurantTableService {
                 request.status() == null ? table.getStatus() : request.status(),
                 request.active() == null ? table.getActive() : request.active()
         );
-        validateStatusChangeWithOpenTab(id, requestedStatus);
+        validateStatusChange(table, requestedStatus);
 
         table.setNumber(request.number());
         table.setName(request.name());
@@ -82,7 +82,7 @@ public class RestaurantTableService {
     @Transactional
     public RestaurantTableResponse updateStatus(Long id, TableStatusRequest request) {
         RestaurantTable table = findEntityById(id);
-        validateStatusChangeWithOpenTab(id, request.status());
+        validateStatusChange(table, request.status());
 
         table.setStatus(request.status());
         table.setActive(request.status() != TableStatus.DISABLED);
@@ -96,8 +96,12 @@ public class RestaurantTableService {
                 : status;
     }
 
-    private void validateStatusChangeWithOpenTab(Long tableId, TableStatus requestedStatus) {
-        boolean hasOpenTab = tabRepository.existsByRestaurantTableIdAndStatus(tableId, TabStatus.OPEN);
+    private void validateStatusChange(RestaurantTable table, TableStatus requestedStatus) {
+        if (table.getStatus() == TableStatus.OCCUPIED && requestedStatus == TableStatus.DISABLED) {
+            throw new BusinessException("Mesa ocupada não pode ser desativada");
+        }
+
+        boolean hasOpenTab = tabRepository.existsByRestaurantTableIdAndStatus(table.getId(), TabStatus.OPEN);
         if (hasOpenTab && requestedStatus != TableStatus.OCCUPIED) {
             throw new BusinessException("Mesa com comanda aberta deve permanecer ocupada");
         }

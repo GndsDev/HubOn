@@ -1,5 +1,7 @@
 package com.hubon.backend.tab.service;
 
+import com.hubon.backend.order.domain.OrderStatus;
+import com.hubon.backend.order.repository.RestaurantOrderRepository;
 import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.shared.exception.ResourceNotFoundException;
 import com.hubon.backend.tab.domain.Tab;
@@ -27,6 +29,7 @@ public class TabService {
     private final TabRepository tabRepository;
     private final RestaurantTableRepository tableRepository;
     private final UserRepository userRepository;
+    private final RestaurantOrderRepository orderRepository;
     private final TabAccountingService accountingService;
 
     @Transactional(readOnly = true)
@@ -94,6 +97,7 @@ public class TabService {
     public TabResponse close(Long id) {
         Tab tab = findEntityById(id);
         ensureOpen(tab);
+        ensureNoPendingOrders(tab);
         accountingService.refreshAmounts(tab);
 
         BigDecimal paidAmount = accountingService.paidAmount(tab.getId());
@@ -112,6 +116,7 @@ public class TabService {
     public TabResponse cancel(Long id) {
         Tab tab = findEntityById(id);
         ensureOpen(tab);
+        ensureNoPendingOrders(tab);
 
         tab.setStatus(TabStatus.CANCELLED);
         tab.setClosedAt(LocalDateTime.now());
@@ -152,6 +157,16 @@ public class TabService {
     private void ensureOpen(Tab tab) {
         if (tab.getStatus() != TabStatus.OPEN) {
             throw new BusinessException("Comanda fechada ou cancelada não pode ser alterada");
+        }
+    }
+
+    private void ensureNoPendingOrders(Tab tab) {
+        boolean hasPendingOrders = orderRepository.existsByTabIdAndStatusNotIn(
+                tab.getId(),
+                List.of(OrderStatus.DELIVERED, OrderStatus.CANCELLED)
+        );
+        if (hasPendingOrders) {
+            throw new BusinessException("Finalize ou cancele os pedidos pendentes antes de encerrar a comanda");
         }
     }
 

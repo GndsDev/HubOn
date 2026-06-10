@@ -77,24 +77,23 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                 <div class="category-actions">
                   <button
                     type="button"
-                    class="ghost-button"
+                    class="icon-action-button"
                     title="Editar categoria"
                     [attr.aria-label]="'Editar categoria ' + category.name"
                     (click)="openEdit(category)"
                   >
                     <i class="pi pi-pencil"></i>
-                    Editar
                   </button>
                   <button
                     type="button"
-                    class="category-status-action"
-                    [class.activate]="!category.active"
+                    class="icon-action-button"
+                    [class.danger]="category.active"
+                    [class.success]="!category.active"
                     [title]="category.active ? 'Desativar categoria' : 'Ativar categoria'"
                     [attr.aria-label]="(category.active ? 'Desativar categoria ' : 'Ativar categoria ') + category.name"
                     (click)="toggle(category)"
                   >
                     <i [class]="category.active ? 'pi pi-ban' : 'pi pi-check'"></i>
-                    {{ category.active ? 'Desativar' : 'Ativar' }}
                   </button>
                 </div>
               </article>

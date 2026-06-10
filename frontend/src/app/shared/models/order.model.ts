@@ -1,3 +1,5 @@
+import { TabStatus } from './tab.model';
+
 export type OrderStatus =
   | 'CREATED'
   | 'SENT_TO_KITCHEN'
@@ -21,6 +23,7 @@ export interface OrderItem {
 export interface RestaurantOrder {
   id: number;
   tabId: number;
+  tabStatus: TabStatus;
   tableId: number;
   tableNumber: number;
   status: OrderStatus;

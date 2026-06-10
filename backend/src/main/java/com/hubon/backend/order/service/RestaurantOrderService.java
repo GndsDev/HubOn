@@ -126,13 +126,15 @@ public class RestaurantOrderService {
     @Transactional
     public RestaurantOrderResponse cancel(Long id) {
         RestaurantOrder order = findEntityById(id);
-        ensureOrderTabOpen(order);
 
         if (order.getStatus() == OrderStatus.DELIVERED) {
             throw new BusinessException("Pedido entregue não pode ser cancelado");
         }
         if (order.getStatus() == OrderStatus.CANCELLED) {
             throw new BusinessException("Pedido já está cancelado");
+        }
+        if (order.getTab().getStatus() == TabStatus.CLOSED) {
+            throw new BusinessException("Pedido de comanda fechada não pode ser cancelado");
         }
 
         order.setStatus(OrderStatus.CANCELLED);
@@ -183,6 +185,7 @@ public class RestaurantOrderService {
         return new RestaurantOrderResponse(
                 order.getId(),
                 order.getTab().getId(),
+                order.getTab().getStatus(),
                 order.getTab().getRestaurantTable().getId(),
                 order.getTab().getRestaurantTable().getNumber(),
                 order.getStatus(),

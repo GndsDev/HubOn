@@ -34,7 +34,11 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
             </div>
             <div class="kanban-list">
               @for (order of ordersByStatus(column.status); track order.id) {
-                <article class="kitchen-order-card" [class.urgent]="elapsedMinutes(order.createdAt) > 25">
+                <article
+                  class="kitchen-order-card"
+                  [class.urgent]="elapsedMinutes(order.createdAt) > 25"
+                  [class.blocked]="effectiveTabStatus(order) !== 'OPEN'"
+                >
                   <div class="kitchen-order-top">
                     <strong>#{{ order.id }} · Mesa {{ order.tableNumber }}</strong>
                     <app-status-badge [label]="elapsed(order.createdAt)" [tone]="elapsedMinutes(order.createdAt) > 25 ? 'danger' : 'info'" />
@@ -43,7 +47,19 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                     @for (item of order.items; track item.id) { <span>{{ item.quantity }}x {{ item.productNameSnapshot }}</span> }
                   </div>
                   @if (order.notes) { <p>{{ order.notes }}</p> }
-                  <button type="button" class="primary-button kitchen-action" (click)="advance(order)">
+                  @if (effectiveTabStatus(order) !== 'OPEN') {
+                    <p class="kitchen-blocked-note">
+                      <i class="pi pi-exclamation-triangle"></i>
+                      Comanda {{ effectiveTabStatus(order) === 'CANCELLED' ? 'cancelada' : 'fechada' }}
+                    </p>
+                  }
+                  <button
+                    type="button"
+                    class="primary-button kitchen-action"
+                    [disabled]="!canAdvance(order)"
+                    [title]="advanceTitle(order)"
+                    (click)="advance(order)"
+                  >
                     <i [class]="column.actionIcon"></i>{{ column.actionLabel }}
                   </button>
                 </article>
@@ -79,16 +95,37 @@ export class KitchenPageComponent implements OnInit {
     });
   }
   ordersByStatus(status: OrderStatus): RestaurantOrder[] { return this.orders().filter((order) => order.status === status); }
+  nextOrderStatus(status: OrderStatus): OrderStatus | null {
+    return {
+      CREATED: 'SENT_TO_KITCHEN',
+      SENT_TO_KITCHEN: 'PREPARING',
+      PREPARING: 'READY',
+      READY: 'DELIVERED',
+      DELIVERED: null,
+      CANCELLED: null,
+    }[status] as OrderStatus | null;
+  }
+  canAdvance(order: RestaurantOrder): boolean {
+    return this.effectiveTabStatus(order) === 'OPEN' && this.nextOrderStatus(order.status) !== null;
+  }
+  advanceTitle(order: RestaurantOrder): string {
+    if (this.effectiveTabStatus(order) === 'CANCELLED') return 'Comanda cancelada';
+    if (this.effectiveTabStatus(order) === 'CLOSED') return 'Comanda fechada';
+    return this.nextOrderStatus(order.status) ? 'Avançar pedido' : 'Pedido finalizado';
+  }
   advance(order: RestaurantOrder): void {
-    const next: OrderStatus = order.status === 'SENT_TO_KITCHEN'
-      ? 'PREPARING'
-      : order.status === 'PREPARING'
-        ? 'READY'
-        : 'DELIVERED';
+    const next = this.nextOrderStatus(order.status);
+    if (!next || this.effectiveTabStatus(order) !== 'OPEN') {
+      this.feedback.info(this.advanceTitle(order));
+      return;
+    }
     this.api.updateStatus(order.id, next).subscribe({
       next: () => { this.feedback.success('Status do pedido atualizado.'); this.load(); },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
+  }
+  effectiveTabStatus(order: RestaurantOrder): 'OPEN' | 'CLOSED' | 'CANCELLED' {
+    return order.tabStatus ?? 'OPEN';
   }
   elapsedMinutes(value: string): number { return Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000)); }
   elapsed(value: string): string { const minutes = this.elapsedMinutes(value); return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h ${minutes % 60}min`; }

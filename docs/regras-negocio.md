@@ -29,6 +29,7 @@
 - Somente mesa livre e ativa pode abrir comanda.
 - Ao abrir, a mesa muda para `OCCUPIED`.
 - Comanda fechada ou cancelada não recebe pedidos nem pagamentos.
+- Uma comanda não pode ser fechada ou cancelada enquanto possuir pedidos pendentes.
 - Cancelar uma comanda devolve a mesa para `AVAILABLE`.
 - Fechar exige saldo restante igual a zero.
 - Ao fechar, a mesa volta para `AVAILABLE`.
@@ -41,6 +42,8 @@
   `SENT_TO_KITCHEN` → `PREPARING` → `READY` → `DELIVERED`.
 - Transições fora dessa sequência são rejeitadas.
 - Pedido entregue não pode ser cancelado.
+- Um pedido pendente ligado a uma comanda cancelada pode apenas ser cancelado, permitindo regularizar dados antigos sem avançar a produção.
+- Pedido ligado a uma comanda fechada não pode ser alterado.
 - Pedido cancelado não entra no total da comanda.
 - Um pedido possui um ou mais itens.
 

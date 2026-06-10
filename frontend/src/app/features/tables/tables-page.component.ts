@@ -65,30 +65,31 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
                 (click)="selectTable(table)"
               >
                 <i [class]="tableActionIcon(table)"></i>
-                {{ tableAction(table) }}
+                <span>{{ tableAction(table) }}</span>
               </button>
-              <button
-                type="button"
-                class="table-edit-action"
-                title="Editar mesa"
-                [attr.aria-label]="'Editar mesa ' + table.number"
-                (click)="openEdit(table)"
-              >
-                <i class="pi pi-pencil"></i>
-                <span>Editar</span>
-              </button>
-              <button
-                type="button"
-                class="table-status-action"
-                [class.activate]="effectiveStatus(table) === 'DISABLED'"
-                [disabled]="effectiveStatus(table) === 'OCCUPIED'"
-                [title]="tableStatusActionTitle(table)"
-                [attr.aria-label]="tableStatusAction(table) + ' mesa ' + table.number"
-                (click)="toggleTableStatus(table)"
-              >
-                <i [class]="effectiveStatus(table) === 'DISABLED' ? 'pi pi-check' : 'pi pi-ban'"></i>
-                <span>{{ tableStatusAction(table) }}</span>
-              </button>
+              <div class="table-icon-actions">
+                <button
+                  type="button"
+                  class="icon-action-button"
+                  title="Editar mesa"
+                  [attr.aria-label]="'Editar mesa ' + table.number"
+                  (click)="openEdit(table)"
+                >
+                  <i class="pi pi-pencil"></i>
+                </button>
+                <button
+                  type="button"
+                  class="icon-action-button"
+                  [class.danger]="effectiveStatus(table) !== 'DISABLED'"
+                  [class.success]="effectiveStatus(table) === 'DISABLED'"
+                  [disabled]="effectiveStatus(table) === 'OCCUPIED'"
+                  [title]="tableStatusActionTitle(table)"
+                  [attr.aria-label]="tableStatusAction(table) + ' mesa ' + table.number"
+                  (click)="toggleTableStatus(table)"
+                >
+                  <i [class]="effectiveStatus(table) === 'DISABLED' ? 'pi pi-check' : 'pi pi-ban'"></i>
+                </button>
+              </div>
             </div>
           </article>
         }
