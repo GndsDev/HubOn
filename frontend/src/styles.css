@@ -1,9 +1,68 @@
 @import "tailwindcss";
 @import "primeicons/primeicons.css";
 
+:root,
+:root[data-theme="dark"] {
+  --color-bg: #030712;
+  --color-bg-soft: #07111f;
+  --color-bg-end: #0b1020;
+  --color-sidebar: rgba(2, 6, 23, 0.82);
+  --color-topbar: rgba(3, 7, 18, 0.64);
+  --color-surface: rgba(15, 23, 42, 0.66);
+  --color-surface-soft: rgba(2, 6, 23, 0.38);
+  --color-surface-strong: rgba(15, 23, 42, 0.9);
+  --color-surface-solid: #0b1222;
+  --color-input: rgba(2, 6, 23, 0.58);
+  --color-border: rgba(148, 163, 184, 0.16);
+  --color-border-soft: rgba(148, 163, 184, 0.11);
+  --color-text: #eef2ff;
+  --color-text-strong: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-text-soft: #64748b;
+  --color-primary: #2563eb;
+  --color-secondary: #7c3aed;
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-overlay: rgba(2, 6, 23, 0.78);
+  --glow-blue: rgba(37, 99, 235, 0.28);
+  --glow-purple: rgba(124, 58, 237, 0.22);
+  --shadow-card: 0 22px 70px rgba(0, 0, 0, 0.28);
+  --shadow-modal: 0 32px 100px rgba(0, 0, 0, 0.58);
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --color-bg: #f8fafc;
+  --color-bg-soft: #eef2ff;
+  --color-bg-end: #f1f5f9;
+  --color-sidebar: rgba(248, 250, 252, 0.94);
+  --color-topbar: rgba(255, 255, 255, 0.84);
+  --color-surface: rgba(255, 255, 255, 0.86);
+  --color-surface-soft: rgba(255, 255, 255, 0.72);
+  --color-surface-strong: #ffffff;
+  --color-surface-solid: #ffffff;
+  --color-input: rgba(255, 255, 255, 0.94);
+  --color-border: rgba(15, 23, 42, 0.13);
+  --color-border-soft: rgba(15, 23, 42, 0.09);
+  --color-text: #0f172a;
+  --color-text-strong: #020617;
+  --color-text-muted: #475569;
+  --color-text-soft: #64748b;
+  --color-primary: #2563eb;
+  --color-secondary: #7c3aed;
+  --color-success: #16a34a;
+  --color-danger: #dc2626;
+  --color-overlay: rgba(15, 23, 42, 0.42);
+  --glow-blue: rgba(37, 99, 235, 0.12);
+  --glow-purple: rgba(124, 58, 237, 0.1);
+  --shadow-card: 0 18px 50px rgba(15, 23, 42, 0.1);
+  --shadow-modal: 0 28px 80px rgba(15, 23, 42, 0.2);
+  color-scheme: light;
+}
+
 :root {
-  color: #eef2ff;
-  background: #030712;
+  color: var(--color-text);
+  background: var(--color-bg);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -26,10 +85,12 @@ body {
   min-height: 100vh;
   margin: 0;
   overflow-x: hidden;
+  color: var(--color-text);
   background:
-    radial-gradient(circle at 8% 0%, rgba(37, 99, 235, 0.28), transparent 30rem),
-    radial-gradient(circle at 76% 8%, rgba(124, 58, 237, 0.22), transparent 32rem),
-    linear-gradient(135deg, #030712 0%, #07111f 48%, #0b1020 100%);
+    radial-gradient(circle at 8% 0%, var(--glow-blue), transparent 30rem),
+    radial-gradient(circle at 76% 8%, var(--glow-purple), transparent 32rem),
+    linear-gradient(135deg, var(--color-bg) 0%, var(--color-bg-soft) 48%, var(--color-bg-end) 100%);
+  transition: color 180ms ease, background-color 180ms ease;
 }
 
 button,
@@ -70,8 +131,8 @@ a {
   grid-template-rows: auto 1fr auto;
   gap: 1rem;
   overflow: hidden;
-  border-right: 1px solid rgba(148, 163, 184, 0.14);
-  background: rgba(2, 6, 23, 0.82);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-sidebar);
   padding: 1.2rem;
   backdrop-filter: blur(24px);
   transition: padding 180ms ease;
@@ -334,12 +395,12 @@ a {
 .restaurant-table-card,
 .kanban-column,
 .kitchen-order-card {
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 42%),
-    rgba(15, 23, 42, 0.66);
-  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+    var(--color-surface);
+  box-shadow: var(--shadow-card);
   backdrop-filter: blur(18px);
 }
 
@@ -370,8 +431,8 @@ a {
   justify-content: space-between;
   gap: 1rem;
   min-height: 4.8rem;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(3, 7, 18, 0.64);
+  border-bottom: 1px solid var(--color-border-soft);
+  background: var(--color-topbar);
   padding: 0 1.5rem;
   backdrop-filter: blur(22px);
 }
@@ -408,6 +469,35 @@ a {
 .local-status i {
   color: #22c55e;
   font-size: 0.55rem;
+}
+
+.theme-toggle-button {
+  display: inline-grid;
+  width: 2.45rem;
+  height: 2.45rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.theme-toggle-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(96, 165, 250, 0.45);
+  background: var(--color-surface-strong);
+}
+
+.theme-toggle-button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.2);
+  outline-offset: 2px;
 }
 
 .admin-chip {
@@ -2121,6 +2211,388 @@ app-categories-page {
   background: transparent;
   color: #94a3b8;
   cursor: pointer;
+}
+
+:root[data-theme="light"] .hub-sidebar {
+  box-shadow: 14px 0 44px rgba(15, 23, 42, 0.06);
+}
+
+:root[data-theme="light"] .sidebar-card,
+:root[data-theme="light"] .premium-card,
+:root[data-theme="light"] .restaurant-table-card,
+:root[data-theme="light"] .kanban-column,
+:root[data-theme="light"] .kitchen-order-card {
+  background:
+    linear-gradient(145deg, rgba(37, 99, 235, 0.055), transparent 44%),
+    var(--color-surface);
+}
+
+:root[data-theme="light"] .brand-row strong,
+:root[data-theme="light"] .sidebar-card strong,
+:root[data-theme="light"] .topbar-title strong,
+:root[data-theme="light"] .admin-chip strong,
+:root[data-theme="light"] .page-header h1,
+:root[data-theme="light"] .section-card-header h2,
+:root[data-theme="light"] .stat-copy strong,
+:root[data-theme="light"] .activity-order strong,
+:root[data-theme="light"] .activity-amount,
+:root[data-theme="light"] .activity-row strong,
+:root[data-theme="light"] .seller-row strong,
+:root[data-theme="light"] .seller-info strong,
+:root[data-theme="light"] .collection-main strong,
+:root[data-theme="light"] .cash-summary-list strong,
+:root[data-theme="light"] .table-card-top strong,
+:root[data-theme="light"] .category-content strong,
+:root[data-theme="light"] .kanban-header strong,
+:root[data-theme="light"] .kitchen-order-top strong,
+:root[data-theme="light"] .product-row strong,
+:root[data-theme="light"] .product-row b,
+:root[data-theme="light"] .cashier-summary strong,
+:root[data-theme="light"] .payment-total-card strong,
+:root[data-theme="light"] .collection-side b,
+:root[data-theme="light"] .user-identity strong,
+:root[data-theme="light"] .empty-panel strong,
+:root[data-theme="light"] .modal-header h2,
+:root[data-theme="light"] .form-section-title span,
+:root[data-theme="light"] .payment-history h3,
+:root[data-theme="light"] .detail-grid strong,
+:root[data-theme="light"] .order-card-head strong,
+:root[data-theme="light"] .order-card-footer > strong,
+:root[data-theme="light"] .payment-history strong {
+  color: var(--color-text-strong);
+}
+
+:root[data-theme="light"] .brand-row span,
+:root[data-theme="light"] .sidebar-card span,
+:root[data-theme="light"] .sidebar-card small,
+:root[data-theme="light"] .admin-chip small,
+:root[data-theme="light"] .page-kicker,
+:root[data-theme="light"] .page-header p,
+:root[data-theme="light"] .section-card-header span,
+:root[data-theme="light"] .stat-copy span,
+:root[data-theme="light"] .stat-copy p,
+:root[data-theme="light"] .activity-order span,
+:root[data-theme="light"] .activity-time,
+:root[data-theme="light"] .seller-info small,
+:root[data-theme="light"] .table-card-top span,
+:root[data-theme="light"] .table-card-body small,
+:root[data-theme="light"] .category-content p,
+:root[data-theme="light"] .kanban-header span,
+:root[data-theme="light"] .product-name small,
+:root[data-theme="light"] .collection-main span,
+:root[data-theme="light"] .collection-main small,
+:root[data-theme="light"] .user-identity span,
+:root[data-theme="light"] .user-card-meta,
+:root[data-theme="light"] .empty-panel,
+:root[data-theme="light"] .modal-header span,
+:root[data-theme="light"] .form-section-title small,
+:root[data-theme="light"] .field > span,
+:root[data-theme="light"] .detail-grid span,
+:root[data-theme="light"] .payment-history p,
+:root[data-theme="light"] .order-card-head span,
+:root[data-theme="light"] .order-notes {
+  color: var(--color-text-muted);
+}
+
+:root[data-theme="light"] .nav-group-title,
+:root[data-theme="light"] .activity-time small,
+:root[data-theme="light"] .seller-metrics small,
+:root[data-theme="light"] .category-content small,
+:root[data-theme="light"] .category-content .category-description-empty,
+:root[data-theme="light"] .order-card-head small {
+  color: var(--color-text-soft);
+}
+
+:root[data-theme="light"] .side-nav-item {
+  color: #334155;
+}
+
+:root[data-theme="light"] .side-nav-item i {
+  color: #2563eb;
+}
+
+:root[data-theme="light"] .side-nav-item:hover,
+:root[data-theme="light"] .side-nav-item.active {
+  border-color: rgba(37, 99, 235, 0.2);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(124, 58, 237, 0.08));
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .sidebar-toggle,
+:root[data-theme="light"] .admin-chip,
+:root[data-theme="light"] .ghost-button,
+:root[data-theme="light"] .icon-button,
+:root[data-theme="light"] .icon-action-button,
+:root[data-theme="light"] .segmented-control button,
+:root[data-theme="light"] .row-actions button,
+:root[data-theme="light"] .mobile-menu-button {
+  border-color: var(--color-border);
+  background: rgba(255, 255, 255, 0.82);
+  color: #1e293b;
+}
+
+:root[data-theme="light"] .sidebar-toggle:hover,
+:root[data-theme="light"] .icon-button:hover,
+:root[data-theme="light"] .icon-action-button:hover:not(:disabled),
+:root[data-theme="light"] .ghost-button:hover {
+  background: #ffffff;
+  color: #020617;
+}
+
+:root[data-theme="light"] .local-status {
+  border-color: rgba(22, 163, 74, 0.22);
+  background: rgba(220, 252, 231, 0.8);
+  color: #166534;
+}
+
+:root[data-theme="light"] .segmented-control {
+  border-color: var(--color-border);
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+:root[data-theme="light"] .segmented-control button.active {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+:root[data-theme="light"] .segmented-control button span {
+  background: rgba(71, 85, 105, 0.1);
+  color: #475569;
+}
+
+:root[data-theme="light"] .segmented-control button.active span {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+:root[data-theme="light"] .activity-row,
+:root[data-theme="light"] .seller-row,
+:root[data-theme="light"] .collection-card,
+:root[data-theme="light"] .category-card,
+:root[data-theme="light"] .product-row,
+:root[data-theme="light"] .user-card,
+:root[data-theme="light"] .order-card,
+:root[data-theme="light"] .cash-summary-list article,
+:root[data-theme="light"] .cashier-summary div,
+:root[data-theme="light"] .detail-grid > div,
+:root[data-theme="light"] .order-form-row,
+:root[data-theme="light"] .payment-history div {
+  border-color: var(--color-border-soft);
+  background: var(--color-surface-soft);
+}
+
+:root[data-theme="light"] .restaurant-table-card.occupied {
+  background:
+    linear-gradient(135deg, rgba(124, 58, 237, 0.1), transparent 48%),
+    var(--color-surface);
+}
+
+:root[data-theme="light"] .restaurant-table-card.reserved {
+  background:
+    linear-gradient(135deg, rgba(14, 165, 233, 0.09), transparent 48%),
+    var(--color-surface);
+}
+
+:root[data-theme="light"] .table-card-body div,
+:root[data-theme="light"] .order-item-list > div {
+  background: rgba(241, 245, 249, 0.82);
+}
+
+:root[data-theme="light"] .table-card-body b {
+  color: #1e3a8a;
+}
+
+:root[data-theme="light"] .order-item-list > div,
+:root[data-theme="light"] .payment-history div {
+  color: #334155;
+}
+
+:root[data-theme="light"] .order-item-list b {
+  color: #1d4ed8;
+}
+
+:root[data-theme="light"] .table-primary-action {
+  border-color: rgba(37, 99, 235, 0.24);
+  background: rgba(219, 234, 254, 0.72);
+  color: #1d4ed8;
+}
+
+:root[data-theme="light"] .table-primary-action:hover {
+  border-color: rgba(37, 99, 235, 0.44);
+  background: #dbeafe;
+}
+
+:root[data-theme="light"] .table-primary-action:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+:root[data-theme="light"] .icon-action-button.danger {
+  color: #dc2626;
+}
+
+:root[data-theme="light"] .icon-action-button.success {
+  color: #15803d;
+}
+
+:root[data-theme="light"] .status-chip {
+  border-color: rgba(71, 85, 105, 0.16);
+  background: #e2e8f0;
+  color: #334155;
+}
+
+:root[data-theme="light"] .status-chip.success {
+  border-color: rgba(22, 163, 74, 0.2);
+  background: #dcfce7;
+  color: #166534;
+}
+
+:root[data-theme="light"] .status-chip.info {
+  border-color: rgba(2, 132, 199, 0.2);
+  background: #e0f2fe;
+  color: #075985;
+}
+
+:root[data-theme="light"] .status-chip.warning {
+  border-color: rgba(217, 119, 6, 0.22);
+  background: #fef3c7;
+  color: #92400e;
+}
+
+:root[data-theme="light"] .status-chip.danger {
+  border-color: rgba(220, 38, 38, 0.2);
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+:root[data-theme="light"] .stat-icon,
+:root[data-theme="light"] .category-icon,
+:root[data-theme="light"] .collection-icon,
+:root[data-theme="light"] .user-avatar,
+:root[data-theme="light"] .seller-rank {
+  background: rgba(37, 99, 235, 0.11);
+  color: #1d4ed8;
+}
+
+:root[data-theme="light"] .stat-card small {
+  border-color: rgba(37, 99, 235, 0.16);
+  background: rgba(219, 234, 254, 0.72);
+  color: #1d4ed8;
+}
+
+:root[data-theme="light"] .seller-metrics strong {
+  color: #0369a1;
+}
+
+:root[data-theme="light"] .progress-track {
+  background: #e2e8f0;
+}
+
+:root[data-theme="light"] .kitchen-items span {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+:root[data-theme="light"] .kitchen-order-card.blocked {
+  background: rgba(255, 251, 235, 0.92);
+}
+
+:root[data-theme="light"] .kitchen-blocked-note,
+:root[data-theme="light"] .order-state-note.blocked {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+:root[data-theme="light"] .order-state-note {
+  background: #dcfce7;
+  color: #166534;
+}
+
+:root[data-theme="light"] .search-box {
+  border-color: var(--color-border);
+  background: var(--color-input);
+  color: var(--color-text-muted);
+}
+
+:root[data-theme="light"] .search-box input,
+:root[data-theme="light"] .field input,
+:root[data-theme="light"] .field select,
+:root[data-theme="light"] .field textarea {
+  border-color: var(--color-border);
+  background: var(--color-input);
+  color: var(--color-text-strong);
+}
+
+:root[data-theme="light"] .search-box input::placeholder {
+  color: #94a3b8;
+}
+
+:root[data-theme="light"] .field select option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .toggle-field {
+  color: #1e293b;
+}
+
+:root[data-theme="light"] .payment-method-grid button {
+  border-color: var(--color-border);
+  background: rgba(255, 255, 255, 0.76);
+  color: #334155;
+}
+
+:root[data-theme="light"] .payment-method-grid button.selected,
+:root[data-theme="light"] .payment-total-card .remaining {
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.92), rgba(237, 233, 254, 0.86));
+}
+
+:root[data-theme="light"] .payment-total-card .remaining strong {
+  color: #1d4ed8;
+}
+
+:root[data-theme="light"] .modal-backdrop {
+  background: var(--color-overlay);
+}
+
+:root[data-theme="light"] .modal-panel {
+  border-color: var(--color-border);
+  background:
+    linear-gradient(145deg, rgba(37, 99, 235, 0.06), transparent 40%),
+    var(--color-surface-solid);
+  box-shadow: var(--shadow-modal);
+}
+
+:root[data-theme="light"] .empty-panel {
+  border-color: rgba(71, 85, 105, 0.22);
+  color: var(--color-text-muted);
+}
+
+:root[data-theme="light"] .error-panel {
+  border-color: rgba(220, 38, 38, 0.2);
+  background: rgba(254, 242, 242, 0.9);
+}
+
+:root[data-theme="light"] .error-panel strong {
+  color: #991b1b;
+}
+
+:root[data-theme="light"] .error-panel p {
+  color: #475569;
+}
+
+:root[data-theme="light"] .loading-row,
+:root[data-theme="light"] .loading-card {
+  border-color: var(--color-border-soft);
+  background: rgba(226, 232, 240, 0.68);
+}
+
+:root[data-theme="light"] .feedback-toast {
+  border-color: var(--color-border);
+  background: rgba(255, 255, 255, 0.96);
+  color: #1e293b;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
 }
 
 @media (max-width: 1180px) {

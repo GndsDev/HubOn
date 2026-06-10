@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, startWith } from 'rxjs';
+import { ThemeService } from './core/services/theme.service';
 import { FeedbackToastComponent } from './shared/components/feedback-toast/feedback-toast.component';
 
 interface NavItem {
@@ -28,9 +29,11 @@ interface NavGroup {
 })
 export class App {
   private readonly router = inject(Router);
+  private readonly themeService = inject(ThemeService);
   readonly navOpen = signal(false);
   readonly sidebarCollapsed = signal(false);
   readonly currentLabel = signal('Dashboard');
+  readonly theme = this.themeService.theme;
 
   readonly navGroups: NavGroup[] = [
     {
@@ -83,6 +86,10 @@ export class App {
 
   toggleSidebar(): void {
     this.sidebarCollapsed.update((isCollapsed) => !isCollapsed);
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
   }
 
   closeNav(): void {

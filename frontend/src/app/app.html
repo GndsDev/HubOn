@@ -67,6 +67,15 @@
           <i class="pi pi-circle-fill"></i>
           Ambiente local
         </span>
+        <button
+          type="button"
+          class="theme-toggle-button"
+          (click)="toggleTheme()"
+          [attr.aria-label]="theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'"
+          [attr.title]="theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'"
+        >
+          <i [class]="theme() === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"></i>
+        </button>
         <div class="admin-chip">
           <span>AD</span>
           <div>

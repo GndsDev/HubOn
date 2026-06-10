@@ -6,6 +6,17 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script>
+    try {
+      const storedTheme = localStorage.getItem('hubon-theme');
+      document.documentElement.setAttribute(
+        'data-theme',
+        storedTheme === 'light' || storedTheme === 'dark' ? storedTheme : 'dark',
+      );
+    } catch {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  </script>
 </head>
 <body>
   <app-root></app-root>
