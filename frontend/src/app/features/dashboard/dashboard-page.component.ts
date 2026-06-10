@@ -41,9 +41,13 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
           <div class="activity-list">
             @for (order of data.recentOrders; track order.id) {
               <article class="activity-row">
-                <div><strong>#{{ order.id }} · Mesa {{ order.tableNumber }}</strong><span>{{ dateTime(order.createdAt) }}</span></div>
+                <div class="activity-order">
+                  <strong>Pedido #{{ order.id }}</strong>
+                  <span>Mesa {{ order.tableNumber }}</span>
+                </div>
+                <span class="activity-time">{{ dateTime(order.createdAt) }}</span>
                 <app-status-badge [label]="orderStatus(order.status)" [tone]="orderTone(order.status)" />
-                <b>{{ currency(order.amount) }}</b>
+                <strong class="activity-amount">{{ currency(order.amount) }}</strong>
               </article>
             } @empty { <app-empty-state icon="pi pi-shopping-cart" title="Sem pedidos recentes" description="Os novos pedidos aparecerão aqui." /> }
           </div>
@@ -52,7 +56,25 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
         <app-section-card eyebrow="Cardápio" title="Produtos mais vendidos">
           <div class="seller-list">
             @for (product of data.bestSellingProducts; track product.name; let index = $index) {
-              <article class="seller-row"><span>{{ index + 1 }}</span><div><strong>{{ product.name }}</strong><small>{{ product.category }}</small></div><b>{{ product.quantity }} un.</b><em>{{ currency(product.revenue) }}</em></article>
+              <article class="seller-row">
+                <span class="seller-rank">{{ index + 1 }}</span>
+
+                <div class="seller-info">
+                  <strong>{{ product.name }}</strong>
+                  <small>{{ product.category }}</small>
+                </div>
+
+                <div class="seller-metrics">
+                  <div>
+                    <small>Vendidos</small>
+                    <strong>{{ product.quantity }} un.</strong>
+                  </div>
+                  <div>
+                    <small>Receita</small>
+                    <strong>{{ currency(product.revenue) }}</strong>
+                  </div>
+                </div>
+              </article>
             } @empty { <app-empty-state icon="pi pi-box" title="Sem vendas registradas" description="O ranking será calculado com os pedidos reais." /> }
           </div>
         </app-section-card>

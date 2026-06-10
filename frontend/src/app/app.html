@@ -23,18 +23,19 @@
       @for (group of navGroups; track group.label) {
         <section class="nav-group" [attr.aria-label]="group.label">
           <span class="nav-group-title">{{ group.label }}</span>
-          @for (item of group.items; track item.key) {
-            <button
-              type="button"
+          @for (item of group.items; track item.path) {
+            <a
               class="side-nav-item"
-              [class.active]="activeView() === item.key"
-              [attr.aria-current]="activeView() === item.key ? 'page' : null"
+              [routerLink]="item.path"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: true }"
+              ariaCurrentWhenActive="page"
               [attr.title]="sidebarCollapsed() ? item.label : null"
-              (click)="setActiveView(item.key)"
+              (click)="closeNav()"
             >
               <i [class]="item.icon"></i>
               <span>{{ item.label }}</span>
-            </button>
+            </a>
           }
         </section>
       }
@@ -77,58 +78,7 @@
     </header>
 
     <section class="content-surface">
-      @switch (activeView()) {
-        @case ('dashboard') {
-          <app-dashboard-page />
-        }
-        @case ('tables') {
-          <app-tables-page />
-        }
-        @case ('tabs') {
-          <app-tabs-page />
-        }
-        @case ('orders') {
-          <app-orders-page />
-        }
-        @case ('kitchen') {
-          <app-kitchen-page />
-        }
-        @case ('products') {
-          <app-products-page />
-        }
-        @case ('categories') {
-          <app-categories-page />
-        }
-        @case ('cashier') {
-          <app-cashier-page />
-        }
-        @case ('reports') {
-          <app-collection-page
-            kicker="Inteligência"
-            title="Relatórios"
-            description="Indicadores gerenciais para avaliar vendas, produção e performance."
-            actionLabel="Exportar relatório"
-            actionIcon="pi pi-download"
-            sectionEyebrow="Indicadores"
-            sectionTitle="Resumo analítico"
-            [items]="reportsCollection"
-            (action)="developmentNotice()"
-          />
-        }
-        @case ('users') {
-          <app-collection-page
-            kicker="Equipe"
-            title="Usuários"
-            description="Perfis operacionais do MVP para salão, cozinha, caixa e administração."
-            actionLabel="Novo usuário"
-            actionIcon="pi pi-user-plus"
-            sectionEyebrow="Acessos"
-            sectionTitle="Equipe ativa"
-            [items]="usersCollection"
-            (action)="developmentNotice()"
-          />
-        }
-      }
+      <router-outlet />
     </section>
   </section>
   <app-feedback-toast />

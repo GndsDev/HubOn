@@ -42,11 +42,15 @@ public class RestaurantTableService {
             throw new BusinessException("Já existe uma mesa com este número");
         }
 
+        TableStatus status = normalizedStatus(
+                request.status() == null ? TableStatus.AVAILABLE : request.status(),
+                request.active() == null || request.active()
+        );
         RestaurantTable table = RestaurantTable.builder()
                 .number(request.number())
                 .name(request.name())
-                .status(request.status())
-                .active(request.active())
+                .status(status)
+                .active(status != TableStatus.DISABLED)
                 .build();
 
         return toResponse(tableRepository.save(table));
@@ -61,16 +65,16 @@ public class RestaurantTableService {
                     throw new BusinessException("Já existe uma mesa com este número");
                 });
 
-        TableStatus requestedStatus = request.status() == null ? table.getStatus() : request.status();
+        TableStatus requestedStatus = normalizedStatus(
+                request.status() == null ? table.getStatus() : request.status(),
+                request.active() == null ? table.getActive() : request.active()
+        );
         validateStatusChangeWithOpenTab(id, requestedStatus);
 
         table.setNumber(request.number());
         table.setName(request.name());
         table.setStatus(requestedStatus);
-        table.setActive(request.active() == null ? table.getActive() : request.active());
-        if (requestedStatus == TableStatus.DISABLED) {
-            table.setActive(false);
-        }
+        table.setActive(requestedStatus != TableStatus.DISABLED);
 
         return toResponse(table);
     }
@@ -81,11 +85,15 @@ public class RestaurantTableService {
         validateStatusChangeWithOpenTab(id, request.status());
 
         table.setStatus(request.status());
-        if (request.status() == TableStatus.DISABLED) {
-            table.setActive(false);
-        }
+        table.setActive(request.status() != TableStatus.DISABLED);
 
         return toResponse(table);
+    }
+
+    private TableStatus normalizedStatus(TableStatus status, Boolean active) {
+        return status == TableStatus.DISABLED || !Boolean.TRUE.equals(active)
+                ? TableStatus.DISABLED
+                : status;
     }
 
     private void validateStatusChangeWithOpenTab(Long tableId, TableStatus requestedStatus) {
@@ -102,12 +110,13 @@ public class RestaurantTableService {
     }
 
     private RestaurantTableResponse toResponse(RestaurantTable table) {
+        TableStatus status = normalizedStatus(table.getStatus(), table.getActive());
         return new RestaurantTableResponse(
                 table.getId(),
                 table.getNumber(),
                 table.getName(),
-                table.getStatus(),
-                table.getActive(),
+                status,
+                status != TableStatus.DISABLED,
                 table.getCreatedAt(),
                 table.getUpdatedAt()
         );

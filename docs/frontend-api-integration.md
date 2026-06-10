@@ -1,44 +1,18 @@
-# Integração frontend com a API
+# Integração do frontend com a API
 
-## Endereços e configuração
+## Configuração
 
 - Frontend: `http://localhost:4200`
 - API: `http://localhost:8080/api`
-- URL configurada em `frontend/src/environments/environment.ts`
-- Cliente HTTP registrado em `frontend/src/app/app.config.ts`
-- CORS liberado para `http://localhost:4200`
+- URL: `frontend/src/environments/environment.ts`
+- HTTP: `provideHttpClient()` em `app.config.ts`
+- Rotas: `provideRouter(routes)` em `app.config.ts`
 
-O backend continua usando Flyway e `spring.jpa.hibernate.ddl-auto=validate`.
+O backend libera CORS para `localhost` e `127.0.0.1` em portas locais.
 
-## Módulos integrados
+## Services
 
-- **Dashboard:** indicadores e resumos reais por `/dashboard/summary`.
-- **Categorias:** listagem, criação, edição, ativação e desativação.
-- **Produtos:** CRUD do MVP, categoria real, busca e status.
-- **Mesas:** listagem, filtros, cadastro, edição e abertura/consulta de comanda.
-- **Comandas:** abertas, detalhes, abertura, cancelamento e fechamento.
-- **Pedidos:** listagem, criação com múltiplos itens, envio e cancelamento.
-- **Cozinha:** Kanban alimentado pelos pedidos reais e avanço de status.
-- **Caixa:** resumo de pagamento, histórico, registro e fechamento da comanda.
-
-Todos esses módulos possuem estados de carregamento, erro de conexão e
-feedback visual por toast. A mensagem padrão de indisponibilidade é:
-
-`Não foi possível conectar à API local. Verifique se o backend está rodando.`
-
-## Módulos parciais
-
-- **Relatórios:** exibe indicadores ilustrativos; exportação informa
-  `Funcionalidade em desenvolvimento.`
-- **Usuários:** apresenta usuários mockados para composição visual. Gestão,
-  autenticação e permissões ficam para a próxima versão.
-
-Os únicos dados mockados permanecem em
-`frontend/src/app/shared/data/mock-data.ts` e são identificados na interface.
-
-## Services Angular
-
-Os acessos à API estão em `frontend/src/app/core/services/`:
+Os acessos estão em `frontend/src/app/core/services/`:
 
 - `category-api.service.ts`
 - `product-api.service.ts`
@@ -48,6 +22,29 @@ Os acessos à API estão em `frontend/src/app/core/services/`:
 - `payment-api.service.ts`
 - `dashboard-api.service.ts`
 - `user-api.service.ts`
+
+## Telas integradas
+
+- Dashboard: `/dashboard/summary`
+- Categorias: `/categories`
+- Produtos: `/products`
+- Mesas: `/tables`
+- Comandas: `/tabs`
+- Pedidos e cozinha: `/orders`
+- Caixa: `/payments`
+- Usuários: `/users`
+- Relatórios: reutiliza `/dashboard/summary`
+
+Não há fallback silencioso para mocks nas telas operacionais. Quando a API está
+indisponível, a tela mostra erro e ação para tentar novamente.
+
+## Estado parcial
+
+- O botão de exportação em Relatórios mostra
+  `Funcionalidade em desenvolvimento.`
+- O botão de novo usuário mostra a mesma mensagem porque o backend expõe apenas
+  consulta de usuários neste MVP.
+- Impressão parcial e modo de chamada também são avisos explícitos.
 
 ## Execução
 
@@ -61,5 +58,4 @@ cd frontend
 npm start
 ```
 
-Para trocar o host da API, altere somente `environment.apiUrl`. Os models
-tipados ficam em `frontend/src/app/shared/models/`.
+Para trocar o endereço da API, altere somente `environment.apiUrl`.

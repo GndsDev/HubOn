@@ -1,37 +1,63 @@
 # Regras de negócio do HubOn MVP
 
-## Cadastros
+## Categorias e produtos
 
-- Categoria exige nome e pode ser ativada ou desativada sem apagar o histórico.
+- Categoria exige nome e pode ser ativada ou desativada sem apagar histórico.
 - Produto exige nome, categoria e preço maior ou igual a zero.
-- Produto inativo não pode ser incluído em pedido.
-- Número da mesa é obrigatório e único.
-- Mesa usa `AVAILABLE`, `OCCUPIED`, `RESERVED` ou `DISABLED`.
+- Produto inativo não pode entrar em um novo pedido.
+- Alterar nome ou preço de produto não muda itens antigos.
+- Cada item congela `productNameSnapshot` e `unitPriceSnapshot`.
+- Quantidade deve ser maior que zero.
+- Subtotal é `unitPriceSnapshot * quantity`.
 
-## Mesas e comandas
+## Mesas
+
+- Número é obrigatório e único.
+- Status disponíveis: `AVAILABLE`, `OCCUPIED`, `RESERVED` e `DISABLED`.
+- Na interface: Livre, Ocupada, Reservada e Desativada.
+- `active=false` é tratado como `DISABLED`.
+- `DISABLED` sempre grava `active=false`.
+- Qualquer outro status grava `active=true`.
+- Mesa reservada não abre comanda diretamente no MVP.
+- Mesa desativada não abre comanda.
+- Mesa ocupada ou com comanda aberta não pode ser desativada.
+- Não há exclusão definitiva de mesa.
+
+## Comandas
 
 - Uma mesa não pode ter mais de uma comanda aberta.
-- Mesa `OCCUPIED` ou `DISABLED` não pode abrir outra comanda.
-- Ao abrir comanda, a mesa muda para `OCCUPIED`.
-- Enquanto houver comanda aberta, a mesa deve continuar `OCCUPIED`.
-- Comanda `CLOSED` ou `CANCELLED` não recebe pedidos nem pagamentos.
-- Ao fechar ou cancelar comanda, a mesa volta para `AVAILABLE`.
-- O fechamento exige pagamento integral.
+- Somente mesa livre e ativa pode abrir comanda.
+- Ao abrir, a mesa muda para `OCCUPIED`.
+- Comanda fechada ou cancelada não recebe pedidos nem pagamentos.
+- Cancelar uma comanda devolve a mesa para `AVAILABLE`.
+- Fechar exige saldo restante igual a zero.
+- Ao fechar, a mesa volta para `AVAILABLE`.
 
-## Pedidos
+## Pedidos e cozinha
 
 - Pedido pertence a uma comanda aberta e começa como `CREATED`.
-- O envio para cozinha muda o pedido para `SENT_TO_KITCHEN`.
-- A cozinha avança sequencialmente: `SENT_TO_KITCHEN` → `PREPARING` → `READY` → `DELIVERED`.
+- `CREATED` pode avançar para `SENT_TO_KITCHEN`.
+- A cozinha segue somente esta sequência:
+  `SENT_TO_KITCHEN` → `PREPARING` → `READY` → `DELIVERED`.
+- Transições fora dessa sequência são rejeitadas.
 - Pedido entregue não pode ser cancelado.
 - Pedido cancelado não entra no total da comanda.
-- Nome e preço são congelados em `productNameSnapshot` e `unitPriceSnapshot`.
-- O subtotal é `unitPriceSnapshot * quantity`.
+- Um pedido possui um ou mais itens.
 
 ## Pagamentos e totais
 
-- Pagamento deve ser maior que zero e usar `CASH`, `CREDIT_CARD`, `DEBIT_CARD`, `PIX` ou `VOUCHER`.
+- Pagamento exige método e valor maior que zero.
+- Pagamento pertence a uma comanda aberta.
 - A soma paga não pode ultrapassar `finalAmount`.
-- `totalAmount` soma os itens ativos de pedidos não cancelados.
-- `finalAmount` é `totalAmount + serviceFee - discountAmount`, nunca menor que zero.
-- A consulta de pagamentos retorna `totalAmount`, `paidAmount`, `remainingAmount` e o histórico.
+- `totalAmount` soma itens ativos de pedidos não cancelados.
+- `finalAmount = totalAmount + serviceFee - discountAmount`, limitado a zero.
+- `remainingAmount = finalAmount - paidAmount`, limitado a zero.
+- A consulta de pagamentos retorna total, pago, restante e histórico.
+
+## Segurança e persistência
+
+- Endpoints estão liberados apenas para desenvolvimento local.
+- CSRF está desabilitado e CORS aceita hosts locais do frontend.
+- Não há JWT nem autorização por perfil.
+- Flyway controla o esquema.
+- `spring.jpa.hibernate.ddl-auto=validate` permanece obrigatório.

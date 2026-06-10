@@ -70,9 +70,15 @@ import { SectionCardComponent } from '../../shared/components/section-card/secti
                 </select>
               </label>
               <label class="field"><span>Valor</span><input name="amount" type="number" min="0.01" step="0.01" [(ngModel)]="paymentForm.amount" /></label>
-              <button type="submit" class="primary-button finish-payment" [disabled]="saving()"><i class="pi pi-wallet"></i>{{ saving() ? 'Registrando...' : 'Registrar pagamento' }}</button>
+              <button
+                type="submit"
+                class="primary-button finish-payment"
+                [disabled]="saving() || paymentForm.amount <= 0 || paymentForm.amount > remainingAmount(tab)"
+              >
+                <i class="pi pi-wallet"></i>{{ saving() ? 'Registrando...' : 'Registrar pagamento' }}
+              </button>
             </form>
-            <button type="button" class="ghost-button finish-payment" [disabled]="(summary()?.remainingAmount ?? tab.remainingAmount) > 0" (click)="closeTab(tab)">
+            <button type="button" class="ghost-button finish-payment" [disabled]="remainingAmount(tab) > 0" (click)="closeTab(tab)">
               <i class="pi pi-check-circle"></i>Fechar comanda
             </button>
           </app-section-card>
@@ -131,6 +137,10 @@ export class CashierPageComponent implements OnInit {
     const tab = this.selectedTab();
     const user = this.users()[0];
     if (!tab || !user || this.paymentForm.amount <= 0) { this.feedback.error('Informe um valor de pagamento maior que zero.'); return; }
+    if (this.paymentForm.amount > this.remainingAmount(tab)) {
+      this.feedback.error('O pagamento não pode ultrapassar o saldo restante.');
+      return;
+    }
     this.saving.set(true);
     this.paymentApi.create({ tabId: tab.id, receivedByUserId: user.id, ...this.paymentForm })
       .pipe(finalize(() => this.saving.set(false)))
@@ -145,6 +155,7 @@ export class CashierPageComponent implements OnInit {
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
   }
+  remainingAmount(tab: Tab): number { return this.summary()?.remainingAmount ?? tab.remainingAmount; }
   methodLabel(method: PaymentMethod): string { return this.methods.find((item) => item.value === method)?.label || method; }
   currency(value: number): string { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
 }

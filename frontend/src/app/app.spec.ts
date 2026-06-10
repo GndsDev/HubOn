@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { App } from './app';
+import { routes } from './app.routes';
 import { DashboardApiService } from './core/services/dashboard-api.service';
 
 const dashboardSummary = {
@@ -19,6 +21,7 @@ describe('App', () => {
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
+        provideRouter(routes),
         {
           provide: DashboardApiService,
           useValue: { getSummary: () => of(dashboardSummary) },
@@ -35,8 +38,20 @@ describe('App', () => {
 
   it('should render title', async () => {
     const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/dashboard');
+    fixture.detectChanges();
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('h1')?.textContent).toContain('Operação em tempo real');
+  });
+
+  it('should redirect unknown routes to dashboard', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/rota-inexistente');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(router.url).toBe('/dashboard');
   });
 });

@@ -131,7 +131,11 @@ public class DashboardService {
     }
 
     private long countTables(List<RestaurantTable> tables, TableStatus status) {
-        return tables.stream().filter(table -> table.getStatus() == status).count();
+        return tables.stream().filter(table -> effectiveStatus(table) == status).count();
+    }
+
+    private TableStatus effectiveStatus(RestaurantTable table) {
+        return Boolean.TRUE.equals(table.getActive()) ? table.getStatus() : TableStatus.DISABLED;
     }
 
     private List<DashboardSummaryResponse.RecentOrder> recentOrders(List<RestaurantOrder> orders) {

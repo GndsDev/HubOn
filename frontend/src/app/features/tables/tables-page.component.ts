@@ -47,10 +47,10 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
     } @else {
       <section class="table-board">
         @for (table of filteredTables; track table.id) {
-          <article class="restaurant-table-card" [ngClass]="statusClass(table.status)">
+          <article class="restaurant-table-card" [ngClass]="statusClass(effectiveStatus(table))">
             <div class="table-card-top">
               <div><span>Mesa</span><strong>{{ table.number }}</strong></div>
-              <app-status-badge [label]="statusLabel(table.status)" [tone]="statusTone(table.status)" />
+              <app-status-badge [label]="statusLabel(effectiveStatus(table))" [tone]="statusTone(effectiveStatus(table))" />
             </div>
             <div class="table-card-body table-api-details">
               <div><small>Identificação</small><b>{{ table.name || 'Sem nome adicional' }}</b></div>
@@ -77,6 +77,18 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
                 <i class="pi pi-pencil"></i>
                 <span>Editar</span>
               </button>
+              <button
+                type="button"
+                class="table-status-action"
+                [class.activate]="effectiveStatus(table) === 'DISABLED'"
+                [disabled]="effectiveStatus(table) === 'OCCUPIED'"
+                [title]="tableStatusActionTitle(table)"
+                [attr.aria-label]="tableStatusAction(table) + ' mesa ' + table.number"
+                (click)="toggleTableStatus(table)"
+              >
+                <i [class]="effectiveStatus(table) === 'DISABLED' ? 'pi pi-check' : 'pi pi-ban'"></i>
+                <span>{{ tableStatusAction(table) }}</span>
+              </button>
             </div>
           </article>
         }
@@ -99,7 +111,6 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
                 @for (status of tableStatuses; track status) { <option [value]="status">{{ statusLabel(status) }}</option> }
               </select>
             </label>
-            <label class="toggle-field"><input name="active" type="checkbox" [(ngModel)]="tableForm.active" /><span>Mesa ativa</span></label>
           </div>
           <div class="modal-actions">
             <button type="button" class="ghost-button" (click)="closeAll()">Cancelar</button>
@@ -177,7 +188,9 @@ export class TablesPageComponent implements OnInit {
   ngOnInit(): void { this.load(); }
 
   get filteredTables(): RestaurantTable[] {
-    return this.activeFilter === 'ALL' ? this.tables() : this.tables().filter((table) => table.status === this.activeFilter);
+    return this.activeFilter === 'ALL'
+      ? this.tables()
+      : this.tables().filter((table) => this.effectiveStatus(table) === this.activeFilter);
   }
 
   load(): void {
@@ -192,7 +205,8 @@ export class TablesPageComponent implements OnInit {
   openCreate(): void { this.editing.set(null); this.tableForm = this.emptyTableForm(); this.formOpen.set(true); }
   openEdit(table: RestaurantTable): void {
     this.editing.set(table);
-    this.tableForm = { number: table.number, name: table.name, status: table.status, active: table.active };
+    const status = this.effectiveStatus(table);
+    this.tableForm = { number: table.number, name: table.name, status, active: status !== 'DISABLED' };
     this.formOpen.set(true);
   }
 
@@ -200,7 +214,11 @@ export class TablesPageComponent implements OnInit {
     if (this.tableForm.number < 1) { this.feedback.error('Informe um número de mesa válido.'); return; }
     this.saving.set(true);
     const current = this.editing();
-    const operation = current ? this.api.update(current.id, this.tableForm) : this.api.create(this.tableForm);
+    const payload: RestaurantTableRequest = {
+      ...this.tableForm,
+      active: this.tableForm.status !== 'DISABLED',
+    };
+    const operation = current ? this.api.update(current.id, payload) : this.api.create(payload);
     operation.pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => { this.feedback.success(current ? 'Registro atualizado com sucesso.' : 'Registro salvo com sucesso.'); this.closeAll(); this.load(); },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
@@ -208,19 +226,20 @@ export class TablesPageComponent implements OnInit {
   }
 
   selectTable(table: RestaurantTable): void {
-    if (table.status === 'AVAILABLE' && table.active) {
+    const status = this.effectiveStatus(table);
+    if (status === 'AVAILABLE') {
       this.tabForm = { serviceFee: 0, discountAmount: 0 };
       this.openTabTable.set(table);
       return;
     }
-    if (table.status === 'OCCUPIED') {
+    if (status === 'OCCUPIED') {
       this.tabApi.getCurrentByTable(table.id).subscribe({
         next: (tab) => this.currentTab.set(tab),
         error: (error) => this.feedback.error(apiErrorMessage(error)),
       });
       return;
     }
-    this.feedback.info(table.status === 'RESERVED' ? 'Mesa reservada. Altere o status para abrir uma comanda.' : 'Mesa indisponível para atendimento.');
+    this.feedback.info(status === 'RESERVED' ? 'Mesa reservada. Altere o status para abrir uma comanda.' : 'Mesa indisponível para atendimento.');
   }
 
   openTab(): void {
@@ -237,19 +256,47 @@ export class TablesPageComponent implements OnInit {
   }
 
   closeAll(): void { this.formOpen.set(false); this.openTabTable.set(null); this.currentTab.set(null); }
-  tableCount(filter: TableFilter): number { return filter === 'ALL' ? this.tables().length : this.tables().filter((table) => table.status === filter).length; }
+  effectiveStatus(table: RestaurantTable): RestaurantTableStatus {
+    return table.active ? table.status : 'DISABLED';
+  }
+  tableCount(filter: TableFilter): number {
+    return filter === 'ALL'
+      ? this.tables().length
+      : this.tables().filter((table) => this.effectiveStatus(table) === filter).length;
+  }
   statusLabel(status: RestaurantTableStatus): string { return { AVAILABLE: 'Livre', OCCUPIED: 'Ocupada', RESERVED: 'Reservada', DISABLED: 'Desativada' }[status]; }
   statusTone(status: RestaurantTableStatus): string { return { AVAILABLE: 'success', OCCUPIED: 'info', RESERVED: 'warning', DISABLED: 'neutral' }[status]; }
   statusClass(status: RestaurantTableStatus): string { return status.toLocaleLowerCase(); }
   tableAction(table: RestaurantTable): string {
-    if (!table.active || table.status === 'DISABLED') return 'Mesa indisponível';
-    return { AVAILABLE: 'Abrir comanda', OCCUPIED: 'Ver comanda', RESERVED: 'Ver reserva', DISABLED: 'Mesa indisponível' }[table.status];
+    return { AVAILABLE: 'Abrir comanda', OCCUPIED: 'Ver comanda', RESERVED: 'Ver reserva', DISABLED: 'Mesa indisponível' }[this.effectiveStatus(table)];
   }
   tableActionIcon(table: RestaurantTable): string {
-    if (!table.active || table.status === 'DISABLED') return 'pi pi-lock';
-    return { AVAILABLE: 'pi pi-receipt', OCCUPIED: 'pi pi-eye', RESERVED: 'pi pi-calendar', DISABLED: 'pi pi-lock' }[table.status];
+    return { AVAILABLE: 'pi pi-receipt', OCCUPIED: 'pi pi-eye', RESERVED: 'pi pi-calendar', DISABLED: 'pi pi-lock' }[this.effectiveStatus(table)];
   }
-  tableActionEnabled(table: RestaurantTable): boolean { return table.active && table.status !== 'DISABLED'; }
+  tableActionEnabled(table: RestaurantTable): boolean { return this.effectiveStatus(table) !== 'DISABLED'; }
+  tableStatusAction(table: RestaurantTable): string {
+    return this.effectiveStatus(table) === 'DISABLED' ? 'Ativar' : 'Desativar';
+  }
+  tableStatusActionTitle(table: RestaurantTable): string {
+    return this.effectiveStatus(table) === 'OCCUPIED'
+      ? 'Mesa ocupada não pode ser desativada'
+      : `${this.tableStatusAction(table)} mesa`;
+  }
+  toggleTableStatus(table: RestaurantTable): void {
+    const currentStatus = this.effectiveStatus(table);
+    if (currentStatus === 'OCCUPIED') {
+      this.feedback.info('Mesa ocupada não pode ser desativada.');
+      return;
+    }
+    const nextStatus: RestaurantTableStatus = currentStatus === 'DISABLED' ? 'AVAILABLE' : 'DISABLED';
+    this.api.updateStatus(table.id, nextStatus).subscribe({
+      next: () => {
+        this.feedback.success(nextStatus === 'DISABLED' ? 'Mesa desativada com sucesso.' : 'Mesa ativada com sucesso.');
+        this.load();
+      },
+      error: (error) => this.feedback.error(apiErrorMessage(error)),
+    });
+  }
   currency(value: number): string { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
   private emptyTableForm(): RestaurantTableRequest { return { number: 1, name: '', status: 'AVAILABLE', active: true }; }
 }
