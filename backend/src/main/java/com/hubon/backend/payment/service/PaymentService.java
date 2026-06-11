@@ -31,7 +31,7 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse create(PaymentRequest request) {
-        Tab tab = tabRepository.findById(request.tabId())
+        Tab tab = tabRepository.findByIdForUpdate(request.tabId())
                 .orElseThrow(() -> new ResourceNotFoundException("Comanda não encontrada"));
         User receivedByUser = userRepository.findById(request.receivedByUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
@@ -46,8 +46,11 @@ public class PaymentService {
 
         accountingService.refreshAmounts(tab);
         BigDecimal paidAmount = accountingService.paidAmount(tab.getId());
-        BigDecimal newPaidAmount = paidAmount.add(request.amount());
-        if (newPaidAmount.compareTo(tab.getFinalAmount()) > 0) {
+        BigDecimal remainingAmount = tab.getFinalAmount().subtract(paidAmount);
+        if (remainingAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BusinessException("A comanda possui pagamento excedente. Recarregue os dados antes de continuar");
+        }
+        if (request.amount().compareTo(remainingAmount) > 0) {
             throw new BusinessException("Soma dos pagamentos não pode ultrapassar o valor final da comanda");
         }
 

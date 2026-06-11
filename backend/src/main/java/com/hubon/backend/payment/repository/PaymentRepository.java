@@ -12,6 +12,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     List<Payment> findAllByTabIdOrderByPaidAtAsc(Long tabId);
 
+    boolean existsByTabId(Long tabId);
+
     @Query("select coalesce(sum(payment.amount), 0) from Payment payment where payment.tab.id = :tabId")
     BigDecimal sumAmountByTabId(@Param("tabId") Long tabId);
 }

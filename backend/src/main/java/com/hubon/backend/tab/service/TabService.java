@@ -2,6 +2,7 @@ package com.hubon.backend.tab.service;
 
 import com.hubon.backend.order.domain.OrderStatus;
 import com.hubon.backend.order.repository.RestaurantOrderRepository;
+import com.hubon.backend.payment.repository.PaymentRepository;
 import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.shared.exception.ResourceNotFoundException;
 import com.hubon.backend.tab.domain.Tab;
@@ -30,6 +31,7 @@ public class TabService {
     private final RestaurantTableRepository tableRepository;
     private final UserRepository userRepository;
     private final RestaurantOrderRepository orderRepository;
+    private final PaymentRepository paymentRepository;
     private final TabAccountingService accountingService;
 
     @Transactional(readOnly = true)
@@ -95,14 +97,18 @@ public class TabService {
 
     @Transactional
     public TabResponse close(Long id) {
-        Tab tab = findEntityById(id);
+        Tab tab = findEntityByIdForUpdate(id);
         ensureOpen(tab);
         ensureNoPendingOrders(tab);
         accountingService.refreshAmounts(tab);
 
         BigDecimal paidAmount = accountingService.paidAmount(tab.getId());
-        if (paidAmount.compareTo(tab.getFinalAmount()) < 0) {
+        int paymentComparison = paidAmount.compareTo(tab.getFinalAmount());
+        if (paymentComparison < 0) {
             throw new BusinessException("Comanda não pode ser fechada sem pagamento completo");
+        }
+        if (paymentComparison > 0) {
+            throw new BusinessException("Não é possível fechar uma comanda com pagamento excedente");
         }
 
         tab.setStatus(TabStatus.CLOSED);
@@ -114,8 +120,10 @@ public class TabService {
 
     @Transactional
     public TabResponse cancel(Long id) {
-        Tab tab = findEntityById(id);
+        Tab tab = findEntityByIdForUpdate(id);
         ensureOpen(tab);
+        ensureNoPayments(tab);
+        ensureNoDeliveredOrders(tab);
         ensureNoPendingOrders(tab);
 
         tab.setStatus(TabStatus.CANCELLED);
@@ -128,6 +136,11 @@ public class TabService {
     @Transactional(readOnly = true)
     public Tab findEntityById(Long id) {
         return tabRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Comanda não encontrada"));
+    }
+
+    private Tab findEntityByIdForUpdate(Long id) {
+        return tabRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Comanda não encontrada"));
     }
 
@@ -167,6 +180,18 @@ public class TabService {
         );
         if (hasPendingOrders) {
             throw new BusinessException("Finalize ou cancele os pedidos pendentes antes de encerrar a comanda");
+        }
+    }
+
+    private void ensureNoPayments(Tab tab) {
+        if (paymentRepository.existsByTabId(tab.getId())) {
+            throw new BusinessException("Não é possível cancelar uma comanda com pagamentos registrados.");
+        }
+    }
+
+    private void ensureNoDeliveredOrders(Tab tab) {
+        if (orderRepository.existsByTabIdAndStatus(tab.getId(), OrderStatus.DELIVERED)) {
+            throw new BusinessException("Não é possível cancelar uma comanda com pedidos entregues.");
         }
     }
 

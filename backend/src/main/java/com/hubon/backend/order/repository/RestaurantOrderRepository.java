@@ -12,4 +12,6 @@ public interface RestaurantOrderRepository extends JpaRepository<RestaurantOrder
     List<RestaurantOrder> findAllByOrderByCreatedAtDesc();
 
     boolean existsByTabIdAndStatusNotIn(Long tabId, Collection<OrderStatus> statuses);
+
+    boolean existsByTabIdAndStatus(Long tabId, OrderStatus status);
 }

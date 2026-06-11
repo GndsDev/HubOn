@@ -2,6 +2,7 @@ package com.hubon.backend.shared.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -44,6 +45,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleDataIntegrity() {
         return buildResponse("Operação viola uma regra de integridade dos dados", HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    public ResponseEntity<ApiErrorResponse> handleConcurrentUpdate() {
+        return buildResponse(
+                "A comanda está sendo atualizada por outra operação. Recarregue os dados e tente novamente",
+                HttpStatus.CONFLICT
+        );
     }
 
     @ExceptionHandler(Exception.class)

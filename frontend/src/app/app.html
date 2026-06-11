@@ -1,9 +1,16 @@
 <main class="hub-shell" [class.sidebar-collapsed]="sidebarCollapsed()">
   <aside class="hub-sidebar" [class.open]="navOpen()" [class.collapsed]="sidebarCollapsed()">
     <div class="sidebar-header">
-      <div class="brand-row">
-        <div class="brand-mark">H</div>
-        <div class="brand-copy">
+      <div class="sidebar-brand" aria-label="HubOn, operação local">
+        <img
+          class="sidebar-brand-logo"
+          src="assets/brand/logo-hubon.png"
+          width="512"
+          height="512"
+          alt=""
+          aria-hidden="true"
+        />
+        <div class="sidebar-brand-copy">
           <strong>HubOn</strong>
           <span>Operação local</span>
         </div>

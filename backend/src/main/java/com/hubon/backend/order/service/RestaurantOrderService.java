@@ -12,6 +12,7 @@ import com.hubon.backend.order.dto.RestaurantOrderRequest;
 import com.hubon.backend.order.dto.RestaurantOrderResponse;
 import com.hubon.backend.order.repository.OrderItemRepository;
 import com.hubon.backend.order.repository.RestaurantOrderRepository;
+import com.hubon.backend.payment.repository.PaymentRepository;
 import com.hubon.backend.product.domain.Product;
 import com.hubon.backend.product.repository.ProductRepository;
 import com.hubon.backend.shared.exception.BusinessException;
@@ -38,6 +39,7 @@ public class RestaurantOrderService {
     private final TabRepository tabRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final PaymentRepository paymentRepository;
     private final TabAccountingService accountingService;
 
     @Transactional(readOnly = true)
@@ -56,7 +58,7 @@ public class RestaurantOrderService {
 
     @Transactional
     public RestaurantOrderResponse create(RestaurantOrderRequest request) {
-        Tab tab = tabRepository.findById(request.tabId())
+        Tab tab = tabRepository.findByIdForUpdate(request.tabId())
                 .orElseThrow(() -> new ResourceNotFoundException("Comanda não encontrada"));
         User createdByUser = userRepository.findById(request.createdByUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
@@ -126,6 +128,8 @@ public class RestaurantOrderService {
     @Transactional
     public RestaurantOrderResponse cancel(Long id) {
         RestaurantOrder order = findEntityById(id);
+        Tab tab = tabRepository.findByIdForUpdate(order.getTab().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Comanda não encontrada"));
 
         if (order.getStatus() == OrderStatus.DELIVERED) {
             throw new BusinessException("Pedido entregue não pode ser cancelado");
@@ -133,12 +137,15 @@ public class RestaurantOrderService {
         if (order.getStatus() == OrderStatus.CANCELLED) {
             throw new BusinessException("Pedido já está cancelado");
         }
-        if (order.getTab().getStatus() == TabStatus.CLOSED) {
+        if (tab.getStatus() == TabStatus.CLOSED) {
             throw new BusinessException("Pedido de comanda fechada não pode ser cancelado");
+        }
+        if (paymentRepository.existsByTabId(tab.getId())) {
+            throw new BusinessException("Não é possível cancelar um pedido de uma comanda com pagamentos registrados");
         }
 
         order.setStatus(OrderStatus.CANCELLED);
-        accountingService.refreshAmounts(order.getTab());
+        accountingService.refreshAmounts(tab);
 
         return toResponse(order, orderItemRepository.findAllByOrderId(order.getId()));
     }

@@ -146,7 +146,7 @@ a {
   min-width: 0;
 }
 
-.brand-row,
+.sidebar-brand,
 .admin-chip,
 .topbar-actions,
 .local-status,
@@ -166,12 +166,19 @@ a {
   align-items: center;
 }
 
-.brand-row {
-  gap: 0.85rem;
+.sidebar-brand {
+  gap: 0.7rem;
   min-width: 0;
 }
 
-.brand-mark,
+.sidebar-brand-logo {
+  display: block;
+  width: 3.25rem;
+  height: 3.25rem;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
 .admin-chip > span,
 .collection-icon,
 .stat-icon {
@@ -183,31 +190,29 @@ a {
   font-weight: 900;
 }
 
-.brand-mark {
-  width: 2.75rem;
-  height: 2.75rem;
-}
-
-.brand-row strong,
-.brand-row span,
+.sidebar-brand-copy strong,
+.sidebar-brand-copy span,
 .admin-chip strong,
 .admin-chip small {
   display: block;
 }
 
-.brand-copy {
+.sidebar-brand-copy {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
 }
 
-.brand-row strong {
-  color: #fff;
+.sidebar-brand-copy strong {
+  color: var(--color-text-strong);
   font-size: 1.15rem;
   letter-spacing: 0;
 }
 
-.brand-row span,
+.sidebar-brand-copy span {
+  color: var(--color-text-muted);
+}
+
 .sidebar-card span,
 .sidebar-card small,
 .topbar-title span,
@@ -338,11 +343,11 @@ a {
   height: 2.25rem;
 }
 
-.hub-sidebar.collapsed .brand-row {
+.hub-sidebar.collapsed .sidebar-brand {
   justify-content: center;
 }
 
-.hub-sidebar.collapsed .brand-copy,
+.hub-sidebar.collapsed .sidebar-brand-copy,
 .hub-sidebar.collapsed .nav-group-title,
 .hub-sidebar.collapsed .side-nav-item span,
 .hub-sidebar.collapsed .sidebar-card {
@@ -2227,7 +2232,6 @@ app-categories-page {
     var(--color-surface);
 }
 
-:root[data-theme="light"] .brand-row strong,
 :root[data-theme="light"] .sidebar-card strong,
 :root[data-theme="light"] .topbar-title strong,
 :root[data-theme="light"] .admin-chip strong,
@@ -2262,7 +2266,6 @@ app-categories-page {
   color: var(--color-text-strong);
 }
 
-:root[data-theme="light"] .brand-row span,
 :root[data-theme="light"] .sidebar-card span,
 :root[data-theme="light"] .sidebar-card small,
 :root[data-theme="light"] .admin-chip small,
@@ -2652,11 +2655,11 @@ app-categories-page {
     padding: 1.2rem;
   }
 
-  .hub-sidebar.collapsed .brand-row {
+  .hub-sidebar.collapsed .sidebar-brand {
     justify-content: flex-start;
   }
 
-  .hub-sidebar.collapsed .brand-copy,
+  .hub-sidebar.collapsed .sidebar-brand-copy,
   .hub-sidebar.collapsed .nav-group-title,
   .hub-sidebar.collapsed .side-nav-item span {
     display: block;
