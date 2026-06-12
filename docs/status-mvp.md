@@ -18,6 +18,13 @@
 - Toasts de sucesso, erro e informação.
 - Tratamento global de erros em JSON.
 - Seeder idempotente para perfis, usuário administrador, catálogo e mesas.
+- Perfis `local` e `prod`, CORS configurável e OSIV desativado.
+- Dashboard com agregações no banco e somente cinco pedidos recentes.
+- Lista operacional limitada aos 100 pedidos mais recentes, com itens em lote.
+- Modais principais com semântica, Escape, foco inicial e restauração de foco.
+- Toasts de erro anunciados como `alert`.
+- Regras financeiras protegem pagamento excedente, cancelamentos e concorrência.
+- Build de produção do frontend configurado.
 
 ## Parcial
 
@@ -25,7 +32,10 @@
 - Relatórios não possuem filtro por período nem exportação.
 - Dashboard usa agregações simples; a atualização é por polling, sem WebSocket.
 - O operador local ainda não possui autenticação nem autorização por perfil.
-- Testes automatizados cobrem regras financeiras, estados operacionais e persistência do operador local.
+- Testes automatizados cobrem regras financeiras, estados operacionais, contexto do aplicativo e persistência do operador local.
+- A lista de pedidos ainda não possui paginação navegável; mostra os 100 mais recentes.
+- `imageUrl` continua no contrato da API, mas o campo foi ocultado da interface até existir exibição consistente.
+- `OrderItemStatus.CANCELLED` permanece reservado para cancelamento por item após o MVP.
 
 ## Fora do MVP
 
@@ -38,15 +48,21 @@
 - JWT, permissões avançadas e auditoria.
 - WebSocket.
 - Paginação e relatórios exportáveis.
+- Impressão parcial, modo chamada e cadastro de usuários.
 
 ## Validação realizada
 
 - Frontend compilado com `npm run build`.
 - Backend validado com `.\mvnw.cmd test`.
+- Backend possui três suítes e 19 testes na validação atual.
+- Frontend possui seis testes em duas suítes.
 - Flyway validou a migration existente.
 - Hibernate iniciou com `ddl-auto=validate`.
-- Endpoints reais de Dashboard e Usuários responderam durante a validação.
+- `spring.jpa.open-in-view=false` é aplicado explicitamente.
 
 O runner de testes Angular pode falhar dentro de ambientes com sandbox restrito
 ao resolver arquivos locais. O build de produção é a validação confiável usada
 neste workspace.
+
+Os comandos, a cobertura e a interpretação de falhas estão documentados em
+`testing.md`. O roteiro integrado está em `manual-test-flow.md`.

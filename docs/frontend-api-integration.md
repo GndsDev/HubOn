@@ -4,11 +4,14 @@
 
 - Frontend: `http://localhost:4200`
 - API: `http://localhost:8080/api`
-- URL: `frontend/src/environments/environment.ts`
+- Desenvolvimento e rede local: `frontend/src/environments/environment.development.ts`
+- Produção com proxy: `frontend/src/environments/environment.ts`
 - HTTP: `provideHttpClient()` em `app.config.ts`
 - Rotas: `provideRouter(routes)` em `app.config.ts`
 
-O backend libera CORS para `localhost` e `127.0.0.1` em portas locais.
+O backend aceita, por padrão local, `http://localhost:4200` e
+`http://127.0.0.1:4200`. Outras origens devem ser informadas explicitamente em
+`HUBON_CORS_ALLOWED_ORIGINS`.
 
 ## Services
 
@@ -59,11 +62,9 @@ indisponível, a tela mostra erro e ação para tentar novamente.
 
 ## Estado parcial
 
-- O botão de exportação em Relatórios mostra
-  `Funcionalidade em desenvolvimento.`
-- O botão de novo usuário mostra a mesma mensagem porque o backend expõe apenas
-  consulta de usuários neste MVP.
-- Impressão parcial e modo de chamada também são avisos explícitos.
+- Exportação, cadastro de usuário, impressão parcial e modo chamada aparecem
+  desabilitados e identificados como recursos futuros.
+- O backend expõe apenas consulta de usuários neste MVP.
 
 ## Execução
 
@@ -77,4 +78,17 @@ cd frontend
 npm start
 ```
 
-Para trocar o endereço da API, altere somente `environment.apiUrl`.
+Para trocar o endereço da API, ajuste o arquivo de ambiente correspondente.
+
+Para execução em rede local, prefira:
+
+```powershell
+npm run start:network
+```
+
+Essa configuração usa o hostname aberto no navegador e a porta `8080`. O passo
+a passo completo está em [deployment-local.md](deployment-local.md).
+
+O build de produção usa `/api` como URL relativa e pressupõe frontend e backend
+atrás do mesmo proxy. Não exponha o perfil local publicamente; consulte
+[security-notes.md](security-notes.md).

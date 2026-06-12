@@ -6,6 +6,7 @@
 2. Em `backend`, execute `.\mvnw.cmd spring-boot:run`.
 3. Em `frontend`, execute `npm start`.
 4. Abra `http://localhost:4200/dashboard`.
+5. Selecione um operador ativo na topbar.
 
 ## Fluxo principal
 
@@ -55,6 +56,35 @@
 1. Informe zero: deve ser bloqueado.
 2. Informe valor maior que o saldo: deve ser bloqueado.
 3. Tente fechar com saldo pendente: deve ser bloqueado.
+4. Em um ambiente controlado, prepare uma comanda com pagamento excedente.
+5. Resultado esperado: fechamento bloqueado.
+
+### Cancelamentos após pagamento
+
+1. Abra uma comanda e crie um pedido.
+2. Registre um pagamento parcial.
+3. Tente cancelar o pedido.
+4. Resultado esperado: cancelamento bloqueado.
+5. Cancele previamente todos os pedidos em outra comanda sem pagamento.
+6. Em ambiente controlado, prepare uma comanda cancelável com pagamento e tente cancelá-la.
+7. Resultado esperado: cancelamento bloqueado.
+
+Os cenários que exigem preparação direta de dados já são cobertos pelas suítes
+automatizadas do backend e não devem ser executados em um banco de produção.
+
+### Comanda com pedido entregue
+
+1. Crie um pedido e avance até Entregue.
+2. Tente cancelar a comanda.
+3. Resultado esperado: cancelamento bloqueado.
+4. Pague o valor exato e feche a comanda.
+5. Resultado esperado: fechamento permitido e mesa Livre.
+
+### Categoria inativa
+
+1. Desative uma categoria que possua produto ativo.
+2. Tente criar um novo pedido com esse produto pela API.
+3. Resultado esperado: venda bloqueada sem alterar pedidos antigos.
 
 ### Cozinha
 
@@ -69,3 +99,5 @@
 - Recolha e expanda a sidebar várias vezes.
 - Confirme ausência de scroll horizontal e scrollbar duplicada.
 - Teste em largura menor que 720px.
+- Abra um formulário modal, confirme o foco inicial e pressione `Escape`.
+- Alterne entre os temas dark e light e recarregue a página.

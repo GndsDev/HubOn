@@ -1,6 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { finalize } from 'rxjs';
-import { FeedbackService } from '../../core/services/feedback.service';
 import { UserApiService } from '../../core/services/user-api.service';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -24,9 +23,14 @@ import { apiErrorMessage } from '../../shared/util/api-error';
       title="Usuários"
       description="Consulta dos usuários locais disponíveis. Cadastro, login e permissões avançadas não fazem parte deste MVP."
     >
-      <button type="button" class="ghost-button" (click)="createNotice()">
+      <button
+        type="button"
+        class="ghost-button future-action"
+        disabled
+        title="Cadastro de usuários fica disponível após o MVP"
+      >
         <i class="pi pi-user-plus"></i>
-        Novo usuário
+        Novo usuário · em breve
       </button>
     </app-page-header>
 
@@ -94,7 +98,6 @@ import { apiErrorMessage } from '../../shared/util/api-error';
 })
 export class UsersPageComponent implements OnInit {
   private readonly api = inject(UserApiService);
-  private readonly feedback = inject(FeedbackService);
 
   readonly users = signal<User[]>([]);
   readonly loading = signal(true);
@@ -114,10 +117,6 @@ export class UsersPageComponent implements OnInit {
         next: (users) => this.users.set(users),
         error: (error) => this.error.set(apiErrorMessage(error)),
       });
-  }
-
-  createNotice(): void {
-    this.feedback.info('Funcionalidade em desenvolvimento.');
   }
 
   roleNames(user: User): string {

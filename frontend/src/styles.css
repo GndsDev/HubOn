@@ -560,6 +560,20 @@ a {
   padding: 2rem;
 }
 
+.collection-card-button {
+  width: 100%;
+  appearance: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.future-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 app-tables-page,
 app-products-page,
 app-categories-page,

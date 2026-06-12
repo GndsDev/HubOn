@@ -1,31 +1,23 @@
-# HubOn - Visão Geral
+# HubOn - Visão geral
 
-## Objetivo
+O HubOn é um sistema local para gestão da operação de restaurantes.
 
-Criar um sistema local para restaurantes, usando Angular, Spring Boot e PostgreSQL.
+Fluxo principal:
 
-## Fluxo principal
+```text
+Mesa → Comanda → Pedido → Itens do pedido → Pagamento
+```
 
-Mesa → Comanda → Pedido → Itens do Pedido → Pagamento
+O MVP inclui Dashboard, Mesas, Comandas, Pedidos, Cozinha, Caixa, Categorias,
+Produtos, Usuários em modo consulta e Relatórios básicos.
 
-## Módulos do MVP
+Não há login ou autenticação real. A autoria é registrada por um operador
+selecionado localmente.
 
-- Login
-- Usuários
-- Mesas
-- Categorias
-- Produtos
-- Comandas
-- Pedidos
-- Cozinha
-- Pagamentos
-- Relatórios básicos
+Documentos principais:
 
-## Fora do MVP
-
-- Estoque
-- Nota fiscal
-- Delivery
-- QR Code
-- App mobile
-- Multiempresa
+- [README do projeto](../README.md)
+- [Status do MVP](status-mvp.md)
+- [Arquitetura](architecture.md)
+- [Modelo de dados](database-model.md)
+- [Regras de negócio](regras-negocio.md)

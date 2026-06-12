@@ -12,13 +12,14 @@ import { apiErrorMessage } from '../../shared/util/api-error';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
+import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
 
 type TableFilter = 'ALL' | RestaurantTableStatus;
 
 @Component({
   selector: 'app-tables-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, StatusBadgeComponent],
+  imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, StatusBadgeComponent, AccessibleDialogDirective],
   template: `
     <app-page-header kicker="Mapa do salão" title="Mesas" description="Acompanhe disponibilidade e abra comandas diretamente pelo salão.">
       <button type="button" class="primary-button" (click)="openCreate()"><i class="pi pi-plus"></i>Nova mesa</button>
@@ -98,13 +99,23 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
 
     @if (formOpen()) {
       <div class="modal-backdrop" (click)="closeAll()">
-        <form class="modal-panel" (click)="$event.stopPropagation()" (ngSubmit)="saveTable()">
+        <form
+          class="modal-panel"
+          appAccessibleDialog
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="table-form-dialog-title"
+          [dialogCloseDisabled]="saving()"
+          (dialogClose)="closeAll()"
+          (click)="$event.stopPropagation()"
+          (ngSubmit)="saveTable()"
+        >
           <div class="modal-header">
-            <div><span>Salão</span><h2>{{ editing() ? 'Editar mesa' : 'Nova mesa' }}</h2></div>
+            <div><span>Salão</span><h2 id="table-form-dialog-title">{{ editing() ? 'Editar mesa' : 'Nova mesa' }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeAll()"><i class="pi pi-times"></i></button>
           </div>
           <div class="form-grid">
-            <label class="field"><span>Número</span><input name="number" type="number" min="1" [(ngModel)]="tableForm.number" required /></label>
+            <label class="field"><span>Número</span><input name="number" type="number" min="1" [(ngModel)]="tableForm.number" required autofocus /></label>
             <label class="field"><span>Nome</span><input name="name" [(ngModel)]="tableForm.name" maxlength="80" /></label>
             <label class="field">
               <span>Status</span>
@@ -123,13 +134,23 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
 
     @if (openTabTable(); as table) {
       <div class="modal-backdrop" (click)="closeAll()">
-        <form class="modal-panel compact" (click)="$event.stopPropagation()" (ngSubmit)="openTab()">
+        <form
+          class="modal-panel compact"
+          appAccessibleDialog
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="open-tab-dialog-title"
+          [dialogCloseDisabled]="saving()"
+          (dialogClose)="closeAll()"
+          (click)="$event.stopPropagation()"
+          (ngSubmit)="openTab()"
+        >
           <div class="modal-header">
-            <div><span>Atendimento</span><h2>Abrir comanda · Mesa {{ table.number }}</h2></div>
+            <div><span>Atendimento</span><h2 id="open-tab-dialog-title">Abrir comanda · Mesa {{ table.number }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeAll()"><i class="pi pi-times"></i></button>
           </div>
           <div class="form-grid">
-            <label class="field"><span>Taxa de serviço</span><input name="serviceFee" type="number" min="0" step="0.01" [(ngModel)]="tabForm.serviceFee" /></label>
+            <label class="field"><span>Taxa de serviço</span><input name="serviceFee" type="number" min="0" step="0.01" [(ngModel)]="tabForm.serviceFee" autofocus /></label>
             <label class="field"><span>Desconto</span><input name="discount" type="number" min="0" step="0.01" [(ngModel)]="tabForm.discountAmount" /></label>
           </div>
           <div class="modal-actions">
@@ -142,9 +163,17 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
 
     @if (currentTab(); as tab) {
       <div class="modal-backdrop" (click)="closeAll()">
-        <section class="modal-panel compact" (click)="$event.stopPropagation()">
+        <section
+          class="modal-panel compact"
+          appAccessibleDialog
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="current-tab-dialog-title"
+          (dialogClose)="closeAll()"
+          (click)="$event.stopPropagation()"
+        >
           <div class="modal-header">
-            <div><span>Comanda atual</span><h2>#{{ tab.id }} · Mesa {{ tab.tableNumber }}</h2></div>
+            <div><span>Comanda atual</span><h2 id="current-tab-dialog-title">#{{ tab.id }} · Mesa {{ tab.tableNumber }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeAll()"><i class="pi pi-times"></i></button>
           </div>
           <div class="detail-grid">

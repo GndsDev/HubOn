@@ -34,8 +34,11 @@
 - Ao abrir, a mesa muda para `OCCUPIED`.
 - Comanda fechada ou cancelada não recebe pedidos nem pagamentos.
 - Uma comanda não pode ser fechada ou cancelada enquanto possuir pedidos pendentes.
+- Comanda com qualquer pagamento registrado não pode ser cancelada.
+- Comanda com pedido entregue não pode ser cancelada.
 - Cancelar uma comanda devolve a mesa para `AVAILABLE`.
-- Fechar exige saldo restante igual a zero.
+- Fechar exige que o valor pago seja exatamente igual ao `finalAmount`.
+- Pagamento incompleto ou excedente impede o fechamento.
 - Ao fechar, a mesa volta para `AVAILABLE`.
 
 ## Pedidos e cozinha
@@ -46,16 +49,23 @@
   `SENT_TO_KITCHEN` → `PREPARING` → `READY` → `DELIVERED`.
 - Transições fora dessa sequência são rejeitadas.
 - Pedido entregue não pode ser cancelado.
+- Pedido não pode ser cancelado se sua comanda já possui pagamento registrado.
 - Um pedido pendente ligado a uma comanda cancelada pode apenas ser cancelado, permitindo regularizar dados antigos sem avançar a produção.
 - Pedido ligado a uma comanda fechada não pode ser alterado.
 - Pedido cancelado não entra no total da comanda.
 - Um pedido possui um ou mais itens.
+- Cancelamento por item não faz parte do MVP; `OrderItemStatus.CANCELLED` fica reservado para evolução futura.
 
 ## Pagamentos e totais
 
 - Pagamento exige método e valor maior que zero.
 - Pagamento pertence a uma comanda aberta.
 - A soma paga não pode ultrapassar `finalAmount`.
+- Pagamento maior que o saldo restante é rejeitado.
+- Pagamento excedente já existente impede o fechamento da comanda.
+- Registro de pagamento e fechamento obtêm lock pessimista da comanda.
+- Pagamentos concorrentes são serializados; somente valores compatíveis com o saldo atualizado são aceitos.
+- Em conflito de lock, a API retorna erro para recarregar os dados e tentar novamente.
 - `totalAmount` soma itens ativos de pedidos não cancelados.
 - `finalAmount = totalAmount + serviceFee - discountAmount`, limitado a zero.
 - `remainingAmount = finalAmount - paidAmount`, limitado a zero.
@@ -71,3 +81,6 @@
 - Não há JWT nem autorização por perfil.
 - Flyway controla o esquema.
 - `spring.jpa.hibernate.ddl-auto=validate` permanece obrigatório.
+- Open Session in View permanece desativado.
+- O perfil local é liberado somente para desenvolvimento em rede confiável.
+- O perfil de produção bloqueia endpoints até existir configuração de segurança real.

@@ -1,7 +1,6 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { finalize } from 'rxjs';
 import { DashboardApiService } from '../../core/services/dashboard-api.service';
-import { FeedbackService } from '../../core/services/feedback.service';
 import {
   CollectionItem,
   CollectionPageComponent,
@@ -18,21 +17,21 @@ import { apiErrorMessage } from '../../shared/util/api-error';
       kicker="Gestão"
       title="Relatórios"
       description="Resumo básico da operação atual. Filtros por período e exportação ficam fora deste MVP."
-      actionLabel="Exportar relatório"
+      actionLabel="Exportação em breve"
       actionIcon="pi pi-download"
+      [actionDisabled]="true"
+      actionTitle="Exportação fica disponível após o MVP"
       sectionEyebrow="Dados reais"
       sectionTitle="Resumo operacional"
       [items]="items()"
       [loading]="loading()"
       [errorMessage]="error()"
       (retry)="load()"
-      (action)="exportNotice()"
     />
   `,
 })
 export class ReportsPageComponent implements OnInit {
   private readonly api = inject(DashboardApiService);
-  private readonly feedback = inject(FeedbackService);
 
   readonly summary = signal<DashboardSummary | null>(null);
   readonly loading = signal(true);
@@ -95,10 +94,6 @@ export class ReportsPageComponent implements OnInit {
         next: (summary) => this.summary.set(summary),
         error: (error) => this.error.set(apiErrorMessage(error)),
       });
-  }
-
-  exportNotice(): void {
-    this.feedback.info('Funcionalidade em desenvolvimento.');
   }
 
   private currency(value: number): string {

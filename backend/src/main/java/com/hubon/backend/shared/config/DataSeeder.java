@@ -12,6 +12,8 @@ import com.hubon.backend.table.repository.RestaurantTableRepository;
 import com.hubon.backend.user.domain.User;
 import com.hubon.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +22,7 @@ import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "hubon.seed.enabled", havingValue = "true")
 public class DataSeeder implements CommandLineRunner {
 
     private final RoleRepository roleRepository;
@@ -27,6 +30,9 @@ public class DataSeeder implements CommandLineRunner {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final RestaurantTableRepository tableRepository;
+
+    @Value("${hubon.seed.admin-password}")
+    private String adminPassword;
 
     @Override
     public void run(String... args) {
@@ -53,7 +59,7 @@ public class DataSeeder implements CommandLineRunner {
             User user = User.builder()
                     .name("Administrador")
                     .email("admin@hubon.local")
-                    .password("{noop}admin123")
+                    .password("{noop}" + adminPassword)
                     .active(true)
                     .roles(Set.of(admin))
                     .build();

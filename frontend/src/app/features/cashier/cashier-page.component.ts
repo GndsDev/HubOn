@@ -19,7 +19,14 @@ import { SectionCardComponent } from '../../shared/components/section-card/secti
   imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent],
   template: `
     <app-page-header kicker="Financeiro" title="Caixa" description="Registre pagamentos reais e feche comandas quando o saldo estiver quitado.">
-      <button type="button" class="ghost-button" (click)="feedback.info()"><i class="pi pi-print"></i>Imprimir parcial</button>
+      <button
+        type="button"
+        class="ghost-button future-action"
+        disabled
+        title="Impressão parcial fica disponível após o MVP"
+      >
+        <i class="pi pi-print"></i>Impressão · em breve
+      </button>
     </app-page-header>
 
     @if (loading()) {

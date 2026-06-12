@@ -24,11 +24,15 @@ import com.hubon.backend.tab.service.TabAccountingService;
 import com.hubon.backend.user.domain.User;
 import com.hubon.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -44,9 +48,23 @@ public class RestaurantOrderService {
 
     @Transactional(readOnly = true)
     public List<RestaurantOrderResponse> listAll() {
-        return orderRepository.findAllByOrderByCreatedAtDesc()
+        List<RestaurantOrder> orders = orderRepository.findAllByOrderByCreatedAtDesc(
+                PageRequest.of(0, 100)
+        );
+        if (orders.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, List<OrderItem>> itemsByOrder = orderItemRepository
+                .findAllByOrderIdIn(orders.stream().map(RestaurantOrder::getId).toList())
                 .stream()
-                .map(order -> toResponse(order, orderItemRepository.findAllByOrderId(order.getId())))
+                .collect(Collectors.groupingBy(item -> item.getOrder().getId()));
+
+        return orders.stream()
+                .map(order -> toResponse(
+                        order,
+                        itemsByOrder.getOrDefault(order.getId(), Collections.emptyList())
+                ))
                 .toList();
     }
 

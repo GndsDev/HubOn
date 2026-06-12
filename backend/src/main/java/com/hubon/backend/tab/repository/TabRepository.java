@@ -12,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 public interface TabRepository extends JpaRepository<Tab, Long> {
 
@@ -20,6 +22,34 @@ public interface TabRepository extends JpaRepository<Tab, Long> {
     boolean existsByRestaurantTableIdAndStatus(Long restaurantTableId, TabStatus status);
 
     Optional<Tab> findFirstByRestaurantTableIdAndStatus(Long restaurantTableId, TabStatus status);
+
+    long countByStatus(TabStatus status);
+
+    @Query("""
+            select coalesce(sum(tab.finalAmount), 0)
+            from Tab tab
+            where tab.status = :status
+            """)
+    BigDecimal sumFinalAmountByStatus(@Param("status") TabStatus status);
+
+    @Query("""
+            select coalesce(sum(tab.finalAmount), 0)
+            from Tab tab
+            where tab.status = :status
+              and tab.closedAt >= :start
+              and tab.closedAt < :end
+            """)
+    BigDecimal sumFinalAmountByStatusAndClosedAtBetween(
+            @Param("status") TabStatus status,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    long countByStatusAndClosedAtGreaterThanEqualAndClosedAtLessThan(
+            TabStatus status,
+            LocalDateTime start,
+            LocalDateTime end
+    );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000"))

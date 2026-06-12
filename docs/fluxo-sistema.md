@@ -1,55 +1,69 @@
-# Fluxo do Sistema HubOn
+# Fluxo do sistema HubOn
 
 ## Fluxo principal
 
-1. O operador cadastra ou seleciona uma mesa disponivel.
-2. O operador abre uma comanda para a mesa.
-3. A mesa muda automaticamente para `OCCUPIED`.
-4. O garcom cria pedidos vinculados a comanda.
-5. Cada item do pedido congela nome e preco do produto no momento da venda.
-6. O pedido pode ser enviado para a cozinha.
-7. A cozinha evolui o pedido por status: criado, enviado, preparando, pronto e entregue.
-8. O caixa registra pagamentos da comanda.
-9. Todos os pedidos precisam estar entregues ou cancelados antes de encerrar a comanda.
-10. Quando o pagamento cobre o valor final, a comanda pode ser fechada.
-11. Ao fechar a comanda, a mesa volta para `AVAILABLE`.
+1. O operador ativo é selecionado na topbar.
+2. O operador escolhe uma mesa livre.
+3. Uma comanda é aberta para a mesa.
+4. A mesa muda automaticamente para `OCCUPIED`.
+5. O operador cria pedidos vinculados à comanda.
+6. Cada item congela nome e preço do produto no momento da venda.
+7. O pedido é enviado para a cozinha.
+8. A cozinha percorre `SENT_TO_KITCHEN`, `PREPARING`, `READY` e `DELIVERED`.
+9. O caixa registra um ou mais pagamentos.
+10. Pedidos devem estar entregues ou cancelados antes do fechamento.
+11. O pagamento total deve ser exatamente igual ao valor final.
+12. A comanda é fechada e a mesa volta para `AVAILABLE`.
 
-## Status principais
+## Estados principais
 
 Mesas:
 
-- `AVAILABLE`: mesa disponivel.
-- `OCCUPIED`: mesa com comanda aberta.
-- `RESERVED`: mesa reservada.
-- `DISABLED`: mesa desativada.
+- `AVAILABLE`: livre.
+- `OCCUPIED`: possui comanda aberta.
+- `RESERVED`: reservada.
+- `DISABLED`: desativada.
 
 Comandas:
 
-- `OPEN`: comanda aberta.
-- `CLOSED`: comanda fechada.
-- `CANCELLED`: comanda cancelada.
+- `OPEN`: aberta.
+- `CLOSED`: fechada.
+- `CANCELLED`: cancelada.
 
 Pedidos:
 
-- `CREATED`: pedido criado.
-- `SENT_TO_KITCHEN`: pedido enviado para cozinha.
-- `PREPARING`: pedido em preparo.
-- `READY`: pedido pronto.
-- `DELIVERED`: pedido entregue.
-- `CANCELLED`: pedido cancelado.
+- `CREATED`: criado.
+- `SENT_TO_KITCHEN`: enviado para cozinha.
+- `PREPARING`: em preparo.
+- `READY`: pronto.
+- `DELIVERED`: entregue.
+- `CANCELLED`: cancelado.
 
-## Carga inicial
+## Cancelamentos
 
-Ao iniciar, o backend garante os perfis:
+- Pedido entregue não pode ser cancelado.
+- Pedido de comanda com pagamento não pode ser cancelado.
+- Comanda com pagamento não pode ser cancelada.
+- Comanda com pedido entregue não pode ser cancelada.
+- Pedido cancelado antes do pagamento deixa de compor o total.
+
+## Carga inicial local
+
+Quando o seeder local está habilitado, o backend garante os perfis:
 
 - `ADMIN`
 - `WAITER`
 - `KITCHEN`
 - `CASHIER`
 
-Tambem cria um usuario local de operacao quando ainda nao existe:
+Também cria um usuário administrador local quando ainda não existe:
 
-- Email: `admin@hubon.local`
-- Senha registrada: `admin123`
+```text
+Email: admin@hubon.local
+Senha padrão local: admin123
+```
 
-Para facilitar testes, quando o catalogo e as mesas estao vazios, o backend cria categorias, produtos e oito mesas iniciais.
+A senha pode ser substituída por `HUBON_ADMIN_PASSWORD`. Essa credencial é
+somente para desenvolvimento e não deve ser usada em ambiente público.
+
+Quando catálogo e mesas estão vazios, o seeder cria dados iniciais para teste.

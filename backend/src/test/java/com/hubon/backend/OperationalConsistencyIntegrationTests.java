@@ -163,6 +163,17 @@ class OperationalConsistencyIntegrationTests {
         assertEquals(0, orderCount());
     }
 
+    @Test
+    void shouldLoadDashboardWithAtMostFiveRecentOrders() throws Throwable {
+        Object response = invokeService("dashboardService", "getSummary");
+        @SuppressWarnings("unchecked")
+        List<Object> recentOrders = (List<Object>) response.getClass()
+                .getMethod("recentOrders")
+                .invoke(response);
+
+        assertTrue(recentOrders.size() <= 5);
+    }
+
     private Object newRestaurantTableRequest(
             Integer number,
             String name,

@@ -10,6 +10,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
+import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
 
 @Component({
   selector: 'app-categories-page',
@@ -21,6 +22,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
     PageHeaderComponent,
     SectionCardComponent,
     StatusBadgeComponent,
+    AccessibleDialogDirective,
   ],
   template: `
     <app-page-header
@@ -105,11 +107,21 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 
     @if (formOpen()) {
       <div class="modal-backdrop" (click)="closeForm()">
-        <form class="modal-panel" (click)="$event.stopPropagation()" (ngSubmit)="save()">
+        <form
+          class="modal-panel"
+          appAccessibleDialog
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="category-dialog-title"
+          [dialogCloseDisabled]="saving()"
+          (dialogClose)="closeForm()"
+          (click)="$event.stopPropagation()"
+          (ngSubmit)="save()"
+        >
           <div class="modal-header">
             <div>
               <span>Cardápio</span>
-              <h2>{{ editing() ? 'Editar categoria' : 'Nova categoria' }}</h2>
+              <h2 id="category-dialog-title">{{ editing() ? 'Editar categoria' : 'Nova categoria' }}</h2>
             </div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeForm()">
               <i class="pi pi-times"></i>
@@ -118,7 +130,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
           <div class="form-grid">
             <label class="field full">
               <span>Nome</span>
-              <input name="name" [(ngModel)]="form.name" maxlength="120" required />
+              <input name="name" [(ngModel)]="form.name" maxlength="120" required autofocus />
             </label>
             <label class="field full">
               <span>Descrição</span>

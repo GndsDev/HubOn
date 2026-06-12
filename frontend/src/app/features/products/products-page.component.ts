@@ -12,6 +12,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
+import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
 
 @Component({
   selector: 'app-products-page',
@@ -23,6 +24,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
     PageHeaderComponent,
     SectionCardComponent,
     StatusBadgeComponent,
+    AccessibleDialogDirective,
   ],
   template: `
     <app-page-header
@@ -104,13 +106,23 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 
     @if (formOpen()) {
       <div class="modal-backdrop" (click)="closeForm()">
-        <form class="modal-panel" (click)="$event.stopPropagation()" (ngSubmit)="save()">
+        <form
+          class="modal-panel"
+          appAccessibleDialog
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="product-dialog-title"
+          [dialogCloseDisabled]="saving()"
+          (dialogClose)="closeForm()"
+          (click)="$event.stopPropagation()"
+          (ngSubmit)="save()"
+        >
           <div class="modal-header">
-            <div><span>Catálogo</span><h2>{{ editing() ? 'Editar produto' : 'Novo produto' }}</h2></div>
+            <div><span>Catálogo</span><h2 id="product-dialog-title">{{ editing() ? 'Editar produto' : 'Novo produto' }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeForm()"><i class="pi pi-times"></i></button>
           </div>
           <div class="form-grid">
-            <label class="field full"><span>Nome</span><input name="name" [(ngModel)]="form.name" required maxlength="120" /></label>
+            <label class="field full"><span>Nome</span><input name="name" [(ngModel)]="form.name" required maxlength="120" autofocus /></label>
             <label class="field full"><span>Descrição</span><textarea name="description" [(ngModel)]="form.description" maxlength="255"></textarea></label>
             <label class="field">
               <span>Categoria</span>
@@ -122,7 +134,6 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
               </select>
             </label>
             <label class="field"><span>Preço</span><input name="price" type="number" min="0" step="0.01" [(ngModel)]="form.price" required /></label>
-            <label class="field full"><span>URL da imagem</span><input name="imageUrl" [(ngModel)]="form.imageUrl" maxlength="500" /></label>
             <label class="toggle-field"><input name="active" type="checkbox" [(ngModel)]="form.active" /><span>Produto ativo</span></label>
           </div>
           <div class="modal-actions">

@@ -6,7 +6,12 @@ import { FeedbackService } from '../../../core/services/feedback.service';
   standalone: true,
   template: `
     @if (feedback.message(); as message) {
-      <div class="feedback-toast" [class]="message.tone" role="status">
+      <div
+        class="feedback-toast"
+        [class]="message.tone"
+        [attr.role]="message.tone === 'error' ? 'alert' : 'status'"
+        [attr.aria-live]="message.tone === 'error' ? 'assertive' : 'polite'"
+      >
         <i [class]="icon(message.tone)"></i>
         <span>{{ message.text }}</span>
         <button type="button" aria-label="Fechar mensagem" (click)="feedback.clear()">

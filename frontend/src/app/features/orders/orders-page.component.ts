@@ -15,11 +15,12 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
+import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
 
 @Component({
   selector: 'app-orders-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent],
+  imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent, AccessibleDialogDirective],
   template: `
     <app-page-header kicker="Pedidos" title="Pedidos" description="Crie pedidos, acompanhe itens congelados e envie a produção para a cozinha.">
       <button type="button" class="primary-button" (click)="openForm()"><i class="pi pi-shopping-cart"></i>Novo pedido</button>
@@ -77,15 +78,25 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 
     @if (formOpen()) {
       <div class="modal-backdrop" (click)="formOpen.set(false)">
-        <form class="modal-panel wide" (click)="$event.stopPropagation()" (ngSubmit)="create()">
+        <form
+          class="modal-panel wide"
+          appAccessibleDialog
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="order-dialog-title"
+          [dialogCloseDisabled]="saving()"
+          (dialogClose)="formOpen.set(false)"
+          (click)="$event.stopPropagation()"
+          (ngSubmit)="create()"
+        >
           <div class="modal-header">
-            <div><span>Venda</span><h2>Novo pedido</h2></div>
+            <div><span>Venda</span><h2 id="order-dialog-title">Novo pedido</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="formOpen.set(false)"><i class="pi pi-times"></i></button>
           </div>
           <div class="form-grid">
             <label class="field full">
               <span>Comanda aberta</span>
-              <select name="tabId" [(ngModel)]="form.tabId" required>
+              <select name="tabId" [(ngModel)]="form.tabId" required autofocus>
                 @for (tab of tabs(); track tab.id) { <option [ngValue]="tab.id">#{{ tab.id }} · Mesa {{ tab.tableNumber }}</option> }
               </select>
             </label>

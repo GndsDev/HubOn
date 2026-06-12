@@ -13,11 +13,12 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
+import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
 
 @Component({
   selector: 'app-tabs-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent],
+  imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent, AccessibleDialogDirective],
   template: `
     <app-page-header kicker="Atendimento" title="Comandas" description="Acompanhe comandas abertas, pagamentos e responsáveis do salão.">
       <button type="button" class="primary-button" (click)="openForm()"><i class="pi pi-plus"></i>Abrir comanda</button>
@@ -35,7 +36,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
       } @else {
         <div class="collection-grid">
           @for (tab of tabs(); track tab.id) {
-            <article class="collection-card clickable" (click)="showDetails(tab)">
+            <button type="button" class="collection-card clickable collection-card-button" (click)="showDetails(tab)">
               <div class="collection-icon"><i class="pi pi-receipt"></i></div>
               <div class="collection-main">
                 <strong>Comanda #{{ tab.id }} · Mesa {{ tab.tableNumber }}</strong>
@@ -46,7 +47,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                 <app-status-badge [label]="tab.remainingAmount > 0 ? 'Em aberto' : 'Paga'" [tone]="tab.remainingAmount > 0 ? 'warning' : 'success'" />
                 <b>{{ currency(tab.finalAmount) }}</b>
               </div>
-            </article>
+            </button>
           }
         </div>
       }
@@ -54,15 +55,25 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 
     @if (formOpen()) {
       <div class="modal-backdrop" (click)="formOpen.set(false)">
-        <form class="modal-panel compact" (click)="$event.stopPropagation()" (ngSubmit)="create()">
+        <form
+          class="modal-panel compact"
+          appAccessibleDialog
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tab-form-dialog-title"
+          [dialogCloseDisabled]="saving()"
+          (dialogClose)="formOpen.set(false)"
+          (click)="$event.stopPropagation()"
+          (ngSubmit)="create()"
+        >
           <div class="modal-header">
-            <div><span>Atendimento</span><h2>Abrir comanda</h2></div>
+            <div><span>Atendimento</span><h2 id="tab-form-dialog-title">Abrir comanda</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="formOpen.set(false)"><i class="pi pi-times"></i></button>
           </div>
           <div class="form-grid">
             <label class="field full">
               <span>Mesa disponível</span>
-              <select name="tableId" [(ngModel)]="form.tableId" required>
+              <select name="tableId" [(ngModel)]="form.tableId" required autofocus>
                 <option [ngValue]="0" disabled>Selecione</option>
                 @for (table of availableTables; track table.id) { <option [ngValue]="table.id">Mesa {{ table.number }} · {{ table.name }}</option> }
               </select>
@@ -80,9 +91,17 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 
     @if (selected(); as tab) {
       <div class="modal-backdrop" (click)="selected.set(null)">
-        <section class="modal-panel" (click)="$event.stopPropagation()">
+        <section
+          class="modal-panel"
+          appAccessibleDialog
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tab-details-dialog-title"
+          (dialogClose)="selected.set(null)"
+          (click)="$event.stopPropagation()"
+        >
           <div class="modal-header">
-            <div><span>Detalhes</span><h2>Comanda #{{ tab.id }} · Mesa {{ tab.tableNumber }}</h2></div>
+            <div><span>Detalhes</span><h2 id="tab-details-dialog-title">Comanda #{{ tab.id }} · Mesa {{ tab.tableNumber }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="selected.set(null)"><i class="pi pi-times"></i></button>
           </div>
           <div class="detail-grid">

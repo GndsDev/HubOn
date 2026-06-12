@@ -27,7 +27,14 @@ export interface CollectionItem {
   ],
   template: `
     <app-page-header [kicker]="kicker" [title]="title" [description]="description">
-      <button type="button" class="ghost-button" (click)="action.emit()">
+      <button
+        type="button"
+        class="ghost-button"
+        [class.future-action]="actionDisabled"
+        [disabled]="actionDisabled"
+        [attr.title]="actionTitle || null"
+        (click)="action.emit()"
+      >
         <i [class]="actionIcon"></i>
         {{ actionLabel }}
       </button>
@@ -89,6 +96,8 @@ export class CollectionPageComponent {
   @Input() description = '';
   @Input() actionLabel = 'Novo registro';
   @Input() actionIcon = 'pi pi-plus';
+  @Input() actionDisabled = false;
+  @Input() actionTitle = '';
   @Input() sectionEyebrow = 'Visão operacional';
   @Input() sectionTitle = 'Registros';
   @Input() items: CollectionItem[] = [];

@@ -1,18 +1,8 @@
-# HubOn - Database Model
+# Modelo de banco
 
-## Decisão de padrão
+A documentação canônica do banco foi consolidada em:
 
-O projeto usará:
+- [database-model.md](database-model.md)
 
-- Tabelas em inglês
-- Campos em inglês
-- Código em inglês
-- Interface em português
-- Documentação explicativa em português
-
-## Banco
-
-Banco principal:
-
-```text
-PostgreSQL
+O projeto usa PostgreSQL, nomes em inglês, Flyway para migrations e
+`spring.jpa.hibernate.ddl-auto=validate`.

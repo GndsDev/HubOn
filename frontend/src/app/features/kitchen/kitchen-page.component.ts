@@ -16,7 +16,14 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
   imports: [CommonModule, EmptyStateComponent, PageHeaderComponent, StatusBadgeComponent],
   template: `
     <app-page-header kicker="Produção" title="Cozinha" description="Kanban real de pedidos recebidos, em preparo e prontos.">
-      <button type="button" class="ghost-button" (click)="feedback.info()"><i class="pi pi-volume-up"></i>Modo chamada</button>
+      <button
+        type="button"
+        class="ghost-button future-action"
+        disabled
+        title="Modo chamada fica disponível após o MVP"
+      >
+        <i class="pi pi-volume-up"></i>Modo chamada · em breve
+      </button>
     </app-page-header>
 
     @if (loading()) {
