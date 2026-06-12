@@ -5,6 +5,7 @@
 - Categoria exige nome e pode ser ativada ou desativada sem apagar histórico.
 - Produto exige nome, categoria e preço maior ou igual a zero.
 - Produto inativo não pode entrar em um novo pedido.
+- Produto pertencente a uma categoria inativa não pode entrar em um novo pedido.
 - Alterar nome ou preço de produto não muda itens antigos.
 - Cada item congela `productNameSnapshot` e `unitPriceSnapshot`.
 - Quantidade deve ser maior que zero.
@@ -15,6 +16,8 @@
 - Número é obrigatório e único.
 - Status disponíveis: `AVAILABLE`, `OCCUPIED`, `RESERVED` e `DISABLED`.
 - Na interface: Livre, Ocupada, Reservada e Desativada.
+- Cadastro e edição manual permitem apenas `AVAILABLE`, `RESERVED` e `DISABLED`.
+- `OCCUPIED` é controlado exclusivamente pelo ciclo da comanda.
 - `active=false` é tratado como `DISABLED`.
 - `DISABLED` sempre grava `active=false`.
 - Qualquer outro status grava `active=true`.
@@ -27,6 +30,7 @@
 
 - Uma mesa não pode ter mais de uma comanda aberta.
 - Somente mesa livre e ativa pode abrir comanda.
+- Mesa `RESERVED` não pode abrir comanda diretamente no MVP.
 - Ao abrir, a mesa muda para `OCCUPIED`.
 - Comanda fechada ou cancelada não recebe pedidos nem pagamentos.
 - Uma comanda não pode ser fechada ou cancelada enquanto possuir pedidos pendentes.
@@ -60,6 +64,9 @@
 ## Segurança e persistência
 
 - Endpoints estão liberados apenas para desenvolvimento local.
+- O operador ativo é selecionado na topbar e persistido localmente no navegador.
+- Abrir comanda, criar pedido e registrar pagamento exigem operador selecionado.
+- O contexto local de operador é provisório e não substitui autenticação.
 - CSRF está desabilitado e CORS aceita hosts locais do frontend.
 - Não há JWT nem autorização por perfil.
 - Flyway controla o esquema.

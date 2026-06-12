@@ -147,7 +147,7 @@ a {
 }
 
 .sidebar-brand,
-.admin-chip,
+.operator-chip,
 .topbar-actions,
 .local-status,
 .side-nav-item,
@@ -179,7 +179,7 @@ a {
   object-fit: contain;
 }
 
-.admin-chip > span,
+.operator-chip > span,
 .collection-icon,
 .stat-icon {
   display: grid;
@@ -192,8 +192,8 @@ a {
 
 .sidebar-brand-copy strong,
 .sidebar-brand-copy span,
-.admin-chip strong,
-.admin-chip small {
+.operator-chip small,
+.operator-chip select {
   display: block;
 }
 
@@ -505,7 +505,7 @@ a {
   outline-offset: 2px;
 }
 
-.admin-chip {
+.operator-chip {
   gap: 0.65rem;
   min-height: 2.9rem;
   border: 1px solid rgba(148, 163, 184, 0.16);
@@ -514,15 +514,42 @@ a {
   padding: 0.35rem 0.8rem 0.35rem 0.35rem;
 }
 
-.admin-chip > span {
+.operator-chip > span {
   width: 2.2rem;
   height: 2.2rem;
+  flex: 0 0 auto;
   font-size: 0.8rem;
 }
 
-.admin-chip strong {
+.operator-chip > div {
+  display: grid;
+  min-width: 0;
+}
+
+.operator-chip small {
+  color: #94a3b8;
+  font-size: 0.68rem;
+  line-height: 1.1;
+}
+
+.operator-chip select {
+  max-width: 11rem;
+  border: 0;
+  outline: 0;
+  background: transparent;
   color: #f8fafc;
   font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.operator-chip select:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.operator-chip select option {
+  color: #0f172a;
 }
 
 .content-surface {
@@ -2234,7 +2261,7 @@ app-categories-page {
 
 :root[data-theme="light"] .sidebar-card strong,
 :root[data-theme="light"] .topbar-title strong,
-:root[data-theme="light"] .admin-chip strong,
+:root[data-theme="light"] .operator-chip select,
 :root[data-theme="light"] .page-header h1,
 :root[data-theme="light"] .section-card-header h2,
 :root[data-theme="light"] .stat-copy strong,
@@ -2268,7 +2295,7 @@ app-categories-page {
 
 :root[data-theme="light"] .sidebar-card span,
 :root[data-theme="light"] .sidebar-card small,
-:root[data-theme="light"] .admin-chip small,
+:root[data-theme="light"] .operator-chip small,
 :root[data-theme="light"] .page-kicker,
 :root[data-theme="light"] .page-header p,
 :root[data-theme="light"] .section-card-header span,
@@ -2322,7 +2349,7 @@ app-categories-page {
 }
 
 :root[data-theme="light"] .sidebar-toggle,
-:root[data-theme="light"] .admin-chip,
+:root[data-theme="light"] .operator-chip,
 :root[data-theme="light"] .ghost-button,
 :root[data-theme="light"] .icon-button,
 :root[data-theme="light"] .icon-action-button,
@@ -2716,9 +2743,13 @@ app-categories-page {
     padding: 0 1rem;
   }
 
-  .admin-chip small,
+  .operator-chip small,
   .topbar-title {
     display: none;
+  }
+
+  .operator-chip select {
+    max-width: 8rem;
   }
 
   .content-surface {
@@ -2798,6 +2829,25 @@ app-categories-page {
 }
 
 @media (max-width: 620px) {
+  .local-status {
+    width: 2.45rem;
+    justify-content: center;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .operator-chip {
+    padding-right: 0.5rem;
+  }
+
+  .operator-chip > span {
+    display: none;
+  }
+
+  .operator-chip select {
+    max-width: 7rem;
+  }
+
   .content-surface {
     padding: 1rem;
   }

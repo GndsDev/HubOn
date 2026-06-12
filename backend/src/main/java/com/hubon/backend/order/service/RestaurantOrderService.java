@@ -157,6 +157,9 @@ public class RestaurantOrderService {
         if (!Boolean.TRUE.equals(product.getActive())) {
             throw new BusinessException("Produto inativo não pode ser vendido");
         }
+        if (!Boolean.TRUE.equals(product.getCategory().getActive())) {
+            throw new BusinessException("Produto pertence a uma categoria inativa.");
+        }
 
         BigDecimal unitPrice = product.getPrice();
         BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(itemRequest.quantity()));

@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
-import { finalize } from 'rxjs';
+import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { catchError, EMPTY, exhaustMap, finalize, interval, map, merge, of, Subject } from 'rxjs';
 import { DashboardApiService } from '../../core/services/dashboard-api.service';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { DashboardSummary } from '../../shared/models/dashboard.model';
@@ -102,17 +103,41 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 })
 export class DashboardPageComponent implements OnInit {
   private readonly api = inject(DashboardApiService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly refreshRequests = new Subject<boolean>();
   readonly feedback = inject(FeedbackService);
   readonly summary = signal<DashboardSummary | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    merge(
+      of(true),
+      interval(30_000).pipe(map(() => false)),
+      this.refreshRequests,
+    )
+      .pipe(
+        exhaustMap((showLoading) => {
+          if (showLoading && !this.summary()) this.loading.set(true);
+          if (!this.summary()) this.error.set(null);
+
+          return this.api.getSummary().pipe(
+            catchError((error) => {
+              if (!this.summary()) this.error.set(apiErrorMessage(error));
+              return EMPTY;
+            }),
+            finalize(() => this.loading.set(false)),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((summary) => {
+        this.summary.set(summary);
+        this.error.set(null);
+      });
+  }
+
   load(): void {
-    this.loading.set(true); this.error.set(null);
-    this.api.getSummary().pipe(finalize(() => this.loading.set(false))).subscribe({
-      next: (summary) => this.summary.set(summary),
-      error: (error) => this.error.set(apiErrorMessage(error)),
-    });
+    this.refreshRequests.next(true);
   }
   metrics(data: DashboardSummary) {
     return [

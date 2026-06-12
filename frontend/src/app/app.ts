@@ -1,7 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, startWith } from 'rxjs';
+import { OperatorContextService } from './core/services/operator-context.service';
 import { ThemeService } from './core/services/theme.service';
 import { FeedbackToastComponent } from './shared/components/feedback-toast/feedback-toast.component';
 
@@ -30,10 +31,24 @@ interface NavGroup {
 export class App {
   private readonly router = inject(Router);
   private readonly themeService = inject(ThemeService);
+  private readonly operatorContext = inject(OperatorContextService);
   readonly navOpen = signal(false);
   readonly sidebarCollapsed = signal(false);
   readonly currentLabel = signal('Dashboard');
   readonly theme = this.themeService.theme;
+  readonly operators = this.operatorContext.operators;
+  readonly selectedOperator = this.operatorContext.selectedOperator;
+  readonly operatorLoading = this.operatorContext.loading;
+  readonly operatorInitials = computed(() => {
+    const name = this.selectedOperator()?.name.trim();
+    if (!name) return '--';
+    return name
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase();
+  });
 
   readonly navGroups: NavGroup[] = [
     {
@@ -64,6 +79,7 @@ export class App {
   ];
 
   constructor() {
+    this.operatorContext.load();
     this.router.events
       .pipe(
         filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -90,6 +106,11 @@ export class App {
 
   toggleTheme(): void {
     this.themeService.toggleTheme();
+  }
+
+  selectOperator(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.operatorContext.selectOperator(value ? Number(value) : null);
   }
 
   closeNav(): void {

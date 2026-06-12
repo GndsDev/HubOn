@@ -22,6 +22,7 @@ Os acessos estão em `frontend/src/app/core/services/`:
 - `payment-api.service.ts`
 - `dashboard-api.service.ts`
 - `user-api.service.ts`
+- `operator-context.service.ts`
 
 ## Telas integradas
 
@@ -37,6 +38,24 @@ Os acessos estão em `frontend/src/app/core/services/`:
 
 Não há fallback silencioso para mocks nas telas operacionais. Quando a API está
 indisponível, a tela mostra erro e ação para tentar novamente.
+
+## Operador local
+
+- A topbar carrega os usuários ativos por `/users`.
+- A escolha é explícita; o primeiro usuário não é selecionado automaticamente.
+- O identificador escolhido é salvo em `localStorage` com a chave
+  `hubon-operator-id`.
+- Mesas/Comandas, Pedidos e Caixa usam esse mesmo operador.
+- Sem operador selecionado, abertura de comanda, criação de pedido e pagamento
+  são bloqueados antes da chamada à API.
+
+## Atualização periódica
+
+- Dashboard consulta `/dashboard/summary` a cada 30 segundos.
+- Cozinha consulta `/orders` a cada 15 segundos.
+- As telas usam uma única assinatura com descarte automático ao sair da rota.
+- Requisições sobrepostas são ignoradas enquanto a atualização atual não termina.
+- O tempo decorrido da cozinha é recalculado junto com cada atualização.
 
 ## Estado parcial
 

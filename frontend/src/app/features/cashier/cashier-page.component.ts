@@ -1,14 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { finalize, forkJoin } from 'rxjs';
+import { finalize } from 'rxjs';
 import { FeedbackService } from '../../core/services/feedback.service';
+import { OperatorContextService } from '../../core/services/operator-context.service';
 import { PaymentApiService } from '../../core/services/payment-api.service';
 import { TabApiService } from '../../core/services/tab-api.service';
-import { UserApiService } from '../../core/services/user-api.service';
 import { PaymentMethod, PaymentSummary } from '../../shared/models/payment.model';
 import { Tab } from '../../shared/models/tab.model';
-import { User } from '../../shared/models/user.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -90,11 +89,10 @@ import { SectionCardComponent } from '../../shared/components/section-card/secti
 export class CashierPageComponent implements OnInit {
   private readonly tabApi = inject(TabApiService);
   private readonly paymentApi = inject(PaymentApiService);
-  private readonly userApi = inject(UserApiService);
+  private readonly operatorContext = inject(OperatorContextService);
   readonly feedback = inject(FeedbackService);
 
   readonly tabs = signal<Tab[]>([]);
-  readonly users = signal<User[]>([]);
   readonly selectedTab = signal<Tab | null>(null);
   readonly summary = signal<PaymentSummary | null>(null);
   readonly loading = signal(true);
@@ -112,10 +110,9 @@ export class CashierPageComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.error.set(null);
-    forkJoin({ tabs: this.tabApi.getOpen(), users: this.userApi.getAll() }).pipe(finalize(() => this.loading.set(false))).subscribe({
-      next: ({ tabs, users }) => {
+    this.tabApi.getOpen().pipe(finalize(() => this.loading.set(false))).subscribe({
+      next: (tabs) => {
         this.tabs.set(tabs);
-        this.users.set(users.filter((user) => user.active));
         if (tabs.length) this.selectTab(tabs.some((tab) => tab.id === this.selectedTabId) ? this.selectedTabId : tabs[0].id);
       },
       error: (error) => this.error.set(apiErrorMessage(error)),
@@ -135,14 +132,18 @@ export class CashierPageComponent implements OnInit {
   }
   pay(): void {
     const tab = this.selectedTab();
-    const user = this.users()[0];
-    if (!tab || !user || this.paymentForm.amount <= 0) { this.feedback.error('Informe um valor de pagamento maior que zero.'); return; }
+    const operator = this.operatorContext.selectedOperator();
+    if (!operator) {
+      this.feedback.error('Selecione um operador ativo na barra superior antes de registrar o pagamento.');
+      return;
+    }
+    if (!tab || this.paymentForm.amount <= 0) { this.feedback.error('Informe um valor de pagamento maior que zero.'); return; }
     if (this.paymentForm.amount > this.remainingAmount(tab)) {
       this.feedback.error('O pagamento não pode ultrapassar o saldo restante.');
       return;
     }
     this.saving.set(true);
-    this.paymentApi.create({ tabId: tab.id, receivedByUserId: user.id, ...this.paymentForm })
+    this.paymentApi.create({ tabId: tab.id, receivedByUserId: operator.id, ...this.paymentForm })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => { this.feedback.success('Pagamento registrado com sucesso.'); this.loadSummary(tab.id); this.tabApi.getById(tab.id).subscribe((updated) => this.selectedTab.set(updated)); },

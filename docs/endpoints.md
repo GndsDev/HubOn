@@ -44,7 +44,7 @@ Não existe CRUD de usuários nem autenticação JWT neste MVP.
 | GET | `/tables/{id}` | Busca uma mesa. |
 | POST | `/tables` | Cria uma mesa. |
 | PUT | `/tables/{id}` | Atualiza uma mesa. |
-| PATCH | `/tables/{id}/status` | Atualiza `AVAILABLE`, `OCCUPIED`, `RESERVED` ou `DISABLED`. |
+| PATCH | `/tables/{id}/status` | Atualiza manualmente `AVAILABLE`, `RESERVED` ou `DISABLED`; `OCCUPIED` é exclusivo do ciclo da comanda. |
 | GET | `/tables/{tableId}/current-tab` | Busca a comanda aberta da mesa. |
 
 Não existe exclusão definitiva de mesa no MVP.

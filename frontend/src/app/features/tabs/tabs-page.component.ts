@@ -3,12 +3,11 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize, forkJoin } from 'rxjs';
 import { FeedbackService } from '../../core/services/feedback.service';
+import { OperatorContextService } from '../../core/services/operator-context.service';
 import { TabApiService } from '../../core/services/tab-api.service';
 import { TableApiService } from '../../core/services/table-api.service';
-import { UserApiService } from '../../core/services/user-api.service';
 import { Tab } from '../../shared/models/tab.model';
 import { RestaurantTable } from '../../shared/models/table.model';
-import { User } from '../../shared/models/user.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -106,12 +105,11 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 export class TabsPageComponent implements OnInit {
   private readonly api = inject(TabApiService);
   private readonly tableApi = inject(TableApiService);
-  private readonly userApi = inject(UserApiService);
+  private readonly operatorContext = inject(OperatorContextService);
   private readonly feedback = inject(FeedbackService);
 
   readonly tabs = signal<Tab[]>([]);
   readonly tables = signal<RestaurantTable[]>([]);
-  readonly users = signal<User[]>([]);
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
@@ -125,25 +123,33 @@ export class TabsPageComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.error.set(null);
-    forkJoin({ tabs: this.api.getOpen(), tables: this.tableApi.getAll(), users: this.userApi.getAll() })
+    forkJoin({ tabs: this.api.getOpen(), tables: this.tableApi.getAll() })
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: ({ tabs, tables, users }) => { this.tabs.set(tabs); this.tables.set(tables); this.users.set(users.filter((user) => user.active)); },
+        next: ({ tabs, tables }) => { this.tabs.set(tabs); this.tables.set(tables); },
         error: (error) => this.error.set(apiErrorMessage(error)),
       });
   }
 
   openForm(): void {
+    if (!this.operatorContext.selectedOperator()) {
+      this.feedback.error('Selecione um operador ativo na barra superior antes de abrir a comanda.');
+      return;
+    }
     if (this.availableTables.length === 0) { this.feedback.info('Nenhuma mesa livre disponível para abrir comanda.'); return; }
     this.form = { tableId: this.availableTables[0].id, serviceFee: 0, discountAmount: 0 };
     this.formOpen.set(true);
   }
 
   create(): void {
-    const user = this.users()[0];
-    if (!this.form.tableId || !user) { this.feedback.error('Selecione uma mesa e mantenha um usuário ativo.'); return; }
+    const operator = this.operatorContext.selectedOperator();
+    if (!operator) {
+      this.feedback.error('Selecione um operador ativo na barra superior antes de abrir a comanda.');
+      return;
+    }
+    if (!this.form.tableId) { this.feedback.error('Selecione uma mesa disponível.'); return; }
     this.saving.set(true);
-    this.api.open({ ...this.form, openedByUserId: user.id }).pipe(finalize(() => this.saving.set(false))).subscribe({
+    this.api.open({ ...this.form, openedByUserId: operator.id }).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => { this.feedback.success('Comanda aberta com sucesso.'); this.formOpen.set(false); this.load(); },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });

@@ -4,6 +4,7 @@ import { of } from 'rxjs';
 import { App } from './app';
 import { routes } from './app.routes';
 import { DashboardApiService } from './core/services/dashboard-api.service';
+import { UserApiService } from './core/services/user-api.service';
 
 const dashboardSummary = {
   todaySales: 0,
@@ -25,6 +26,10 @@ describe('App', () => {
         {
           provide: DashboardApiService,
           useValue: { getSummary: () => of(dashboardSummary) },
+        },
+        {
+          provide: UserApiService,
+          useValue: { getAll: () => of([]) },
         },
       ],
     }).compileComponents();

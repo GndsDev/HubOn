@@ -3,14 +3,16 @@
 ## Funcional
 
 - Dashboard com dados reais da API, loading, erro e estados vazios.
+- Dashboard com atualização automática a cada 30 segundos.
 - Categorias: listar, criar, editar, ativar e desativar.
 - Produtos: listar, buscar, criar, editar, ativar e desativar.
 - Mesas: filtros, cadastro, edição, status efetivo e ações operacionais.
 - Comandas: abertura, consulta, cancelamento e fechamento.
 - Pedidos: múltiplos itens, snapshots, envio e cancelamento.
-- Cozinha: Kanban com avanço sequencial até entrega.
+- Cozinha: Kanban com avanço sequencial até entrega e atualização automática a cada 15 segundos.
 - Caixa: histórico, pagamento, saldo e fechamento.
 - Usuários: consulta real dos usuários locais.
+- Operador local selecionável na topbar, persistido no navegador e usado nas operações autorais.
 - Relatórios: resumo básico alimentado pelo Dashboard.
 - Rotas Angular reais com suporte a recarga e URL direta.
 - Toasts de sucesso, erro e informação.
@@ -21,9 +23,9 @@
 
 - Usuários são somente leitura; não existe CRUD, login ou permissões avançadas.
 - Relatórios não possuem filtro por período nem exportação.
-- Dashboard usa agregações simples e sem atualização em tempo real.
-- A aplicação escolhe o primeiro usuário ativo para registrar operações.
-- Testes automatizados ainda cobrem principalmente a inicialização do contexto.
+- Dashboard usa agregações simples; a atualização é por polling, sem WebSocket.
+- O operador local ainda não possui autenticação nem autorização por perfil.
+- Testes automatizados cobrem regras financeiras, estados operacionais e persistência do operador local.
 
 ## Fora do MVP
 

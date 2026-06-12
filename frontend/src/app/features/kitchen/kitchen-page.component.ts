@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
-import { finalize } from 'rxjs';
+import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { catchError, EMPTY, exhaustMap, finalize, interval, map, merge, of, Subject } from 'rxjs';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { OrderApiService } from '../../core/services/order-api.service';
 import { OrderStatus, RestaurantOrder } from '../../shared/models/order.model';
@@ -75,6 +76,9 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 })
 export class KitchenPageComponent implements OnInit {
   private readonly api = inject(OrderApiService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly refreshRequests = new Subject<boolean>();
+  private hasLoaded = false;
   readonly feedback = inject(FeedbackService);
   readonly orders = signal<RestaurantOrder[]>([]);
   readonly loading = signal(true);
@@ -85,14 +89,36 @@ export class KitchenPageComponent implements OnInit {
     { status: 'READY', label: 'Prontos', icon: 'pi pi-check-circle', actionLabel: 'Marcar como entregue', actionIcon: 'pi pi-send' },
   ];
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    merge(
+      of(true),
+      interval(15_000).pipe(map(() => false)),
+      this.refreshRequests,
+    )
+      .pipe(
+        exhaustMap((showLoading) => {
+          if (showLoading && !this.hasLoaded) this.loading.set(true);
+          if (!this.hasLoaded) this.error.set(null);
+
+          return this.api.getAll().pipe(
+            catchError((error) => {
+              if (!this.hasLoaded) this.error.set(apiErrorMessage(error));
+              return EMPTY;
+            }),
+            finalize(() => this.loading.set(false)),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((orders) => {
+        this.orders.set(orders);
+        this.error.set(null);
+        this.hasLoaded = true;
+      });
+  }
+
   load(): void {
-    this.loading.set(true);
-    this.error.set(null);
-    this.api.getAll().pipe(finalize(() => this.loading.set(false))).subscribe({
-      next: (orders) => this.orders.set(orders),
-      error: (error) => this.error.set(apiErrorMessage(error)),
-    });
+    this.refreshRequests.next(true);
   }
   ordersByStatus(status: OrderStatus): RestaurantOrder[] { return this.orders().filter((order) => order.status === status); }
   nextOrderStatus(status: OrderStatus): OrderStatus | null {

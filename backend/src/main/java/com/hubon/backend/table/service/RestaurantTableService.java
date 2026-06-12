@@ -42,6 +42,7 @@ public class RestaurantTableService {
             throw new BusinessException("Já existe uma mesa com este número");
         }
 
+        validateManualStatus(request.status());
         TableStatus status = normalizedStatus(
                 request.status() == null ? TableStatus.AVAILABLE : request.status(),
                 request.active() == null || request.active()
@@ -65,10 +66,12 @@ public class RestaurantTableService {
                     throw new BusinessException("Já existe uma mesa com este número");
                 });
 
+        validateManualStatus(request.status());
         TableStatus requestedStatus = normalizedStatus(
                 request.status() == null ? table.getStatus() : request.status(),
                 request.active() == null ? table.getActive() : request.active()
         );
+        validateManualStatus(requestedStatus);
         validateStatusChange(table, requestedStatus);
 
         table.setNumber(request.number());
@@ -82,6 +85,7 @@ public class RestaurantTableService {
     @Transactional
     public RestaurantTableResponse updateStatus(Long id, TableStatusRequest request) {
         RestaurantTable table = findEntityById(id);
+        validateManualStatus(request.status());
         validateStatusChange(table, request.status());
 
         table.setStatus(request.status());
@@ -94,6 +98,12 @@ public class RestaurantTableService {
         return status == TableStatus.DISABLED || !Boolean.TRUE.equals(active)
                 ? TableStatus.DISABLED
                 : status;
+    }
+
+    private void validateManualStatus(TableStatus status) {
+        if (status == TableStatus.OCCUPIED) {
+            throw new BusinessException("Status OCCUPIED é controlado pelo ciclo da comanda");
+        }
     }
 
     private void validateStatusChange(RestaurantTable table, TableStatus requestedStatus) {

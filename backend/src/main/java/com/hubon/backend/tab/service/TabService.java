@@ -72,6 +72,10 @@ public class TabService {
             throw new BusinessException("Mesa ocupada não pode abrir outra comanda");
         }
 
+        if (table.getStatus() == TableStatus.RESERVED) {
+            throw new BusinessException("Mesa reservada não pode abrir comanda diretamente.");
+        }
+
         if (tabRepository.existsByRestaurantTableIdAndStatus(table.getId(), TabStatus.OPEN)) {
             throw new BusinessException("Mesa já possui uma comanda aberta");
         }

@@ -1,14 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { finalize, forkJoin } from 'rxjs';
+import { finalize } from 'rxjs';
 import { FeedbackService } from '../../core/services/feedback.service';
+import { OperatorContextService } from '../../core/services/operator-context.service';
 import { TabApiService } from '../../core/services/tab-api.service';
 import { TableApiService } from '../../core/services/table-api.service';
-import { UserApiService } from '../../core/services/user-api.service';
 import { Tab } from '../../shared/models/tab.model';
 import { RestaurantTable, RestaurantTableRequest, RestaurantTableStatus } from '../../shared/models/table.model';
-import { User } from '../../shared/models/user.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -71,7 +70,8 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
                 <button
                   type="button"
                   class="icon-action-button"
-                  title="Editar mesa"
+                  [disabled]="effectiveStatus(table) === 'OCCUPIED'"
+                  [title]="effectiveStatus(table) === 'OCCUPIED' ? 'Mesa ocupada não pode ser editada' : 'Editar mesa'"
                   [attr.aria-label]="'Editar mesa ' + table.number"
                   (click)="openEdit(table)"
                 >
@@ -162,11 +162,10 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
 export class TablesPageComponent implements OnInit {
   private readonly api = inject(TableApiService);
   private readonly tabApi = inject(TabApiService);
-  private readonly userApi = inject(UserApiService);
+  private readonly operatorContext = inject(OperatorContextService);
   private readonly feedback = inject(FeedbackService);
 
   readonly tables = signal<RestaurantTable[]>([]);
-  readonly users = signal<User[]>([]);
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
@@ -174,7 +173,7 @@ export class TablesPageComponent implements OnInit {
   readonly editing = signal<RestaurantTable | null>(null);
   readonly openTabTable = signal<RestaurantTable | null>(null);
   readonly currentTab = signal<Tab | null>(null);
-  readonly tableStatuses: RestaurantTableStatus[] = ['AVAILABLE', 'OCCUPIED', 'RESERVED', 'DISABLED'];
+  readonly tableStatuses: RestaurantTableStatus[] = ['AVAILABLE', 'RESERVED', 'DISABLED'];
   readonly filters = [
     { label: 'Todas', value: 'ALL' as TableFilter },
     { label: 'Livres', value: 'AVAILABLE' as TableFilter },
@@ -197,16 +196,20 @@ export class TablesPageComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.error.set(null);
-    forkJoin({ tables: this.api.getAll(), users: this.userApi.getAll() }).pipe(finalize(() => this.loading.set(false))).subscribe({
-      next: ({ tables, users }) => { this.tables.set(tables); this.users.set(users.filter((user) => user.active)); },
+    this.api.getAll().pipe(finalize(() => this.loading.set(false))).subscribe({
+      next: (tables) => this.tables.set(tables),
       error: (error) => this.error.set(apiErrorMessage(error)),
     });
   }
 
   openCreate(): void { this.editing.set(null); this.tableForm = this.emptyTableForm(); this.formOpen.set(true); }
   openEdit(table: RestaurantTable): void {
-    this.editing.set(table);
     const status = this.effectiveStatus(table);
+    if (status === 'OCCUPIED') {
+      this.feedback.info('Mesa ocupada só pode ser alterada pelo ciclo da comanda.');
+      return;
+    }
+    this.editing.set(table);
     this.tableForm = { number: table.number, name: table.name, status, active: status !== 'DISABLED' };
     this.formOpen.set(true);
   }
@@ -229,6 +232,10 @@ export class TablesPageComponent implements OnInit {
   selectTable(table: RestaurantTable): void {
     const status = this.effectiveStatus(table);
     if (status === 'AVAILABLE') {
+      if (!this.operatorContext.selectedOperator()) {
+        this.feedback.error('Selecione um operador ativo na barra superior antes de abrir a comanda.');
+        return;
+      }
       this.tabForm = { serviceFee: 0, discountAmount: 0 };
       this.openTabTable.set(table);
       return;
@@ -245,10 +252,14 @@ export class TablesPageComponent implements OnInit {
 
   openTab(): void {
     const table = this.openTabTable();
-    const user = this.users()[0];
-    if (!table || !user) { this.feedback.error('Nenhum usuário ativo disponível.'); return; }
+    const operator = this.operatorContext.selectedOperator();
+    if (!table) return;
+    if (!operator) {
+      this.feedback.error('Selecione um operador ativo na barra superior antes de abrir a comanda.');
+      return;
+    }
     this.saving.set(true);
-    this.tabApi.open({ tableId: table.id, openedByUserId: user.id, ...this.tabForm })
+    this.tabApi.open({ tableId: table.id, openedByUserId: operator.id, ...this.tabForm })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => { this.feedback.success('Comanda aberta com sucesso.'); this.closeAll(); this.load(); },

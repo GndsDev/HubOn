@@ -83,13 +83,25 @@
         >
           <i [class]="theme() === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"></i>
         </button>
-        <div class="admin-chip">
-          <span>AD</span>
+        <label class="operator-chip">
+          <span>{{ operatorInitials() }}</span>
           <div>
-            <strong>Admin</strong>
-            <small>Administrador</small>
+            <small>Operador ativo</small>
+            <select
+              [value]="selectedOperator()?.id ?? ''"
+              (change)="selectOperator($event)"
+              aria-label="Selecionar operador ativo"
+              [disabled]="operatorLoading()"
+            >
+              <option value="">
+                {{ operatorLoading() ? 'Carregando...' : 'Selecionar operador' }}
+              </option>
+              @for (operator of operators(); track operator.id) {
+                <option [value]="operator.id">{{ operator.name }}</option>
+              }
+            </select>
           </div>
-        </div>
+        </label>
       </div>
     </header>
 
