@@ -354,7 +354,7 @@ async function captureScreenshots(executablePath, operatorId) {
   try {
     for (const [fileName, route, heading] of routes) {
       console.log(`Capturando ${fileName}...`);
-      await openStablePage(page, route, heading);
+      await openStablePage(page, route, heading, operatorId);
       await page.screenshot({
         path: path.join(screenshotDirectory, fileName),
         fullPage: false,
@@ -392,14 +392,19 @@ async function captureVideo(executablePath, operatorId) {
 
   try {
     console.log('Gravando demonstração visual...');
-    await openStablePage(page, '/dashboard', 'Operação em tempo real');
+    await openStablePage(
+      page,
+      '/dashboard',
+      'Operação em tempo real',
+      operatorId,
+    );
     await delay(1800);
 
     for (const [label, route] of videoRouteLabels) {
       const link = page.locator(`a[href="${route}"]`);
       await link.click();
       await page.waitForURL(`${baseUrl}${route}`);
-      await waitUntilStable(page);
+      await waitUntilStable(page, operatorId);
       await delay(label === 'Cozinha' ? 2200 : 1500);
     }
   } finally {
@@ -440,16 +445,16 @@ async function createContext(browser, operatorId, extraOptions = {}) {
   return context;
 }
 
-async function openStablePage(page, route, heading) {
+async function openStablePage(page, route, heading, operatorId) {
   await page.goto(`${baseUrl}${route}`, { waitUntil: 'domcontentloaded' });
   await page.locator('h1', { hasText: heading }).waitFor({
     state: 'visible',
     timeout: 15_000,
   });
-  await waitUntilStable(page);
+  await waitUntilStable(page, operatorId);
 }
 
-async function waitUntilStable(page) {
+async function waitUntilStable(page, operatorId) {
   await page.waitForFunction(
     () => document.querySelectorAll('.loading-card').length === 0,
     null,
@@ -466,8 +471,8 @@ async function waitUntilStable(page) {
     null,
     { timeout: 15_000 },
   );
-  if ((await operatorSelect.inputValue()) !== String(operator.id)) {
-    await operatorSelect.selectOption(String(operator.id));
+  if ((await operatorSelect.inputValue()) !== String(operatorId)) {
+    await operatorSelect.selectOption(String(operatorId));
   }
 
   await page.evaluate(async () => {
