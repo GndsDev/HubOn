@@ -8,6 +8,8 @@
 
 # Node
 /node_modules
+/.npm-cache
+/.playwright
 npm-debug.log
 yarn-error.log
 

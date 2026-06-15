@@ -50,6 +50,29 @@ depender de serviços externos.
 - Temas dark e light.
 - Layout responsivo com sidebar recolhível.
 
+## Demonstração visual
+
+### Dashboard
+
+![Dashboard operacional do HubOn](docs/media/screenshots/01-dashboard.png)
+
+### Mesas
+
+![Mapa de mesas do HubOn](docs/media/screenshots/02-mesas.png)
+
+### Cozinha
+
+![Kanban de produção da cozinha](docs/media/screenshots/07-cozinha.png)
+
+### Caixa
+
+![Resumo e registro de pagamento no caixa](docs/media/screenshots/08-caixa.png)
+
+[Assistir à demonstração navegável em WebM](docs/media/videos/hubon-demo.webm)
+
+As dez telas documentadas e as instruções para regenerar as mídias estão em
+[portfolio-media.md](docs/portfolio-media.md).
+
 ## Estrutura do repositório
 
 ```text
@@ -178,4 +201,4 @@ Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
 - [Roteiro de teste manual](docs/manual-test-flow.md)
 - [Branding](docs/branding.md)
 - [Temas](docs/frontend-theme.md)
-
+- [Mídias do portfólio](docs/portfolio-media.md)
