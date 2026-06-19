@@ -15,8 +15,8 @@ Payload:
 
 ```json
 {
-  "email": "owner@hubon.local",
-  "password": "owner123"
+  "email": "email-configurado-no-seeder",
+  "password": "senha-configurada-no-seeder"
 }
 ```
 

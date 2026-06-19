@@ -78,7 +78,7 @@ export class LoginPageComponent implements OnInit {
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
-  form = { email: 'owner@hubon.local', password: 'owner123' };
+  form = { email: '', password: '' };
 
   ngOnInit(): void {
     if (this.auth.isAuthenticated()) {

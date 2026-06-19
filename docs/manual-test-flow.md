@@ -6,7 +6,8 @@
 2. Em `backend`, execute `.\mvnw.cmd spring-boot:run`.
 3. Em `frontend`, execute `npm start`.
 4. Abra `http://localhost:4200/dashboard`.
-5. Faça login com `owner@hubon.local` e senha `owner123`.
+5. Faça login com o `OWNER` configurado em `hubon.seed.owner.email` e
+   `hubon.seed.owner.password`.
 
 ## Fluxo principal
 

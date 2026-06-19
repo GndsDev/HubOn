@@ -37,6 +37,28 @@ $env:DB_USERNAME="hubon_user"
 $env:DB_PASSWORD="hubon_password"
 ```
 
+## Credenciais locais do seeder
+
+O login inicial de desenvolvimento é criado pelo backend quando
+`hubon.seed.enabled=true`. O frontend não contém e não preenche senha padrão.
+
+No perfil local, os valores padrão ficam em
+`backend/src/main/resources/application-local.properties`. Para configurar suas
+próprias credenciais antes de iniciar o backend:
+
+```powershell
+$env:HUBON_SEED_OWNER_NAME="Proprietário"
+$env:HUBON_SEED_OWNER_EMAIL="owner.local@hubon.test"
+$env:HUBON_SEED_OWNER_PASSWORD="senha-local-forte"
+$env:HUBON_SEED_ADMIN_ENABLED="true"
+$env:HUBON_SEED_ADMIN_NAME="Administrador"
+$env:HUBON_SEED_ADMIN_EMAIL="admin.local@hubon.test"
+$env:HUBON_SEED_ADMIN_PASSWORD="senha-admin-local-forte"
+```
+
+As senhas são salvas com BCrypt. Configure esses valores antes da primeira
+criação dos usuários seedados. Não use os valores locais padrão em produção.
+
 ## Execução em localhost
 
 ### Backend
@@ -72,7 +94,7 @@ O perfil padrão do backend é `local`. Ele:
 
 - usa as credenciais locais ou variáveis de ambiente;
 - executa o seeder;
-- permite os endpoints para desenvolvimento;
+- protege os endpoints por JWT e roles;
 - aceita CORS de `localhost:4200` e `127.0.0.1:4200`;
 - mantém `show-sql` ativo;
 - escuta em `0.0.0.0` para permitir teste em rede privada.
@@ -194,6 +216,7 @@ $env:DB_URL="jdbc:postgresql://servidor:5432/hubon_db"
 $env:DB_USERNAME="usuario"
 $env:DB_PASSWORD="senha"
 $env:HUBON_CORS_ALLOWED_ORIGINS="https://hubon.exemplo.com"
+$env:HUBON_JWT_SECRET="segredo-longo-e-aleatorio"
 cd backend
 .\mvnw.cmd spring-boot:run
 ```
@@ -205,6 +228,8 @@ No perfil `prod`:
 - Open Session in View permanece desativado;
 - CORS aceita somente origens informadas;
 - endpoints ficam bloqueados por padrão.
+- caso o seeder seja habilitado manualmente, `hubon.seed.owner.*` deve vir de
+  configuração explícita do ambiente.
 
 Build do frontend:
 
@@ -219,7 +244,7 @@ O MVP possui login JWT e autorização por perfil, mas ainda não tem refresh to
 recuperação de senha, política de tentativas ou auditoria completa.
 
 - Use apenas em localhost ou rede privada confiável.
-- Troque senhas padrão e `HUBON_JWT_SECRET`.
+- Configure credenciais seedadas próprias e troque `HUBON_JWT_SECRET`.
 - Não encaminhe portas no roteador.
 - Não exponha a API ou o banco à internet.
 - Não habilite `HUBON_SECURITY_PERMIT_ALL=true` em ambiente público.

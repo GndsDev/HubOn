@@ -62,6 +62,13 @@ Flyway e executa as suítes JUnit.
 - `ADMIN` cria somente perfis operacionais.
 - Usuário operacional não cria usuários.
 
+`DataSeederIntegrationTests`
+
+- Criação de usuários seedados a partir de `hubon.seed.owner.*` e
+  `hubon.seed.admin.*`.
+- Senhas seedadas gravadas com BCrypt, nunca em texto puro.
+- Login funcionando com a senha configurada no ambiente de teste.
+
 ### Dependência do banco
 
 As suítes de integração criam dados próprios e os removem ao final, mas usam o
@@ -80,6 +87,12 @@ Para executar os testes uma vez:
 
 ```powershell
 npm test -- --watch=false
+```
+
+Para validar tipos dos specs sem abrir o runner:
+
+```powershell
+npx tsc -p tsconfig.spec.json --noEmit
 ```
 
 Para manter o runner observando mudanças:
@@ -137,6 +150,9 @@ Scripts disponíveis:
   consultas inválidas ou mapeamentos JPA incompatíveis.
 - **Falha de TypeScript/template:** execute `npm run build` para obter o arquivo e
   a linha envolvidos.
+- **Falha no login local:** confirme se o usuário seedado foi criado com as
+  propriedades `hubon.seed.owner.*` ou `hubon.seed.admin.*` e se a senha foi
+  configurada antes da primeira criação desse usuário no banco.
 - **Falha de teste visual ou de rota:** confirme se o mock do serviço e a rota
   usada pelo teste ainda correspondem à aplicação.
 

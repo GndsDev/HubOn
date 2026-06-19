@@ -17,6 +17,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.Set;
@@ -33,10 +34,25 @@ public class DataSeeder implements CommandLineRunner {
     private final RestaurantTableRepository tableRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${hubon.seed.owner-password}")
+    @Value("${hubon.seed.owner.name:}")
+    private String ownerName;
+
+    @Value("${hubon.seed.owner.email:}")
+    private String ownerEmail;
+
+    @Value("${hubon.seed.owner.password:}")
     private String ownerPassword;
 
-    @Value("${hubon.seed.admin-password:admin123}")
+    @Value("${hubon.seed.admin.enabled:true}")
+    private boolean adminSeedEnabled;
+
+    @Value("${hubon.seed.admin.name:}")
+    private String adminName;
+
+    @Value("${hubon.seed.admin.email:}")
+    private String adminEmail;
+
+    @Value("${hubon.seed.admin.password:}")
     private String adminPassword;
 
     @Override
@@ -47,20 +63,32 @@ public class DataSeeder implements CommandLineRunner {
         createRoleIfNotExists("KITCHEN", "Cozinha");
         createRoleIfNotExists("CASHIER", "Caixa");
 
+        validateSeedUser("OWNER", ownerName, ownerEmail, ownerPassword);
         createUserIfNotExistsOrUpgradePassword(
-                "Proprietário",
-                "owner@hubon.local",
+                ownerName,
+                ownerEmail,
                 ownerPassword,
                 Set.of(owner)
         );
-        createUserIfNotExistsOrUpgradePassword(
-                "Administrador",
-                "admin@hubon.local",
-                adminPassword,
-                Set.of(admin)
-        );
+        if (adminSeedEnabled) {
+            validateSeedUser("ADMIN", adminName, adminEmail, adminPassword);
+            createUserIfNotExistsOrUpgradePassword(
+                    adminName,
+                    adminEmail,
+                    adminPassword,
+                    Set.of(admin)
+            );
+        }
         seedCatalogIfEmpty();
         seedTablesIfEmpty();
+    }
+
+    private void validateSeedUser(String role, String name, String email, String password) {
+        if (!StringUtils.hasText(name) || !StringUtils.hasText(email) || !StringUtils.hasText(password)) {
+            throw new IllegalStateException(
+                    "Configuração hubon.seed.%s.* incompleta para criar usuário inicial".formatted(role.toLowerCase())
+            );
+        }
     }
 
     private Role createRoleIfNotExists(String name, String description) {

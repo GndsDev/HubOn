@@ -101,15 +101,19 @@ Senha: hubon_password
 
 Esses valores podem ser substituídos por variáveis de ambiente.
 
-Credenciais locais seedadas para desenvolvimento:
+Usuários locais seedados para desenvolvimento:
 
 ```text
-OWNER: owner@hubon.local / owner123
-ADMIN: admin@hubon.local / admin123
+OWNER: definido por hubon.seed.owner.*
+ADMIN: definido por hubon.seed.admin.*
 ```
 
-As senhas são gravadas com BCrypt. Troque `HUBON_OWNER_PASSWORD`,
-`HUBON_ADMIN_PASSWORD` e `HUBON_JWT_SECRET` fora do desenvolvimento local.
+Os valores padrão do perfil local ficam em
+`backend/src/main/resources/application-local.properties` e podem ser
+substituídos por variáveis de ambiente, como `HUBON_SEED_OWNER_EMAIL`,
+`HUBON_SEED_OWNER_PASSWORD`, `HUBON_SEED_ADMIN_EMAIL` e
+`HUBON_SEED_ADMIN_PASSWORD`. As senhas são gravadas com BCrypt. Troque esses
+valores e `HUBON_JWT_SECRET` fora do desenvolvimento local.
 
 ## Como executar
 

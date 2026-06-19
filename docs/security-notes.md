@@ -11,22 +11,34 @@ completa para produção pública.
 
 ## Login local de desenvolvimento
 
-O seeder cria os usuários iniciais abaixo quando `hubon.seed.enabled=true`:
+O seeder cria usuários iniciais quando `hubon.seed.enabled=true`. As credenciais
+vêm de propriedades do backend, não do frontend:
 
-| Usuário | Senha padrão | Perfil |
+| Propriedade | Variável de ambiente | Uso |
 | --- | --- | --- |
-| `owner@hubon.local` | `owner123` | `OWNER` |
-| `admin@hubon.local` | `admin123` | `ADMIN` |
+| `hubon.seed.owner.name` | `HUBON_SEED_OWNER_NAME` | Nome do `OWNER` inicial |
+| `hubon.seed.owner.email` | `HUBON_SEED_OWNER_EMAIL` | E-mail do `OWNER` inicial |
+| `hubon.seed.owner.password` | `HUBON_SEED_OWNER_PASSWORD` | Senha do `OWNER` inicial |
+| `hubon.seed.admin.enabled` | `HUBON_SEED_ADMIN_ENABLED` | Habilita ou desabilita o `ADMIN` inicial |
+| `hubon.seed.admin.name` | `HUBON_SEED_ADMIN_NAME` | Nome do `ADMIN` inicial |
+| `hubon.seed.admin.email` | `HUBON_SEED_ADMIN_EMAIL` | E-mail do `ADMIN` inicial |
+| `hubon.seed.admin.password` | `HUBON_SEED_ADMIN_PASSWORD` | Senha do `ADMIN` inicial |
 
-As senhas são armazenadas com BCrypt. Para alterar em ambiente local:
+Os valores padrão do perfil local ficam em
+`backend/src/main/resources/application-local.properties`. As senhas são
+armazenadas com BCrypt. Para alterar em ambiente local:
 
 ```powershell
-$env:HUBON_OWNER_PASSWORD="nova-senha-owner"
-$env:HUBON_ADMIN_PASSWORD="nova-senha-admin"
+$env:HUBON_SEED_OWNER_EMAIL="owner.local@hubon.test"
+$env:HUBON_SEED_OWNER_PASSWORD="senha-local-forte"
+$env:HUBON_SEED_ADMIN_EMAIL="admin.local@hubon.test"
+$env:HUBON_SEED_ADMIN_PASSWORD="senha-admin-local-forte"
 ```
 
-Em produção, não use senhas padrão. A criação do primeiro dono deve vir de
-variáveis de ambiente, setup seguro ou processo administrativo controlado.
+Em produção, não use os valores padrão locais. A criação do primeiro dono deve
+vir de variáveis de ambiente, setup seguro ou processo administrativo controlado.
+Se o seeder for habilitado sem credenciais obrigatórias, a aplicação falha em
+vez de criar usuário inseguro.
 
 ## Perfis e permissões
 

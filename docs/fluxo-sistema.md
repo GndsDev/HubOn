@@ -57,15 +57,16 @@ Quando o seeder local está habilitado, o backend garante os perfis:
 - `KITCHEN`
 - `CASHIER`
 
-Também cria usuários locais iniciais quando ainda não existem:
+Também cria usuários locais iniciais quando ainda não existem. As credenciais
+vêm de propriedades configuráveis:
 
 ```text
-OWNER: owner@hubon.local / owner123
-ADMIN: admin@hubon.local / admin123
+OWNER: hubon.seed.owner.name, hubon.seed.owner.email, hubon.seed.owner.password
+ADMIN: hubon.seed.admin.name, hubon.seed.admin.email, hubon.seed.admin.password
 ```
 
-As senhas podem ser substituídas por `HUBON_OWNER_PASSWORD` e
-`HUBON_ADMIN_PASSWORD`. Essas credenciais são somente para desenvolvimento e não
-devem ser usadas em ambiente público.
+As senhas podem ser substituídas por `HUBON_SEED_OWNER_PASSWORD` e
+`HUBON_SEED_ADMIN_PASSWORD`. Os valores padrão do perfil local são somente para
+desenvolvimento e não devem ser usados em ambiente público.
 
 Quando catálogo e mesas estão vazios, o seeder cria dados iniciais para teste.
