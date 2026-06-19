@@ -108,6 +108,93 @@ a {
   text-decoration: none;
 }
 
+.auth-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.auth-panel {
+  display: grid;
+  width: min(100%, 28rem);
+  gap: 1.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(37, 99, 235, 0.14), transparent 42%),
+    var(--color-surface);
+  box-shadow: var(--shadow-modal);
+  padding: 1.35rem;
+  backdrop-filter: blur(22px);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.auth-brand-logo {
+  display: block;
+  width: 3.25rem;
+  height: 3.25rem;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.auth-brand div,
+.auth-copy,
+.auth-form {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.auth-brand strong,
+.auth-copy h1 {
+  color: var(--color-text-strong);
+}
+
+.auth-brand strong {
+  font-size: 1.2rem;
+}
+
+.auth-brand span,
+.auth-copy span,
+.auth-copy p {
+  color: var(--color-text-muted);
+}
+
+.auth-copy h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  line-height: 1.12;
+}
+
+.auth-copy p {
+  margin: 0;
+}
+
+.auth-form {
+  gap: 0.85rem;
+}
+
+.auth-error {
+  margin: 0;
+  border: 1px solid rgba(248, 113, 113, 0.22);
+  border-radius: 8px;
+  background: rgba(127, 29, 29, 0.28);
+  color: #fecaca;
+  padding: 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.auth-submit {
+  width: 100%;
+  justify-content: center;
+}
+
 .hub-shell {
   display: grid;
   width: 100%;
@@ -193,6 +280,7 @@ a {
 .sidebar-brand-copy strong,
 .sidebar-brand-copy span,
 .operator-chip small,
+.operator-chip strong,
 .operator-chip select {
   display: block;
 }
@@ -532,6 +620,17 @@ a {
   line-height: 1.1;
 }
 
+.operator-chip strong {
+  max-width: 11rem;
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .operator-chip select {
   max-width: 11rem;
   border: 0;
@@ -550,6 +649,10 @@ a {
 
 .operator-chip select option {
   color: #0f172a;
+}
+
+.authenticated-user-chip {
+  padding-right: 0.8rem;
 }
 
 .content-surface {
@@ -2275,6 +2378,7 @@ app-categories-page {
 
 :root[data-theme="light"] .sidebar-card strong,
 :root[data-theme="light"] .topbar-title strong,
+:root[data-theme="light"] .operator-chip strong,
 :root[data-theme="light"] .operator-chip select,
 :root[data-theme="light"] .page-header h1,
 :root[data-theme="light"] .section-card-header h2,
@@ -2762,6 +2866,7 @@ app-categories-page {
     display: none;
   }
 
+  .operator-chip strong,
   .operator-chip select {
     max-width: 8rem;
   }
@@ -2858,6 +2963,7 @@ app-categories-page {
     display: none;
   }
 
+  .operator-chip strong,
   .operator-chip select {
     max-width: 7rem;
   }

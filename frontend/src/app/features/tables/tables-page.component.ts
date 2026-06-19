@@ -2,8 +2,8 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
+import { AuthService } from '../../core/services/auth.service';
 import { FeedbackService } from '../../core/services/feedback.service';
-import { OperatorContextService } from '../../core/services/operator-context.service';
 import { TabApiService } from '../../core/services/tab-api.service';
 import { TableApiService } from '../../core/services/table-api.service';
 import { Tab } from '../../shared/models/tab.model';
@@ -191,7 +191,7 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
 export class TablesPageComponent implements OnInit {
   private readonly api = inject(TableApiService);
   private readonly tabApi = inject(TabApiService);
-  private readonly operatorContext = inject(OperatorContextService);
+  private readonly auth = inject(AuthService);
   private readonly feedback = inject(FeedbackService);
 
   readonly tables = signal<RestaurantTable[]>([]);
@@ -261,8 +261,8 @@ export class TablesPageComponent implements OnInit {
   selectTable(table: RestaurantTable): void {
     const status = this.effectiveStatus(table);
     if (status === 'AVAILABLE') {
-      if (!this.operatorContext.selectedOperator()) {
-        this.feedback.error('Selecione um operador ativo na barra superior antes de abrir a comanda.');
+      if (!this.auth.currentUser()) {
+        this.feedback.error('Faça login antes de abrir a comanda.');
         return;
       }
       this.tabForm = { serviceFee: 0, discountAmount: 0 };
@@ -281,14 +281,13 @@ export class TablesPageComponent implements OnInit {
 
   openTab(): void {
     const table = this.openTabTable();
-    const operator = this.operatorContext.selectedOperator();
     if (!table) return;
-    if (!operator) {
-      this.feedback.error('Selecione um operador ativo na barra superior antes de abrir a comanda.');
+    if (!this.auth.currentUser()) {
+      this.feedback.error('Faça login antes de abrir a comanda.');
       return;
     }
     this.saving.set(true);
-    this.tabApi.open({ tableId: table.id, openedByUserId: operator.id, ...this.tabForm })
+    this.tabApi.open({ tableId: table.id, ...this.tabForm })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => { this.feedback.success('Comanda aberta com sucesso.'); this.closeAll(); this.load(); },

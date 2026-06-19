@@ -20,7 +20,7 @@ export interface Tab {
 
 export interface OpenTabRequest {
   tableId: number;
-  openedByUserId: number;
+  openedByUserId?: number;
   serviceFee: number;
   discountAmount: number;
 }

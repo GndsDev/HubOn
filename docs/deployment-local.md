@@ -215,17 +215,16 @@ npm run build
 
 ## Limitações de segurança
 
-O MVP não possui login, JWT ou autorização por perfil. O operador selecionado na
-interface não substitui autenticação.
+O MVP possui login JWT e autorização por perfil, mas ainda não tem refresh token,
+recuperação de senha, política de tentativas ou auditoria completa.
 
 - Use apenas em localhost ou rede privada confiável.
-- Troque senhas padrão.
+- Troque senhas padrão e `HUBON_JWT_SECRET`.
 - Não encaminhe portas no roteador.
 - Não exponha a API ou o banco à internet.
 - Não habilite `HUBON_SECURITY_PERMIT_ALL=true` em ambiente público.
 
-Antes de uma implantação pública, são obrigatórios autenticação real, TLS,
-autorização, gestão de segredos e revisão de infraestrutura.
+Antes de uma implantação pública, são obrigatórios TLS, gestão segura de
+segredos, política de credenciais, auditoria e revisão de infraestrutura.
 
 Consulte [security-notes.md](security-notes.md).
-

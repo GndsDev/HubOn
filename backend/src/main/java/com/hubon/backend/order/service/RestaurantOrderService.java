@@ -1,5 +1,6 @@
 package com.hubon.backend.order.service;
 
+import com.hubon.backend.auth.service.AuthenticatedUserProvider;
 import com.hubon.backend.order.domain.OrderItem;
 import com.hubon.backend.order.domain.OrderItemStatus;
 import com.hubon.backend.order.domain.OrderStatus;
@@ -45,6 +46,7 @@ public class RestaurantOrderService {
     private final UserRepository userRepository;
     private final PaymentRepository paymentRepository;
     private final TabAccountingService accountingService;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Transactional(readOnly = true)
     public List<RestaurantOrderResponse> listAll() {
@@ -78,8 +80,8 @@ public class RestaurantOrderService {
     public RestaurantOrderResponse create(RestaurantOrderRequest request) {
         Tab tab = tabRepository.findByIdForUpdate(request.tabId())
                 .orElseThrow(() -> new ResourceNotFoundException("Comanda não encontrada"));
-        User createdByUser = userRepository.findById(request.createdByUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+        User createdByUser = authenticatedUserProvider.currentUser()
+                .orElseGet(() -> findRequestedUser(request.createdByUserId()));
 
         ensureTabCanReceiveOrder(tab);
 
@@ -207,6 +209,14 @@ public class RestaurantOrderService {
     private RestaurantOrder findEntityById(Long id) {
         return orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido não encontrado"));
+    }
+
+    private User findRequestedUser(Long userId) {
+        if (userId == null) {
+            throw new BusinessException("Usuário responsável é obrigatório");
+        }
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
     }
 
     private RestaurantOrderResponse toResponse(RestaurantOrder order, List<OrderItem> items) {

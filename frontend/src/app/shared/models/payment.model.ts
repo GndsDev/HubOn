@@ -14,7 +14,7 @@ export interface PaymentRequest {
   tabId: number;
   method: PaymentMethod;
   amount: number;
-  receivedByUserId: number;
+  receivedByUserId?: number;
 }
 
 export interface PaymentSummary {

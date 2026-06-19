@@ -1,113 +1,165 @@
-<main class="hub-shell" [class.sidebar-collapsed]="sidebarCollapsed()">
-  <aside class="hub-sidebar" [class.open]="navOpen()" [class.collapsed]="sidebarCollapsed()">
-    <div class="sidebar-header">
-      <div class="sidebar-brand" aria-label="HubOn, operação local">
+@if (!isAuthenticated()) {
+  <main class="auth-shell">
+    <section class="auth-panel" aria-labelledby="login-title">
+      <div class="auth-brand">
         <img
-          class="sidebar-brand-logo"
+          class="auth-brand-logo"
           src="assets/brand/logo-hubon.png"
           width="512"
           height="512"
           alt=""
           aria-hidden="true"
         />
-        <div class="sidebar-brand-copy">
+        <div>
           <strong>HubOn</strong>
-          <span>Operação local</span>
+          <span>Operação local segura</span>
         </div>
       </div>
-      <button
-        type="button"
-        class="sidebar-toggle"
-        (click)="toggleSidebar()"
-        [attr.aria-label]="sidebarCollapsed() ? 'Expandir menu lateral' : 'Recolher menu lateral'"
-        [attr.title]="sidebarCollapsed() ? 'Expandir menu' : 'Recolher menu'"
-      >
-        <i [class]="sidebarCollapsed() ? 'pi pi-angle-right' : 'pi pi-angle-left'"></i>
-      </button>
-    </div>
 
-    <nav class="side-nav" aria-label="Navegação principal">
-      @for (group of navGroups; track group.label) {
-        <section class="nav-group" [attr.aria-label]="group.label">
-          <span class="nav-group-title">{{ group.label }}</span>
-          @for (item of group.items; track item.path) {
-            <a
-              class="side-nav-item"
-              [routerLink]="item.path"
-              routerLinkActive="active"
-              [routerLinkActiveOptions]="{ exact: true }"
-              ariaCurrentWhenActive="page"
-              [attr.title]="sidebarCollapsed() ? item.label : null"
-              (click)="closeNav()"
-            >
-              <i [class]="item.icon"></i>
-              <span>{{ item.label }}</span>
-            </a>
-          }
-        </section>
-      }
-    </nav>
-
-    <div class="sidebar-card">
-      <span>Turno atual</span>
-      <strong>Jantar · 18:00–23:30</strong>
-      <small>Ambiente local sincronizado</small>
-    </div>
-  </aside>
-
-  @if (navOpen()) {
-    <button type="button" class="sidebar-backdrop" aria-label="Fechar menu" (click)="toggleNav()"></button>
-  }
-
-  <section class="hub-main">
-    <header class="hub-topbar">
-      <button type="button" class="mobile-menu-button" (click)="toggleNav()" aria-label="Abrir menu">
-        <i class="pi pi-bars"></i>
-      </button>
-
-      <div class="topbar-title">
-        <strong>{{ currentLabel() }}</strong>
+      <div class="auth-copy">
+        <span>Autenticação</span>
+        <h1 id="login-title">Entrar no painel</h1>
+        <p>Use um perfil autorizado para acessar os módulos do restaurante.</p>
       </div>
 
-      <div class="topbar-actions">
-        <span class="local-status">
-          <i class="pi pi-circle-fill"></i>
-          Ambiente local
-        </span>
+      <form class="auth-form" (submit)="login(); $event.preventDefault()">
+        <label class="field">
+          <span>E-mail</span>
+          <input
+            type="email"
+            autocomplete="username"
+            [value]="loginForm.email"
+            (input)="updateLoginEmail($event)"
+            required
+            autofocus
+          />
+        </label>
+        <label class="field">
+          <span>Senha</span>
+          <input
+            type="password"
+            autocomplete="current-password"
+            [value]="loginForm.password"
+            (input)="updateLoginPassword($event)"
+            required
+          />
+        </label>
+
+        @if (loginError()) {
+          <p class="auth-error" role="alert">{{ loginError() }}</p>
+        }
+
+        <button type="submit" class="primary-button auth-submit" [disabled]="loginLoading()">
+          <i class="pi pi-lock"></i>
+          {{ loginLoading() ? 'Entrando...' : 'Entrar' }}
+        </button>
+      </form>
+    </section>
+    <app-feedback-toast />
+  </main>
+} @else {
+  <main class="hub-shell" [class.sidebar-collapsed]="sidebarCollapsed()">
+    <aside class="hub-sidebar" [class.open]="navOpen()" [class.collapsed]="sidebarCollapsed()">
+      <div class="sidebar-header">
+        <div class="sidebar-brand" aria-label="HubOn, operação local">
+          <img
+            class="sidebar-brand-logo"
+            src="assets/brand/logo-hubon.png"
+            width="512"
+            height="512"
+            alt=""
+            aria-hidden="true"
+          />
+          <div class="sidebar-brand-copy">
+            <strong>HubOn</strong>
+            <span>Operação local</span>
+          </div>
+        </div>
         <button
           type="button"
-          class="theme-toggle-button"
-          (click)="toggleTheme()"
-          [attr.aria-label]="theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'"
-          [attr.title]="theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'"
+          class="sidebar-toggle"
+          (click)="toggleSidebar()"
+          [attr.aria-label]="sidebarCollapsed() ? 'Expandir menu lateral' : 'Recolher menu lateral'"
+          [attr.title]="sidebarCollapsed() ? 'Expandir menu' : 'Recolher menu'"
         >
-          <i [class]="theme() === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"></i>
+          <i [class]="sidebarCollapsed() ? 'pi pi-angle-right' : 'pi pi-angle-left'"></i>
         </button>
-        <label class="operator-chip">
-          <span>{{ operatorInitials() }}</span>
-          <div>
-            <small>Operador ativo</small>
-            <select
-              [value]="selectedOperator()?.id ?? ''"
-              (change)="selectOperator($event)"
-              aria-label="Selecionar operador ativo"
-              [disabled]="operatorLoading()"
-            >
-              <option value="">
-                {{ operatorLoading() ? 'Carregando...' : 'Selecionar operador' }}
-              </option>
-              @for (operator of operators(); track operator.id) {
-                <option [value]="operator.id">{{ operator.name }}</option>
-              }
-            </select>
-          </div>
-        </label>
       </div>
-    </header>
 
-    <section class="content-surface">
-      <router-outlet />
+      <nav class="side-nav" aria-label="Navegação principal">
+        @for (group of visibleNavGroups(); track group.label) {
+          <section class="nav-group" [attr.aria-label]="group.label">
+            <span class="nav-group-title">{{ group.label }}</span>
+            @for (item of group.items; track item.path) {
+              <a
+                class="side-nav-item"
+                [routerLink]="item.path"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: true }"
+                ariaCurrentWhenActive="page"
+                [attr.title]="sidebarCollapsed() ? item.label : null"
+                (click)="closeNav()"
+              >
+                <i [class]="item.icon"></i>
+                <span>{{ item.label }}</span>
+              </a>
+            }
+          </section>
+        }
+      </nav>
+
+      <div class="sidebar-card">
+        <span>Turno atual</span>
+        <strong>Jantar · 18:00–23:30</strong>
+        <small>Ambiente local sincronizado</small>
+      </div>
+    </aside>
+
+    @if (navOpen()) {
+      <button type="button" class="sidebar-backdrop" aria-label="Fechar menu" (click)="toggleNav()"></button>
+    }
+
+    <section class="hub-main">
+      <header class="hub-topbar">
+        <button type="button" class="mobile-menu-button" (click)="toggleNav()" aria-label="Abrir menu">
+          <i class="pi pi-bars"></i>
+        </button>
+
+        <div class="topbar-title">
+          <strong>{{ currentLabel() }}</strong>
+        </div>
+
+        <div class="topbar-actions">
+          <span class="local-status">
+            <i class="pi pi-circle-fill"></i>
+            Ambiente local
+          </span>
+          <button
+            type="button"
+            class="theme-toggle-button"
+            (click)="toggleTheme()"
+            [attr.aria-label]="theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'"
+            [attr.title]="theme() === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'"
+          >
+            <i [class]="theme() === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"></i>
+          </button>
+          <div class="operator-chip authenticated-user-chip">
+            <span>{{ userInitials() }}</span>
+            <div>
+              <small>Usuário autenticado</small>
+              <strong>{{ currentUser()?.name }}</strong>
+            </div>
+          </div>
+          <button type="button" class="theme-toggle-button" aria-label="Sair" title="Sair" (click)="logout()">
+            <i class="pi pi-sign-out"></i>
+          </button>
+        </div>
+      </header>
+
+      <section class="content-surface">
+        <router-outlet />
+      </section>
     </section>
-  </section>
-  <app-feedback-toast />
-</main>
+    <app-feedback-toast />
+  </main>
+}

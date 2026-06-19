@@ -1,5 +1,6 @@
 package com.hubon.backend.tab.service;
 
+import com.hubon.backend.auth.service.AuthenticatedUserProvider;
 import com.hubon.backend.order.domain.OrderStatus;
 import com.hubon.backend.order.repository.RestaurantOrderRepository;
 import com.hubon.backend.payment.repository.PaymentRepository;
@@ -33,6 +34,7 @@ public class TabService {
     private final RestaurantOrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final TabAccountingService accountingService;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Transactional(readOnly = true)
     public List<TabResponse> listOpen() {
@@ -61,8 +63,8 @@ public class TabService {
     public TabResponse open(OpenTabRequest request) {
         RestaurantTable table = tableRepository.findById(request.tableId())
                 .orElseThrow(() -> new ResourceNotFoundException("Mesa não encontrada"));
-        User openedByUser = userRepository.findById(request.openedByUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+        User openedByUser = authenticatedUserProvider.currentUser()
+                .orElseGet(() -> findRequestedUser(request.openedByUserId()));
 
         if (!Boolean.TRUE.equals(table.getActive()) || table.getStatus() == TableStatus.DISABLED) {
             throw new BusinessException("Mesa desativada não pode abrir comanda");
@@ -201,5 +203,13 @@ public class TabService {
 
     private BigDecimal valueOrZero(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private User findRequestedUser(Long userId) {
+        if (userId == null) {
+            throw new BusinessException("Usuário responsável é obrigatório");
+        }
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
     }
 }

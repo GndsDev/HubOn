@@ -17,7 +17,6 @@ public record PaymentRequest(
         @DecimalMin(value = "0.01")
         BigDecimal amount,
 
-        @NotNull
         Long receivedByUserId
 ) {
 }

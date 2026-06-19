@@ -2,8 +2,8 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize, forkJoin } from 'rxjs';
+import { AuthService } from '../../core/services/auth.service';
 import { FeedbackService } from '../../core/services/feedback.service';
-import { OperatorContextService } from '../../core/services/operator-context.service';
 import { TabApiService } from '../../core/services/tab-api.service';
 import { TableApiService } from '../../core/services/table-api.service';
 import { Tab } from '../../shared/models/tab.model';
@@ -124,7 +124,7 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
 export class TabsPageComponent implements OnInit {
   private readonly api = inject(TabApiService);
   private readonly tableApi = inject(TableApiService);
-  private readonly operatorContext = inject(OperatorContextService);
+  private readonly auth = inject(AuthService);
   private readonly feedback = inject(FeedbackService);
 
   readonly tabs = signal<Tab[]>([]);
@@ -151,8 +151,8 @@ export class TabsPageComponent implements OnInit {
   }
 
   openForm(): void {
-    if (!this.operatorContext.selectedOperator()) {
-      this.feedback.error('Selecione um operador ativo na barra superior antes de abrir a comanda.');
+    if (!this.auth.currentUser()) {
+      this.feedback.error('Faça login antes de abrir a comanda.');
       return;
     }
     if (this.availableTables.length === 0) { this.feedback.info('Nenhuma mesa livre disponível para abrir comanda.'); return; }
@@ -161,14 +161,13 @@ export class TabsPageComponent implements OnInit {
   }
 
   create(): void {
-    const operator = this.operatorContext.selectedOperator();
-    if (!operator) {
-      this.feedback.error('Selecione um operador ativo na barra superior antes de abrir a comanda.');
+    if (!this.auth.currentUser()) {
+      this.feedback.error('Faça login antes de abrir a comanda.');
       return;
     }
     if (!this.form.tableId) { this.feedback.error('Selecione uma mesa disponível.'); return; }
     this.saving.set(true);
-    this.api.open({ ...this.form, openedByUserId: operator.id }).pipe(finalize(() => this.saving.set(false))).subscribe({
+    this.api.open(this.form).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => { this.feedback.success('Comanda aberta com sucesso.'); this.formOpen.set(false); this.load(); },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });

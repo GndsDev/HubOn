@@ -45,7 +45,9 @@ depender de serviços externos.
 - Criação de pedidos com snapshots de nome e preço.
 - Fluxo de cozinha em etapas.
 - Registro de pagamentos e cálculo do saldo da comanda.
-- Seleção local do operador responsável pelas operações.
+- Login JWT com roles `OWNER`, `ADMIN`, `WAITER`, `KITCHEN` e `CASHIER`.
+- Autoria das operações pelo usuário autenticado.
+- Cadastro de usuários com hierarquia de permissões.
 - Relatórios operacionais básicos.
 - Temas dark e light.
 - Layout responsivo com sidebar recolhível.
@@ -98,6 +100,16 @@ Senha: hubon_password
 ```
 
 Esses valores podem ser substituídos por variáveis de ambiente.
+
+Credenciais locais seedadas para desenvolvimento:
+
+```text
+OWNER: owner@hubon.local / owner123
+ADMIN: admin@hubon.local / admin123
+```
+
+As senhas são gravadas com BCrypt. Troque `HUBON_OWNER_PASSWORD`,
+`HUBON_ADMIN_PASSWORD` e `HUBON_JWT_SECRET` fora do desenvolvimento local.
 
 ## Como executar
 
@@ -155,18 +167,18 @@ uma mesa livre até o fechamento da comanda e sua volta ao estado Livre.
 ## Status atual
 
 O fluxo operacional principal está funcional e integrado à API. As regras
-financeiras críticas, transições operacionais e consistência de mesas possuem
-testes no backend. O frontend possui testes de inicialização, roteamento e
-persistência do operador local.
+financeiras críticas, transições operacionais, consistência de mesas e regras de
+segurança por perfil possuem testes no backend. O frontend possui build validado
+e rotas protegidas por perfil.
 
-Este projeto ainda é um MVP para uso local ou em rede privada confiável. Não há
-autenticação real nem autorização por perfil.
+Este projeto ainda é um MVP para uso local ou em rede privada confiável. Já há
+JWT e autorização por perfil, mas ainda não há refresh token, política de senha,
+auditoria completa nem hardening para internet pública.
 
 Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
 
 ## Fora do MVP
 
-- Autenticação JWT e permissões por perfil.
 - Delivery e integrações com marketplaces.
 - WhatsApp e QR Code.
 - Nota fiscal e integração com maquininha.
@@ -178,7 +190,7 @@ Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
 
 ## Roadmap pós-MVP
 
-1. Implementar autenticação e autorização por perfil.
+1. Adicionar refresh token, troca de senha e política de tentativas.
 2. Isolar ambientes de teste com banco dedicado.
 3. Ampliar testes do frontend e adicionar testes end-to-end.
 4. Criar paginação navegável e filtros por período.

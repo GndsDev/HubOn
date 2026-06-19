@@ -1,5 +1,6 @@
 package com.hubon.backend.payment.service;
 
+import com.hubon.backend.auth.service.AuthenticatedUserProvider;
 import com.hubon.backend.payment.domain.Payment;
 import com.hubon.backend.payment.dto.PaymentRequest;
 import com.hubon.backend.payment.dto.PaymentResponse;
@@ -28,13 +29,14 @@ public class PaymentService {
     private final TabRepository tabRepository;
     private final UserRepository userRepository;
     private final TabAccountingService accountingService;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Transactional
     public PaymentResponse create(PaymentRequest request) {
         Tab tab = tabRepository.findByIdForUpdate(request.tabId())
                 .orElseThrow(() -> new ResourceNotFoundException("Comanda não encontrada"));
-        User receivedByUser = userRepository.findById(request.receivedByUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+        User receivedByUser = authenticatedUserProvider.currentUser()
+                .orElseGet(() -> findRequestedUser(request.receivedByUserId()));
 
         if (tab.getStatus() != TabStatus.OPEN) {
             throw new BusinessException("Comanda fechada ou cancelada não pode receber pagamento");
@@ -97,5 +99,13 @@ public class PaymentService {
                 payment.getReceivedByUser().getId(),
                 payment.getReceivedByUser().getName()
         );
+    }
+
+    private User findRequestedUser(Long userId) {
+        if (userId == null) {
+            throw new BusinessException("Usuário responsável é obrigatório");
+        }
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
     }
 }

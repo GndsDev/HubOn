@@ -9,10 +9,9 @@ Mesa → Comanda → Pedido → Itens do pedido → Pagamento
 ```
 
 O MVP inclui Dashboard, Mesas, Comandas, Pedidos, Cozinha, Caixa, Categorias,
-Produtos, Usuários em modo consulta e Relatórios básicos.
+Produtos, Usuários, Relatórios básicos, login JWT e autorização por perfil.
 
-Não há login ou autenticação real. A autoria é registrada por um operador
-selecionado localmente.
+A autoria operacional é registrada pelo usuário autenticado no backend.
 
 Documentos principais:
 

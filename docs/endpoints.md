@@ -5,14 +5,52 @@ Base local: `http://localhost:8080/api`
 Todos os controllers retornam DTOs. Erros de validação, negócio e recursos não
 encontrados usam o formato JSON descrito ao final.
 
+## Autenticação
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| POST | `/auth/login` | Autentica usuário e retorna JWT, expiração e dados do usuário. |
+
+Payload:
+
+```json
+{
+  "email": "owner@hubon.local",
+  "password": "owner123"
+}
+```
+
+Endpoints protegidos exigem:
+
+```http
+Authorization: Bearer <token>
+```
+
 ## Perfis e usuários
 
 | Método | Endpoint | Descrição |
 | --- | --- | --- |
-| GET | `/roles` | Lista `ADMIN`, `WAITER`, `KITCHEN` e `CASHIER`. |
+| GET | `/roles` | Lista `OWNER`, `ADMIN`, `WAITER`, `KITCHEN` e `CASHIER`. |
 | GET | `/users` | Lista usuários locais e seus perfis. |
+| POST | `/users` | Cria usuário respeitando a hierarquia de permissões. |
 
-Não existe CRUD de usuários nem autenticação JWT neste MVP.
+`OWNER` cria `ADMIN`, `WAITER`, `KITCHEN` e `CASHIER`. `ADMIN` cria somente
+`WAITER`, `KITCHEN` e `CASHIER`. Roles operacionais não criam usuários.
+
+## Acesso por perfil
+
+| Módulo | Perfis |
+| --- | --- |
+| Dashboard | `OWNER`, `ADMIN` |
+| Mesas | `OWNER`, `ADMIN`, `WAITER` |
+| Comandas | `OWNER`, `ADMIN`, `WAITER`, `CASHIER` |
+| Pedidos | `OWNER`, `ADMIN`, `WAITER` |
+| Cozinha | `OWNER`, `ADMIN`, `KITCHEN` |
+| Caixa | `OWNER`, `ADMIN`, `CASHIER` |
+| Categorias | `OWNER`, `ADMIN` |
+| Produtos | `OWNER`, `ADMIN` |
+| Usuários | `OWNER`, `ADMIN` |
+| Relatórios | `OWNER`, `ADMIN` |
 
 ## Categorias
 
@@ -108,6 +146,8 @@ comanda é bloqueada durante a transação para proteger pagamentos concorrentes
 Status mais comuns:
 
 - `400`: validação ou regra de negócio.
+- `401`: token ausente, inválido, expirado ou credenciais inválidas.
+- `403`: usuário autenticado sem perfil permitido.
 - `404`: recurso não encontrado.
 - `409`: violação de integridade ou conflito de atualização concorrente.
 - `500`: erro não tratado, sem exposição de detalhes internos.

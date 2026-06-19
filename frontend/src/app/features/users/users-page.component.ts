@@ -1,36 +1,44 @@
+import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
+import { AuthService } from '../../core/services/auth.service';
+import { FeedbackService } from '../../core/services/feedback.service';
 import { UserApiService } from '../../core/services/user-api.service';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
+import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
 import { User } from '../../shared/models/user.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
+
+interface RoleOption {
+  value: string;
+  label: string;
+}
 
 @Component({
   selector: 'app-users-page',
   standalone: true,
   imports: [
+    CommonModule,
+    FormsModule,
     EmptyStateComponent,
     PageHeaderComponent,
     SectionCardComponent,
     StatusBadgeComponent,
+    AccessibleDialogDirective,
   ],
   template: `
     <app-page-header
-      kicker="Gestão parcial"
+      kicker="Gestão de acesso"
       title="Usuários"
-      description="Consulta dos usuários locais disponíveis. Cadastro, login e permissões avançadas não fazem parte deste MVP."
+      description="Cadastre operadores conforme a hierarquia de perfis do restaurante."
     >
-      <button
-        type="button"
-        class="ghost-button future-action"
-        disabled
-        title="Cadastro de usuários fica disponível após o MVP"
-      >
+      <button type="button" class="primary-button" [disabled]="!canCreateUsers()" (click)="openCreate()">
         <i class="pi pi-user-plus"></i>
-        Novo usuário · em breve
+        Novo usuário
       </button>
     </app-page-header>
 
@@ -94,14 +102,80 @@ import { apiErrorMessage } from '../../shared/util/api-error';
         </div>
       }
     </app-section-card>
+
+    @if (formOpen()) {
+      <div class="modal-backdrop" (click)="closeCreate()">
+        <form
+          class="modal-panel compact"
+          appAccessibleDialog
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="user-form-dialog-title"
+          [dialogCloseDisabled]="saving()"
+          (dialogClose)="closeCreate()"
+          (click)="$event.stopPropagation()"
+          (ngSubmit)="create()"
+        >
+          <div class="modal-header">
+            <div>
+              <span>Permissões</span>
+              <h2 id="user-form-dialog-title">Novo usuário</h2>
+            </div>
+            <button type="button" class="icon-button" aria-label="Fechar" (click)="closeCreate()">
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+
+          <div class="form-grid">
+            <label class="field full">
+              <span>Nome</span>
+              <input name="name" [(ngModel)]="form.name" maxlength="120" required autofocus />
+            </label>
+            <label class="field full">
+              <span>E-mail</span>
+              <input name="email" type="email" [(ngModel)]="form.email" maxlength="160" required />
+            </label>
+            <label class="field">
+              <span>Senha inicial</span>
+              <input name="password" type="password" [(ngModel)]="form.password" minlength="6" required />
+            </label>
+            <label class="field">
+              <span>Perfil</span>
+              <select name="role" [(ngModel)]="form.role">
+                @for (role of roleOptions(); track role.value) {
+                  <option [value]="role.value">{{ role.label }}</option>
+                }
+              </select>
+            </label>
+            <label class="toggle-field full">
+              <input name="active" type="checkbox" [(ngModel)]="form.active" />
+              <span>Usuário ativo</span>
+            </label>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="ghost-button" (click)="closeCreate()">Cancelar</button>
+            <button type="submit" class="primary-button" [disabled]="saving()">
+              <i class="pi pi-check"></i>
+              {{ saving() ? 'Criando...' : 'Criar usuário' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    }
   `,
 })
 export class UsersPageComponent implements OnInit {
   private readonly api = inject(UserApiService);
+  private readonly auth = inject(AuthService);
+  private readonly feedback = inject(FeedbackService);
 
   readonly users = signal<User[]>([]);
   readonly loading = signal(true);
+  readonly saving = signal(false);
   readonly error = signal<string | null>(null);
+  readonly formOpen = signal(false);
+  form = this.emptyForm();
 
   ngOnInit(): void {
     this.load();
@@ -119,7 +193,82 @@ export class UsersPageComponent implements OnInit {
       });
   }
 
+  openCreate(): void {
+    const firstRole = this.roleOptions()[0]?.value ?? 'WAITER';
+    this.form = { ...this.emptyForm(), role: firstRole };
+    this.formOpen.set(true);
+  }
+
+  closeCreate(): void {
+    if (this.saving()) return;
+    this.formOpen.set(false);
+  }
+
+  create(): void {
+    if (!this.form.name.trim() || !this.form.email.trim() || this.form.password.length < 6) {
+      this.feedback.error('Preencha nome, e-mail e senha com pelo menos 6 caracteres.');
+      return;
+    }
+
+    this.saving.set(true);
+    this.api.create({
+      name: this.form.name.trim(),
+      email: this.form.email.trim(),
+      password: this.form.password,
+      active: this.form.active,
+      roles: [this.form.role],
+    })
+      .pipe(finalize(() => this.saving.set(false)))
+      .subscribe({
+        next: () => {
+          this.feedback.success('Usuário criado com sucesso.');
+          this.closeCreate();
+          this.load();
+        },
+        error: (error) => this.feedback.error(apiErrorMessage(error)),
+      });
+  }
+
+  canCreateUsers(): boolean {
+    const roles = this.auth.currentUser()?.roles ?? [];
+    return roles.includes('OWNER') || roles.includes('ADMIN');
+  }
+
+  roleOptions(): RoleOption[] {
+    const roles = this.auth.currentUser()?.roles ?? [];
+    if (roles.includes('OWNER')) {
+      return [
+        { value: 'ADMIN', label: 'Administrador' },
+        { value: 'WAITER', label: 'Garçom' },
+        { value: 'KITCHEN', label: 'Cozinha' },
+        { value: 'CASHIER', label: 'Caixa' },
+      ];
+    }
+    if (roles.includes('ADMIN')) {
+      return [
+        { value: 'WAITER', label: 'Garçom' },
+        { value: 'KITCHEN', label: 'Cozinha' },
+        { value: 'CASHIER', label: 'Caixa' },
+      ];
+    }
+    return [];
+  }
+
   roleNames(user: User): string {
-    return user.roles.length ? user.roles.join(', ') : 'Nenhum perfil';
+    return user.roles.length ? user.roles.map((role) => this.roleLabel(role)).join(', ') : 'Nenhum perfil';
+  }
+
+  private roleLabel(role: string): string {
+    return {
+      OWNER: 'Dono',
+      ADMIN: 'Administrador',
+      WAITER: 'Garçom',
+      KITCHEN: 'Cozinha',
+      CASHIER: 'Caixa',
+    }[role] ?? role;
+  }
+
+  private emptyForm(): { name: string; email: string; password: string; active: boolean; role: string } {
+    return { name: '', email: '', password: '', active: true, role: 'WAITER' };
   }
 }

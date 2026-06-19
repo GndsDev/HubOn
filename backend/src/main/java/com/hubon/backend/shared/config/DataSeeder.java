@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -30,18 +31,34 @@ public class DataSeeder implements CommandLineRunner {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final RestaurantTableRepository tableRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    @Value("${hubon.seed.admin-password}")
+    @Value("${hubon.seed.owner-password}")
+    private String ownerPassword;
+
+    @Value("${hubon.seed.admin-password:admin123}")
     private String adminPassword;
 
     @Override
     public void run(String... args) {
+        Role owner = createRoleIfNotExists("OWNER", "Dono ou responsável máximo pelo sistema");
         Role admin = createRoleIfNotExists("ADMIN", "Administrador do sistema");
         createRoleIfNotExists("WAITER", "Garçom");
         createRoleIfNotExists("KITCHEN", "Cozinha");
         createRoleIfNotExists("CASHIER", "Caixa");
 
-        createAdminUserIfNotExists(admin);
+        createUserIfNotExistsOrUpgradePassword(
+                "Proprietário",
+                "owner@hubon.local",
+                ownerPassword,
+                Set.of(owner)
+        );
+        createUserIfNotExistsOrUpgradePassword(
+                "Administrador",
+                "admin@hubon.local",
+                adminPassword,
+                Set.of(admin)
+        );
         seedCatalogIfEmpty();
         seedTablesIfEmpty();
     }
@@ -54,18 +71,28 @@ public class DataSeeder implements CommandLineRunner {
                     .build()));
     }
 
-    private void createAdminUserIfNotExists(Role admin) {
-        if (!userRepository.existsByEmail("admin@hubon.local")) {
+    private void createUserIfNotExistsOrUpgradePassword(
+            String name,
+            String email,
+            String password,
+            Set<Role> roles
+    ) {
+        userRepository.findByEmail(email).ifPresentOrElse(existingUser -> {
+            if (existingUser.getPassword().startsWith("{noop}")) {
+                existingUser.setPassword(passwordEncoder.encode(password));
+                userRepository.save(existingUser);
+            }
+        }, () -> {
             User user = User.builder()
-                    .name("Administrador")
-                    .email("admin@hubon.local")
-                    .password("{noop}" + adminPassword)
+                    .name(name)
+                    .email(email)
+                    .password(passwordEncoder.encode(password))
                     .active(true)
-                    .roles(Set.of(admin))
+                    .roles(roles)
                     .build();
 
             userRepository.save(user);
-        }
+        });
     }
 
     private void seedCatalogIfEmpty() {

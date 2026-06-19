@@ -52,6 +52,16 @@ Flyway e executa as suítes JUnit.
 - Bloqueio de venda de produto pertencente a categoria inativa.
 - Limite de cinco pedidos recentes no Dashboard.
 
+`SecurityAuthorizationIntegrationTests`
+
+- `401` para endpoint protegido sem token.
+- `403` para token válido com perfil inadequado.
+- Permissões de acesso por módulo para `WAITER` e `KITCHEN`.
+- Login inválido rejeitado.
+- `OWNER` cria `ADMIN` e perfis operacionais, mas não cria outro `OWNER`.
+- `ADMIN` cria somente perfis operacionais.
+- Usuário operacional não cria usuários.
+
 ### Dependência do banco
 
 As suítes de integração criam dados próprios e os removem ao final, mas usam o
@@ -83,18 +93,17 @@ npm test
 `app.spec.ts`
 
 - Criação do componente raiz.
-- Renderização do Dashboard.
+- Renderização da tela de login quando não há sessão.
 - Redirecionamento de rota desconhecida.
 
-`operator-context.service.spec.ts`
-
-- Nenhum operador é escolhido silenciosamente.
-- Operador válido é restaurado do `localStorage`.
-- Seleção explícita é persistida no navegador.
+Autenticação e rotas protegidas ainda devem receber testes específicos no
+frontend na próxima versão. O build garante que o interceptor, guarda de rotas e
+templates compilam.
 
 Em ambientes de sandbox muito restritivos, o runner Angular pode falhar ao
 resolver arquivos locais com mensagens de acesso negado. Nesse caso, valide em
-um terminal normal do Windows e use o build como verificação adicional.
+um terminal normal do Windows, rode `npx tsc -p tsconfig.spec.json --noEmit`
+para checar tipos dos specs e use o build como verificação adicional.
 
 ## Build do frontend
 
@@ -147,4 +156,3 @@ Angular, API e PostgreSQL.
 - Testes end-to-end do fluxo completo.
 - Testes de CORS e perfis `local`/`prod`.
 - Testes de carga para pedidos, Dashboard e pagamentos concorrentes.
-

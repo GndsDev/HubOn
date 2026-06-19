@@ -6,7 +6,7 @@
 - API: `http://localhost:8080/api`
 - Desenvolvimento e rede local: `frontend/src/environments/environment.development.ts`
 - Produção com proxy: `frontend/src/environments/environment.ts`
-- HTTP: `provideHttpClient()` em `app.config.ts`
+- HTTP: `provideHttpClient(withInterceptors([authInterceptor]))` em `app.config.ts`
 - Rotas: `provideRouter(routes)` em `app.config.ts`
 
 O backend aceita, por padrão local, `http://localhost:4200` e
@@ -25,7 +25,10 @@ Os acessos estão em `frontend/src/app/core/services/`:
 - `payment-api.service.ts`
 - `dashboard-api.service.ts`
 - `user-api.service.ts`
-- `operator-context.service.ts`
+- `auth.service.ts`
+
+O interceptor em `core/interceptors/auth.interceptor.ts` envia o JWT salvo no
+navegador em todas as chamadas autenticadas.
 
 ## Telas integradas
 
@@ -42,15 +45,16 @@ Os acessos estão em `frontend/src/app/core/services/`:
 Não há fallback silencioso para mocks nas telas operacionais. Quando a API está
 indisponível, a tela mostra erro e ação para tentar novamente.
 
-## Operador local
+## Autenticação e autoria
 
-- A topbar carrega os usuários ativos por `/users`.
-- A escolha é explícita; o primeiro usuário não é selecionado automaticamente.
-- O identificador escolhido é salvo em `localStorage` com a chave
-  `hubon-operator-id`.
-- Mesas/Comandas, Pedidos e Caixa usam esse mesmo operador.
-- Sem operador selecionado, abertura de comanda, criação de pedido e pagamento
-  são bloqueados antes da chamada à API.
+- A tela inicial autentica em `/auth/login`.
+- A sessão é salva em `localStorage` com a chave `hubon-auth-session`.
+- O token é enviado como `Authorization: Bearer <token>`.
+- Mesas/Comandas, Pedidos e Caixa não enviam mais o usuário responsável como
+  fonte principal.
+- O backend associa autoria pelo usuário autenticado do JWT.
+- Sem sessão válida, as rotas protegidas não carregam e a API retorna `401`.
+- Com perfil inadequado, a API retorna `403`.
 
 ## Atualização periódica
 
@@ -62,9 +66,10 @@ indisponível, a tela mostra erro e ação para tentar novamente.
 
 ## Estado parcial
 
-- Exportação, cadastro de usuário, impressão parcial e modo chamada aparecem
+- Exportação, impressão parcial e modo chamada aparecem
   desabilitados e identificados como recursos futuros.
-- O backend expõe apenas consulta de usuários neste MVP.
+- Cadastro de usuários existe para `OWNER` e `ADMIN`, respeitando as restrições
+  de perfil definidas no backend.
 
 ## Execução
 

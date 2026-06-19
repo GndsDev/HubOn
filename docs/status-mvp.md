@@ -11,28 +11,31 @@
 - Pedidos: múltiplos itens, snapshots, envio e cancelamento.
 - Cozinha: Kanban com avanço sequencial até entrega e atualização automática a cada 15 segundos.
 - Caixa: histórico, pagamento, saldo e fechamento.
-- Usuários: consulta real dos usuários locais.
-- Operador local selecionável na topbar, persistido no navegador e usado nas operações autorais.
+- Usuários: consulta e criação com hierarquia de permissões.
+- Login JWT com usuário autenticado e roles.
+- Rotas e endpoints protegidos por perfil.
+- Autoria de comanda, pedido e pagamento pelo usuário autenticado no backend.
 - Relatórios: resumo básico alimentado pelo Dashboard.
 - Rotas Angular reais com suporte a recarga e URL direta.
 - Toasts de sucesso, erro e informação.
 - Tratamento global de erros em JSON.
-- Seeder idempotente para perfis, usuário administrador, catálogo e mesas.
+- Seeder idempotente para perfis, usuário OWNER, usuário ADMIN, catálogo e mesas.
 - Perfis `local` e `prod`, CORS configurável e OSIV desativado.
 - Dashboard com agregações no banco e somente cinco pedidos recentes.
 - Lista operacional limitada aos 100 pedidos mais recentes, com itens em lote.
 - Modais principais com semântica, Escape, foco inicial e restauração de foco.
 - Toasts de erro anunciados como `alert`.
 - Regras financeiras protegem pagamento excedente, cancelamentos e concorrência.
+- Regras de criação de usuários protegem OWNER/ADMIN contra escalonamento indevido.
 - Build de produção do frontend configurado.
 
 ## Parcial
 
-- Usuários são somente leitura; não existe CRUD, login ou permissões avançadas.
+- Autenticação usa JWT sem refresh token e sem recuperação de senha.
+- Cadastro de usuários cobre criação inicial de perfis permitidos, mas ainda não possui edição, troca de senha ou auditoria completa.
 - Relatórios não possuem filtro por período nem exportação.
 - Dashboard usa agregações simples; a atualização é por polling, sem WebSocket.
-- O operador local ainda não possui autenticação nem autorização por perfil.
-- Testes automatizados cobrem regras financeiras, estados operacionais, contexto do aplicativo e persistência do operador local.
+- Testes automatizados cobrem regras financeiras, estados operacionais e autorização por perfil.
 - A lista de pedidos ainda não possui paginação navegável; mostra os 100 mais recentes.
 - `imageUrl` continua no contrato da API, mas o campo foi ocultado da interface até existir exibição consistente.
 - `OrderItemStatus.CANCELLED` permanece reservado para cancelamento por item após o MVP.
@@ -45,17 +48,17 @@
 - Estoque avançado.
 - Multiempresa e multiunidade.
 - Assinatura SaaS.
-- JWT, permissões avançadas e auditoria.
+- Refresh token, recuperação de senha, política de tentativas e auditoria completa.
 - WebSocket.
 - Paginação e relatórios exportáveis.
-- Impressão parcial, modo chamada e cadastro de usuários.
+- Impressão parcial e modo chamada.
 
 ## Validação realizada
 
 - Frontend compilado com `npm run build`.
 - Backend validado com `.\mvnw.cmd test`.
-- Backend possui três suítes e 19 testes na validação atual.
-- Frontend possui seis testes em duas suítes.
+- Backend possui quatro suítes de integração e 27 testes na validação atual.
+- Frontend possui três testes em uma suíte; o TypeScript dos specs foi validado com `npx tsc -p tsconfig.spec.json --noEmit`.
 - Flyway validou a migration existente.
 - Hibernate iniciou com `ddl-auto=validate`.
 - `spring.jpa.open-in-view=false` é aplicado explicitamente.

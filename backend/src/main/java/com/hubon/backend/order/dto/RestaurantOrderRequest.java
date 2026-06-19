@@ -12,7 +12,6 @@ public record RestaurantOrderRequest(
         @NotNull
         Long tabId,
 
-        @NotNull
         Long createdByUserId,
 
         OrderType type,

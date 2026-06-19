@@ -40,6 +40,7 @@ Módulos principais:
 - `role`
 - `user`
 - `dashboard`
+- `auth`
 - `shared`
 
 ### Fluxo em camadas
@@ -125,6 +126,30 @@ transacionais.
 São tratados recursos não encontrados, regras de negócio, validação, integridade,
 concorrência pessimista e falhas inesperadas.
 
+### Autenticação e autorização
+
+O módulo `auth` implementa login, geração e validação de JWT.
+
+Fluxo:
+
+```text
+POST /api/auth/login
+  ↓
+AuthService valida senha BCrypt
+  ↓
+JwtService gera token com usuário e roles
+  ↓
+JwtAuthenticationFilter autentica requisições seguintes
+```
+
+`SecurityConfig` define acesso por módulo com `OWNER`, `ADMIN`, `WAITER`,
+`KITCHEN` e `CASHIER`. Endpoints protegidos retornam `401` sem token válido e
+`403` quando o perfil não tem permissão.
+
+`AuthenticatedUserProvider` expõe o usuário autenticado para regras de autoria.
+Abrir comanda, criar pedido e registrar pagamento usam esse usuário no backend,
+sem confiar em ids enviados manualmente pelo frontend.
+
 ## Frontend
 
 O frontend Angular é organizado por responsabilidade:
@@ -162,22 +187,21 @@ Os serviços em `core/services/` encapsulam o acesso à API. Os componentes não
 montam URLs diretamente e trabalham com interfaces TypeScript de
 `shared/models/`.
 
+`AuthService` mantém a sessão JWT em `localStorage`, e
+`auth.interceptor.ts` adiciona `Authorization: Bearer <token>` às requisições.
+
 ### Angular Router
 
-`app.routes.ts` define rotas reais para todas as telas. O layout raiz mantém a
-sidebar, topbar, toast global e `<router-outlet>`. Rotas desconhecidas
-redirecionam para `/dashboard`.
+`app.routes.ts` define rotas reais para todas as telas e informa os perfis
+permitidos em `data.roles`. `authGuard` bloqueia rotas sem sessão ou com perfil
+inadequado. O layout raiz mantém sidebar, topbar, toast global e
+`<router-outlet>`. Rotas desconhecidas redirecionam para `/dashboard`.
 
-### OperatorContextService
+### Sessão do usuário
 
-O serviço:
-
-- carrega usuários ativos pela API;
-- exige seleção explícita do operador;
-- persiste o identificador em `localStorage`;
-- fornece o operador para abertura de comanda, pedido e pagamento.
-
-Esse contexto registra autoria local, mas não autentica o usuário.
+O usuário autenticado aparece na topbar. O menu lateral filtra os módulos
+visíveis conforme as roles recebidas no login. A segurança real permanece no
+backend; o frontend apenas reduz caminhos inválidos.
 
 ### ThemeService
 
@@ -194,13 +218,17 @@ foco e fechamento por `Escape`.
 ## Fluxo completo
 
 ```text
-Usuário
+Usuário autenticado
   ↓
 Componente Angular
   ↓
 Angular service
+  ↓
+Auth interceptor
   ↓ HTTP/JSON
 Controller Spring
+  ↓
+JWT filter / SecurityConfig
   ↓
 Service de domínio
   ↓
@@ -216,8 +244,7 @@ da tela.
 
 - REST síncrono, sem WebSocket.
 - Polling controlado no Dashboard e Cozinha.
-- Operador local sem login.
+- JWT stateless com roles no token.
 - CORS restrito às origens configuradas.
 - Frontend de produção espera `/api` no mesmo proxy.
 - Sem exclusão física de registros operacionais importantes.
-

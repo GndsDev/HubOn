@@ -44,7 +44,7 @@ export interface OrderItemRequest {
 
 export interface RestaurantOrderRequest {
   tabId: number;
-  createdByUserId: number;
+  createdByUserId?: number;
   type: OrderType;
   notes: string | null;
   items: OrderItemRequest[];

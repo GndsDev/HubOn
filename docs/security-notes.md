@@ -2,50 +2,104 @@
 
 ## Estado atual
 
-O HubOn é um MVP para desenvolvimento local e rede privada confiável.
+O HubOn passou a usar autenticação JWT no backend. No perfil `local`, os
+endpoints operacionais ficam protegidos por token e por perfis de acesso.
 
-No perfil `local`:
+Ainda é um MVP para desenvolvimento local e rede privada confiável. A segurança
+atual melhora a separação de responsabilidades, mas não substitui uma revisão
+completa para produção pública.
 
-- endpoints estão liberados com `permitAll`;
-- CSRF está desabilitado;
-- CORS aceita apenas origens configuradas;
-- existe um operador local selecionado na interface;
-- o seeder pode criar um usuário administrador para testes.
+## Login local de desenvolvimento
 
-Essas escolhas facilitam o desenvolvimento, mas não representam uma
-configuração de produção.
+O seeder cria os usuários iniciais abaixo quando `hubon.seed.enabled=true`:
 
-## O que ainda não existe
+| Usuário | Senha padrão | Perfil |
+| --- | --- | --- |
+| `owner@hubon.local` | `owner123` | `OWNER` |
+| `admin@hubon.local` | `admin123` | `ADMIN` |
 
-- Autenticação por login.
-- JWT ou sessão autenticada.
-- Autorização por perfil.
-- Expiração ou revogação de credenciais.
-- Recuperação segura de senha.
-- Auditoria completa de ações.
-- TLS configurado pela aplicação.
-- Gestão centralizada de segredos.
+As senhas são armazenadas com BCrypt. Para alterar em ambiente local:
 
-## Operador local
+```powershell
+$env:HUBON_OWNER_PASSWORD="nova-senha-owner"
+$env:HUBON_ADMIN_PASSWORD="nova-senha-admin"
+```
 
-`OperatorContextService` registra qual usuário deve ser associado à abertura de
-comanda, criação de pedido e pagamento. A seleção é salva em `localStorage`.
+Em produção, não use senhas padrão. A criação do primeiro dono deve vir de
+variáveis de ambiente, setup seguro ou processo administrativo controlado.
 
-Isso fornece autoria operacional básica, mas não prova a identidade de quem está
-usando o navegador. Qualquer pessoa com acesso à interface pode trocar o
-operador.
+## Perfis e permissões
 
-## Perfil de produção
+Perfis disponíveis:
 
-O perfil `prod`:
+- `OWNER`: dono ou responsável máximo.
+- `ADMIN`: gerente ou administrador operacional.
+- `WAITER`: garçom e atendimento.
+- `KITCHEN`: cozinha.
+- `CASHIER`: caixa.
 
-- exige credenciais do banco por variáveis de ambiente;
-- exige origens CORS explícitas;
-- desativa o seeder;
-- mantém `show-sql` desativado;
-- bloqueia endpoints por padrão.
+Acesso por módulo:
 
-Não habilite `HUBON_SECURITY_PERMIT_ALL=true` em ambiente público.
+| Módulo | Perfis |
+| --- | --- |
+| Dashboard | `OWNER`, `ADMIN` |
+| Mesas | `OWNER`, `ADMIN`, `WAITER` |
+| Comandas | `OWNER`, `ADMIN`, `WAITER`, `CASHIER` |
+| Pedidos | `OWNER`, `ADMIN`, `WAITER` |
+| Cozinha | `OWNER`, `ADMIN`, `KITCHEN` |
+| Caixa | `OWNER`, `ADMIN`, `CASHIER` |
+| Categorias | `OWNER`, `ADMIN` |
+| Produtos | `OWNER`, `ADMIN` |
+| Usuários | `OWNER`, `ADMIN` |
+| Relatórios | `OWNER`, `ADMIN` |
+
+Regras de criação de usuários:
+
+- `OWNER` pode criar `ADMIN`, `WAITER`, `KITCHEN` e `CASHIER`.
+- `OWNER` não cria outro `OWNER` pelo fluxo atual.
+- `ADMIN` pode criar apenas `WAITER`, `KITCHEN` e `CASHIER`.
+- `ADMIN` não cria `OWNER` nem outro `ADMIN`.
+- `WAITER`, `KITCHEN` e `CASHIER` não criam usuários.
+
+Essas regras são validadas no backend. A interface apenas reduz opções visíveis.
+
+## JWT
+
+O token carrega o usuário autenticado e seus perfis. O frontend salva a sessão
+em `localStorage` e envia `Authorization: Bearer <token>` automaticamente nas
+chamadas à API.
+
+As operações autorais usam o usuário autenticado no backend:
+
+- abrir comanda;
+- criar pedido;
+- registrar pagamento.
+
+O antigo operador manual da topbar foi removido como fonte principal de autoria.
+
+Configure o segredo do token fora do código:
+
+```powershell
+$env:HUBON_JWT_SECRET="segredo-longo-e-aleatorio"
+$env:HUBON_JWT_EXPIRATION_MINUTES="480"
+```
+
+## Respostas de segurança
+
+- `401`: sem token, token inválido, token expirado ou credenciais inválidas.
+- `403`: token válido, mas perfil sem permissão para o endpoint.
+
+Os erros seguem o formato JSON padrão da API.
+
+## Limitações do MVP
+
+- Não há refresh token.
+- Não há recuperação de senha.
+- Não há política de força de senha.
+- Não há bloqueio por tentativas inválidas.
+- Não há auditoria completa de todas as ações sensíveis.
+- TLS deve ser configurado externamente, por proxy reverso.
+- O token fica no `localStorage`, adequado apenas para o contexto local do MVP.
 
 ## Rede local
 
@@ -54,24 +108,24 @@ Não habilite `HUBON_SECURITY_PERMIT_ALL=true` em ambiente público.
 - Não use `*` como origem com credenciais.
 - Não encaminhe as portas `4200`, `8080` ou `5432` no roteador.
 - Não exponha diretamente o PostgreSQL para outras máquinas sem necessidade.
-- Troque a senha padrão do usuário local e do banco.
+- Troque as senhas padrão antes de qualquer uso real.
+- Troque `HUBON_JWT_SECRET` antes de qualquer uso fora do desenvolvimento.
 
 ## Recomendado para a próxima versão
 
-1. Login com senha armazenada usando hash forte.
-2. JWT de curta duração ou sessão segura.
-3. Autorização por `ADMIN`, `WAITER`, `KITCHEN` e `CASHIER`.
-4. TLS por proxy reverso.
-5. Segredos fora do repositório.
-6. Rate limiting e política de tentativas de login.
-7. Logs de auditoria para cancelamentos, descontos e pagamentos.
-8. Backup e restauração testados.
+1. Refresh token ou sessão segura de curta duração.
+2. Fluxo seguro de troca e recuperação de senha.
+3. Auditoria de criação de usuário, cancelamentos, descontos e pagamentos.
+4. Tela administrativa para rotação segura de credenciais.
+5. TLS por proxy reverso.
+6. Segredos fora do repositório e gerenciados por ambiente.
+7. Rate limiting e política de tentativas de login.
+8. Testes de CORS, autenticação e autorização por endpoint.
 9. Cabeçalhos HTTP de segurança.
-10. Revisão de CORS e CSRF conforme a estratégia de autenticação.
+10. Backup e restauração testados.
 
 ## Aviso
 
 Não exponha a API ou o frontend do MVP à internet. Para uso fora de uma rede
-local confiável, implemente autenticação real, autorização, TLS e gestão segura
-de segredos antes da implantação.
-
+local confiável, revise autenticação, autorização, TLS, armazenamento de token,
+gestão de segredos e auditoria antes da implantação.

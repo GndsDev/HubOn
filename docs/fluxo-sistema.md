@@ -2,11 +2,11 @@
 
 ## Fluxo principal
 
-1. O operador ativo é selecionado na topbar.
-2. O operador escolhe uma mesa livre.
+1. O usuário faz login com um perfil autorizado.
+2. O usuário escolhe uma mesa livre.
 3. Uma comanda é aberta para a mesa.
 4. A mesa muda automaticamente para `OCCUPIED`.
-5. O operador cria pedidos vinculados à comanda.
+5. O usuário cria pedidos vinculados à comanda.
 6. Cada item congela nome e preço do produto no momento da venda.
 7. O pedido é enviado para a cozinha.
 8. A cozinha percorre `SENT_TO_KITCHEN`, `PREPARING`, `READY` e `DELIVERED`.
@@ -51,19 +51,21 @@ Pedidos:
 
 Quando o seeder local está habilitado, o backend garante os perfis:
 
+- `OWNER`
 - `ADMIN`
 - `WAITER`
 - `KITCHEN`
 - `CASHIER`
 
-Também cria um usuário administrador local quando ainda não existe:
+Também cria usuários locais iniciais quando ainda não existem:
 
 ```text
-Email: admin@hubon.local
-Senha padrão local: admin123
+OWNER: owner@hubon.local / owner123
+ADMIN: admin@hubon.local / admin123
 ```
 
-A senha pode ser substituída por `HUBON_ADMIN_PASSWORD`. Essa credencial é
-somente para desenvolvimento e não deve ser usada em ambiente público.
+As senhas podem ser substituídas por `HUBON_OWNER_PASSWORD` e
+`HUBON_ADMIN_PASSWORD`. Essas credenciais são somente para desenvolvimento e não
+devem ser usadas em ambiente público.
 
 Quando catálogo e mesas estão vazios, o seeder cria dados iniciais para teste.

@@ -2,8 +2,8 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
+import { AuthService } from '../../core/services/auth.service';
 import { FeedbackService } from '../../core/services/feedback.service';
-import { OperatorContextService } from '../../core/services/operator-context.service';
 import { PaymentApiService } from '../../core/services/payment-api.service';
 import { TabApiService } from '../../core/services/tab-api.service';
 import { PaymentMethod, PaymentSummary } from '../../shared/models/payment.model';
@@ -96,7 +96,7 @@ import { SectionCardComponent } from '../../shared/components/section-card/secti
 export class CashierPageComponent implements OnInit {
   private readonly tabApi = inject(TabApiService);
   private readonly paymentApi = inject(PaymentApiService);
-  private readonly operatorContext = inject(OperatorContextService);
+  private readonly auth = inject(AuthService);
   readonly feedback = inject(FeedbackService);
 
   readonly tabs = signal<Tab[]>([]);
@@ -139,9 +139,8 @@ export class CashierPageComponent implements OnInit {
   }
   pay(): void {
     const tab = this.selectedTab();
-    const operator = this.operatorContext.selectedOperator();
-    if (!operator) {
-      this.feedback.error('Selecione um operador ativo na barra superior antes de registrar o pagamento.');
+    if (!this.auth.currentUser()) {
+      this.feedback.error('Faça login antes de registrar o pagamento.');
       return;
     }
     if (!tab || this.paymentForm.amount <= 0) { this.feedback.error('Informe um valor de pagamento maior que zero.'); return; }
@@ -150,7 +149,7 @@ export class CashierPageComponent implements OnInit {
       return;
     }
     this.saving.set(true);
-    this.paymentApi.create({ tabId: tab.id, receivedByUserId: operator.id, ...this.paymentForm })
+    this.paymentApi.create({ tabId: tab.id, ...this.paymentForm })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => { this.feedback.success('Pagamento registrado com sucesso.'); this.loadSummary(tab.id); this.tabApi.getById(tab.id).subscribe((updated) => this.selectedTab.set(updated)); },

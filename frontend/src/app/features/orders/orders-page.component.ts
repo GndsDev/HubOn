@@ -2,8 +2,8 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize, forkJoin } from 'rxjs';
+import { AuthService } from '../../core/services/auth.service';
 import { FeedbackService } from '../../core/services/feedback.service';
-import { OperatorContextService } from '../../core/services/operator-context.service';
 import { OrderApiService } from '../../core/services/order-api.service';
 import { ProductApiService } from '../../core/services/product-api.service';
 import { TabApiService } from '../../core/services/tab-api.service';
@@ -134,7 +134,7 @@ export class OrdersPageComponent implements OnInit {
   private readonly api = inject(OrderApiService);
   private readonly tabApi = inject(TabApiService);
   private readonly productApi = inject(ProductApiService);
-  private readonly operatorContext = inject(OperatorContextService);
+  private readonly auth = inject(AuthService);
   private readonly feedback = inject(FeedbackService);
 
   readonly orders = signal<RestaurantOrder[]>([]);
@@ -164,8 +164,8 @@ export class OrdersPageComponent implements OnInit {
   }
 
   openForm(): void {
-    if (!this.operatorContext.selectedOperator()) {
-      this.feedback.error('Selecione um operador ativo na barra superior antes de criar o pedido.');
+    if (!this.auth.currentUser()) {
+      this.feedback.error('Faça login antes de criar o pedido.');
       return;
     }
     if (!this.tabs().length) { this.feedback.info('Abra uma comanda antes de criar um pedido.'); return; }
@@ -178,9 +178,8 @@ export class OrdersPageComponent implements OnInit {
   removeItem(index: number): void { if (this.form.items.length > 1) this.form.items.splice(index, 1); }
 
   create(): void {
-    const operator = this.operatorContext.selectedOperator();
-    if (!operator) {
-      this.feedback.error('Selecione um operador ativo na barra superior antes de criar o pedido.');
+    if (!this.auth.currentUser()) {
+      this.feedback.error('Faça login antes de criar o pedido.');
       return;
     }
     if (!this.form.tabId || this.form.items.some((item) => !item.productId || item.quantity < 1)) {
@@ -188,7 +187,7 @@ export class OrdersPageComponent implements OnInit {
       return;
     }
     this.saving.set(true);
-    this.api.create({ tabId: this.form.tabId, createdByUserId: operator.id, type: 'TABLE', notes: this.form.notes, items: this.form.items })
+    this.api.create({ tabId: this.form.tabId, type: 'TABLE', notes: this.form.notes, items: this.form.items })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => { this.feedback.success('Pedido criado com sucesso.'); this.formOpen.set(false); this.load(); },

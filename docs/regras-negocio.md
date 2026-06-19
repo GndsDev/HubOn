@@ -73,14 +73,21 @@
 
 ## Segurança e persistência
 
-- Endpoints estão liberados apenas para desenvolvimento local.
-- O operador ativo é selecionado na topbar e persistido localmente no navegador.
-- Abrir comanda, criar pedido e registrar pagamento exigem operador selecionado.
-- O contexto local de operador é provisório e não substitui autenticação.
-- CSRF está desabilitado e CORS aceita hosts locais do frontend.
-- Não há JWT nem autorização por perfil.
+- Endpoints operacionais exigem JWT válido.
+- O token carrega usuário autenticado e perfis.
+- Abrir comanda, criar pedido e registrar pagamento usam o usuário autenticado no backend.
+- O frontend não escolhe operador manualmente como fonte principal de autoria.
+- Sem token válido, endpoints protegidos retornam `401`.
+- Com token válido e perfil inadequado, endpoints protegidos retornam `403`.
+- `OWNER` pode criar `ADMIN`, `WAITER`, `KITCHEN` e `CASHIER`.
+- `OWNER` não cria outro `OWNER` pelo fluxo atual.
+- `ADMIN` pode criar apenas `WAITER`, `KITCHEN` e `CASHIER`.
+- `ADMIN` não cria `OWNER` nem outro `ADMIN`.
+- `WAITER`, `KITCHEN` e `CASHIER` não criam usuários.
+- CSRF está desabilitado porque a API usa JWT stateless no MVP.
+- CORS aceita apenas origens configuradas.
 - Flyway controla o esquema.
 - `spring.jpa.hibernate.ddl-auto=validate` permanece obrigatório.
 - Open Session in View permanece desativado.
-- O perfil local é liberado somente para desenvolvimento em rede confiável.
-- O perfil de produção bloqueia endpoints até existir configuração de segurança real.
+- Senhas seedadas são gravadas com BCrypt.
+- Senhas padrão e segredo JWT devem ser trocados fora do ambiente de desenvolvimento.

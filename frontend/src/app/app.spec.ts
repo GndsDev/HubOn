@@ -1,10 +1,11 @@
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { App } from './app';
 import { routes } from './app.routes';
+import { AuthService } from './core/services/auth.service';
 import { DashboardApiService } from './core/services/dashboard-api.service';
-import { UserApiService } from './core/services/user-api.service';
 
 const dashboardSummary = {
   todaySales: 0,
@@ -18,18 +19,37 @@ const dashboardSummary = {
 };
 
 describe('App', () => {
+  const authenticated = signal(false);
+  const currentUser = computed(() => authenticated()
+    ? { id: 1, name: 'Owner', email: 'owner@hubon.local', active: true, roles: ['OWNER'] }
+    : null);
+  const authMock = {
+    currentUser,
+    isAuthenticated: computed(() => authenticated()),
+    login: () => of({
+      token: 'token',
+      tokenType: 'Bearer',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      user: currentUser(),
+    }),
+    logout: () => authenticated.set(false),
+    hasAnyRole: (roles: string[]) => roles.length === 0 || roles.some((role) => currentUser()?.roles.includes(role)),
+    token: () => authenticated() ? 'token' : null,
+  };
+
   beforeEach(async () => {
+    authenticated.set(false);
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
         provideRouter(routes),
         {
-          provide: DashboardApiService,
-          useValue: { getSummary: () => of(dashboardSummary) },
+          provide: AuthService,
+          useValue: authMock,
         },
         {
-          provide: UserApiService,
-          useValue: { getAll: () => of([]) },
+          provide: DashboardApiService,
+          useValue: { getSummary: () => of(dashboardSummary) },
         },
       ],
     }).compileComponents();
@@ -41,17 +61,16 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render title', async () => {
+  it('should render login when unauthenticated', async () => {
     const fixture = TestBed.createComponent(App);
-    const router = TestBed.inject(Router);
-    await router.navigateByUrl('/dashboard');
     fixture.detectChanges();
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Operação em tempo real');
+    expect(compiled.querySelector('h1')?.textContent).toContain('Entrar no painel');
   });
 
   it('should redirect unknown routes to dashboard', async () => {
+    authenticated.set(true);
     const fixture = TestBed.createComponent(App);
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/rota-inexistente');

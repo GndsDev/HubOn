@@ -9,7 +9,6 @@ public record OpenTabRequest(
         @NotNull
         Long tableId,
 
-        @NotNull
         Long openedByUserId,
 
         @DecimalMin(value = "0.00")
