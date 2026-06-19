@@ -1,13 +1,14 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
+import { firstAccessiblePath } from '../auth/access-control';
 import { AuthService } from '../services/auth.service';
 
-export const authGuard: CanActivateFn = (route) => {
+export const authGuard: CanActivateFn = (route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
   if (!auth.isAuthenticated()) {
-    return false;
+    return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
   }
 
   const allowedRoles = (route.data['roles'] as string[] | undefined) ?? [];
@@ -18,10 +19,13 @@ export const authGuard: CanActivateFn = (route) => {
   return router.parseUrl(firstAccessiblePath(auth.currentUser()?.roles ?? []));
 };
 
-function firstAccessiblePath(roles: string[]): string {
-  if (roles.includes('OWNER') || roles.includes('ADMIN')) return '/dashboard';
-  if (roles.includes('WAITER')) return '/mesas';
-  if (roles.includes('KITCHEN')) return '/cozinha';
-  if (roles.includes('CASHIER')) return '/comandas';
-  return '/dashboard';
-}
+export const loginGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  if (!auth.isAuthenticated()) {
+    return true;
+  }
+
+  return router.parseUrl(firstAccessiblePath(auth.currentUser()?.roles ?? []));
+};

@@ -63,10 +63,21 @@ describe('App', () => {
 
   it('should render login when unauthenticated', async () => {
     const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/login');
     fixture.detectChanges();
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('h1')?.textContent).toContain('Entrar no painel');
+  });
+
+  it('should redirect protected routes to login with returnUrl when unauthenticated', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/mesas');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(router.url).toBe('/login?returnUrl=%2Fmesas');
   });
 
   it('should redirect unknown routes to dashboard', async () => {

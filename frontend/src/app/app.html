@@ -1,62 +1,6 @@
-@if (!isAuthenticated()) {
-  <main class="auth-shell">
-    <section class="auth-panel" aria-labelledby="login-title">
-      <div class="auth-brand">
-        <img
-          class="auth-brand-logo"
-          src="assets/brand/logo-hubon.png"
-          width="512"
-          height="512"
-          alt=""
-          aria-hidden="true"
-        />
-        <div>
-          <strong>HubOn</strong>
-          <span>Operação local segura</span>
-        </div>
-      </div>
-
-      <div class="auth-copy">
-        <span>Autenticação</span>
-        <h1 id="login-title">Entrar no painel</h1>
-        <p>Use um perfil autorizado para acessar os módulos do restaurante.</p>
-      </div>
-
-      <form class="auth-form" (submit)="login(); $event.preventDefault()">
-        <label class="field">
-          <span>E-mail</span>
-          <input
-            type="email"
-            autocomplete="username"
-            [value]="loginForm.email"
-            (input)="updateLoginEmail($event)"
-            required
-            autofocus
-          />
-        </label>
-        <label class="field">
-          <span>Senha</span>
-          <input
-            type="password"
-            autocomplete="current-password"
-            [value]="loginForm.password"
-            (input)="updateLoginPassword($event)"
-            required
-          />
-        </label>
-
-        @if (loginError()) {
-          <p class="auth-error" role="alert">{{ loginError() }}</p>
-        }
-
-        <button type="submit" class="primary-button auth-submit" [disabled]="loginLoading()">
-          <i class="pi pi-lock"></i>
-          {{ loginLoading() ? 'Entrando...' : 'Entrar' }}
-        </button>
-      </form>
-    </section>
-    <app-feedback-toast />
-  </main>
+@if (isPublicSurface()) {
+  <router-outlet />
+  <app-feedback-toast />
 } @else {
   <main class="hub-shell" [class.sidebar-collapsed]="sidebarCollapsed()">
     <aside class="hub-sidebar" [class.open]="navOpen()" [class.collapsed]="sidebarCollapsed()">

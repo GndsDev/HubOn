@@ -1,11 +1,10 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { filter, finalize, startWith } from 'rxjs';
+import { filter, startWith } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
 import { ThemeService } from './core/services/theme.service';
 import { FeedbackToastComponent } from './shared/components/feedback-toast/feedback-toast.component';
-import { apiErrorMessage } from './shared/util/api-error';
 
 interface NavItem {
   path: string;
@@ -37,12 +36,11 @@ export class App {
   readonly navOpen = signal(false);
   readonly sidebarCollapsed = signal(false);
   readonly currentLabel = signal('Dashboard');
+  readonly currentPath = signal('/');
   readonly theme = this.themeService.theme;
   readonly currentUser = this.auth.currentUser;
   readonly isAuthenticated = this.auth.isAuthenticated;
-  readonly loginLoading = signal(false);
-  readonly loginError = signal<string | null>(null);
-  loginForm = { email: 'owner@hubon.local', password: 'owner123' };
+  readonly isPublicSurface = computed(() => this.currentPath() === '/login' || !this.isAuthenticated());
   readonly userInitials = computed(() => {
     const name = this.currentUser()?.name.trim();
     if (!name) return '--';
@@ -99,6 +97,7 @@ export class App {
       )
       .subscribe(() => {
         const currentPath = `/${this.router.url.split('?')[0].split('#')[0].replace(/^\/+/, '')}`;
+        this.currentPath.set(currentPath);
         const item = this.navGroups
           .flatMap((group) => group.items)
           .find((navItem) => navItem.path === currentPath);
@@ -119,36 +118,14 @@ export class App {
     this.themeService.toggleTheme();
   }
 
-  updateLoginEmail(event: Event): void {
-    this.loginForm.email = (event.target as HTMLInputElement).value;
-  }
-
-  updateLoginPassword(event: Event): void {
-    this.loginForm.password = (event.target as HTMLInputElement).value;
-  }
-
-  login(): void {
-    this.loginLoading.set(true);
-    this.loginError.set(null);
-    this.auth.login(this.loginForm)
-      .pipe(finalize(() => this.loginLoading.set(false)))
-      .subscribe({
-        next: () => this.router.navigateByUrl(this.firstAccessiblePath()),
-        error: (error) => this.loginError.set(apiErrorMessage(error)),
-      });
-  }
-
   logout(): void {
     this.auth.logout();
     this.navOpen.set(false);
-    this.router.navigateByUrl('/dashboard');
+    this.router.navigateByUrl('/login');
   }
 
   closeNav(): void {
     this.navOpen.set(false);
   }
 
-  private firstAccessiblePath(): string {
-    return this.visibleNavGroups().flatMap((group) => group.items)[0]?.path ?? '/dashboard';
-  }
 }
