@@ -41,6 +41,11 @@ export class App {
   readonly currentUser = this.auth.currentUser;
   readonly isAuthenticated = this.auth.isAuthenticated;
   readonly isPublicSurface = computed(() => this.currentPath() === '/login' || !this.isAuthenticated());
+  readonly currentUserRoles = computed(() => {
+    const roles = this.currentUser()?.roles ?? [];
+    if (roles.length === 0) return 'Sem perfil';
+    return roles.map((role) => this.roleLabel(role)).join(', ');
+  });
   readonly userInitials = computed(() => {
     const name = this.currentUser()?.name.trim();
     if (!name) return '--';
@@ -101,7 +106,7 @@ export class App {
         const item = this.navGroups
           .flatMap((group) => group.items)
           .find((navItem) => navItem.path === currentPath);
-        this.currentLabel.set(item?.label ?? 'Dashboard');
+        this.currentLabel.set(item?.label ?? (currentPath === '/minha-conta' ? 'Minha Conta' : 'Dashboard'));
         this.navOpen.set(false);
       });
   }
@@ -128,4 +133,15 @@ export class App {
     this.navOpen.set(false);
   }
 
+  private roleLabel(role: string): string {
+    const labels: Record<string, string> = {
+      OWNER: 'Dono',
+      ADMIN: 'Admin',
+      WAITER: 'Garçom',
+      KITCHEN: 'Cozinha',
+      CASHIER: 'Caixa',
+    };
+
+    return labels[role] ?? role;
+  }
 }

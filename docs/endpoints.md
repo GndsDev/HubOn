@@ -10,6 +10,8 @@ encontrados usam o formato JSON descrito ao final.
 | Método | Endpoint | Descrição |
 | --- | --- | --- |
 | POST | `/auth/login` | Autentica usuário e retorna JWT, expiração e dados do usuário. |
+| GET | `/auth/me` | Retorna o usuário autenticado atual sem expor senha. |
+| PATCH | `/auth/change-password` | Altera a senha do usuário autenticado após validar a senha atual. |
 
 Payload:
 
@@ -25,6 +27,20 @@ Endpoints protegidos exigem:
 ```http
 Authorization: Bearer <token>
 ```
+
+Payload de alteração de senha:
+
+```json
+{
+  "currentPassword": "senha-atual",
+  "newPassword": "nova-senha-forte",
+  "confirmPassword": "nova-senha-forte"
+}
+```
+
+A nova senha deve ter pelo menos 8 caracteres, letra, número e caractere
+especial. Ao alterar a senha pela interface, a sessão é encerrada e o usuário
+deve entrar novamente.
 
 ## Perfis e usuários
 

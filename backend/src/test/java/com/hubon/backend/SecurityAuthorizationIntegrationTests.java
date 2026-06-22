@@ -17,6 +17,7 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -194,6 +195,115 @@ class SecurityAuthorizationIntegrationTests {
                 .andExpect(jsonPath("$.message", containsString("Credenciais inválidas")));
     }
 
+    @Test
+    void meShouldRequireAuthentication() throws Exception {
+        mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401));
+    }
+
+    @Test
+    void meShouldReturnAuthenticatedUserWithoutPassword() throws Exception {
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", bearer(tokenFor(ownerEmail))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Owner"))
+                .andExpect(jsonPath("$.email").value(ownerEmail))
+                .andExpect(jsonPath("$.active").value(true))
+                .andExpect(jsonPath("$.roles[0]").value("OWNER"))
+                .andExpect(jsonPath("$.password").doesNotExist());
+    }
+
+    @Test
+    void changePasswordShouldRequireAuthentication() throws Exception {
+        mockMvc.perform(patch("/api/auth/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(passwordPayload(PASSWORD, "NewPass123!", "NewPass123!")))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401));
+    }
+
+    @Test
+    void changePasswordShouldRejectInvalidCurrentPassword() throws Exception {
+        mockMvc.perform(patch("/api/auth/change-password")
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(passwordPayload("wrong-password", "NewPass123!", "NewPass123!")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Senha atual inválida."));
+    }
+
+    @Test
+    void changePasswordShouldRejectConfirmationMismatch() throws Exception {
+        mockMvc.perform(patch("/api/auth/change-password")
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(passwordPayload(PASSWORD, "NewPass123!", "OtherPass123!")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("A confirmação da senha não confere."));
+    }
+
+    @Test
+    void changePasswordShouldRejectSamePassword() throws Exception {
+        mockMvc.perform(patch("/api/auth/change-password")
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(passwordPayload(PASSWORD, PASSWORD, PASSWORD)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("A nova senha deve ser diferente da senha atual."));
+    }
+
+    @Test
+    void changePasswordShouldRejectWeakPassword() throws Exception {
+        mockMvc.perform(patch("/api/auth/change-password")
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(passwordPayload(PASSWORD, "weakpass", "weakpass")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("A nova senha não atende aos requisitos mínimos."));
+    }
+
+    @Test
+    void changePasswordShouldSaveEncryptedPasswordAndInvalidateOldPassword() throws Exception {
+        String newPassword = "NewPass123!";
+
+        mockMvc.perform(patch("/api/auth/change-password")
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(passwordPayload(PASSWORD, newPassword, newPassword)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Senha alterada com sucesso."));
+
+        String storedPassword = jdbcTemplate.queryForObject(
+                "select password from users where email = ?",
+                String.class,
+                ownerEmail
+        );
+        org.assertj.core.api.Assertions.assertThat(storedPassword).isNotEqualTo(newPassword);
+        org.assertj.core.api.Assertions.assertThat(passwordEncoder.matches(newPassword, storedPassword)).isTrue();
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "%s"
+                                }
+                                """.formatted(ownerEmail, PASSWORD)))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "%s"
+                                }
+                                """.formatted(ownerEmail, newPassword)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isString());
+    }
+
     private Long seedRole(String name, String description) {
         return jdbcTemplate.queryForObject(
                 """
@@ -235,6 +345,10 @@ class SecurityAuthorizationIntegrationTests {
     }
 
     private String tokenFor(String email) throws Exception {
+        return tokenFor(email, PASSWORD);
+    }
+
+    private String tokenFor(String email, String password) throws Exception {
         String response = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -242,7 +356,7 @@ class SecurityAuthorizationIntegrationTests {
                                   "email": "%s",
                                   "password": "%s"
                                 }
-                                """.formatted(email, PASSWORD)))
+                                """.formatted(email, password)))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -263,12 +377,27 @@ class SecurityAuthorizationIntegrationTests {
         ));
     }
 
+    private String passwordPayload(String currentPassword, String newPassword, String confirmPassword) throws Exception {
+        return objectMapper.writeValueAsString(new PasswordPayload(
+                currentPassword,
+                newPassword,
+                confirmPassword
+        ));
+    }
+
     private record UserPayload(
             String name,
             String email,
             String password,
             Boolean active,
             List<String> roles
+    ) {
+    }
+
+    private record PasswordPayload(
+            String currentPassword,
+            String newPassword,
+            String confirmPassword
     ) {
     }
 }

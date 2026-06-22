@@ -84,6 +84,12 @@ O token carrega o usuário autenticado e seus perfis. O frontend salva a sessão
 em `localStorage` e envia `Authorization: Bearer <token>` automaticamente nas
 chamadas à API.
 
+O usuário autenticado pode consultar seus dados em `/api/auth/me` e alterar a
+própria senha em `/api/auth/change-password`. A alteração exige senha atual
+válida, confirmação idêntica, senha nova diferente da atual e senha mínima com
+letra, número e caractere especial. Após a troca feita pela interface, a sessão
+é encerrada para exigir novo login.
+
 As operações autorais usam o usuário autenticado no backend:
 
 - abrir comanda;
@@ -123,7 +129,7 @@ Os erros seguem o formato JSON padrão da API.
 
 - Não há refresh token.
 - Não há recuperação de senha.
-- Não há política de força de senha.
+- A política de senha cobre apenas a troca de senha do MVP.
 - Não há bloqueio por tentativas inválidas.
 - Não há auditoria completa de todas as ações sensíveis.
 - TLS deve ser configurado externamente, por proxy reverso.
@@ -142,7 +148,7 @@ Os erros seguem o formato JSON padrão da API.
 ## Recomendado para a próxima versão
 
 1. Refresh token ou sessão segura de curta duração.
-2. Fluxo seguro de troca e recuperação de senha.
+2. Recuperação de senha e rotação administrativa de credenciais.
 3. Auditoria de criação de usuário, cancelamentos, descontos e pagamentos.
 4. Tela administrativa para rotação segura de credenciais.
 5. TLS por proxy reverso.

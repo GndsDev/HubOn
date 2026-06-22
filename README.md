@@ -46,6 +46,7 @@ depender de serviços externos.
 - Fluxo de cozinha em etapas.
 - Registro de pagamentos e cálculo do saldo da comanda.
 - Login JWT com roles `OWNER`, `ADMIN`, `WAITER`, `KITCHEN` e `CASHIER`.
+- Página Minha Conta com dados do usuário autenticado e alteração de senha.
 - Autoria das operações pelo usuário autenticado.
 - Cadastro de usuários com hierarquia de permissões.
 - Relatórios operacionais básicos.
@@ -170,8 +171,8 @@ segurança por perfil possuem testes no backend. O frontend possui build validad
 e rotas protegidas por perfil.
 
 Este projeto ainda é um MVP para uso local ou em rede privada confiável. Já há
-JWT e autorização por perfil, mas ainda não há refresh token, política de senha,
-auditoria completa nem hardening para internet pública.
+JWT, autorização por perfil e troca de senha, mas ainda não há refresh token,
+recuperação de senha, auditoria completa nem hardening para internet pública.
 
 Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
 
@@ -188,7 +189,7 @@ Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
 
 ## Roadmap pós-MVP
 
-1. Adicionar refresh token, troca de senha e política de tentativas.
+1. Adicionar refresh token, recuperação de senha e política de tentativas.
 2. Isolar ambientes de teste com banco dedicado.
 3. Ampliar testes do frontend e adicionar testes end-to-end.
 4. Criar paginação navegável e filtros por período.
@@ -199,6 +200,7 @@ Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
 
 - [Arquitetura](docs/architecture.md)
 - [Configuração segura](docs/configuration.md)
+- [Autenticação](docs/authentication.md)
 - [Modelo de banco](docs/database-model.md)
 - [Endpoints](docs/endpoints.md)
 - [Regras de negócio](docs/regras-negocio.md)

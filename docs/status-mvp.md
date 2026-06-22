@@ -13,6 +13,7 @@
 - Caixa: histórico, pagamento, saldo e fechamento.
 - Usuários: consulta e criação com hierarquia de permissões.
 - Login JWT com usuário autenticado e roles.
+- Minha Conta: consulta dos dados autenticados e alteração da própria senha.
 - Rotas e endpoints protegidos por perfil.
 - Autoria de comanda, pedido e pagamento pelo usuário autenticado no backend.
 - Relatórios: resumo básico alimentado pelo Dashboard.
@@ -31,8 +32,8 @@
 
 ## Parcial
 
-- Autenticação usa JWT sem refresh token e sem recuperação de senha.
-- Cadastro de usuários cobre criação inicial de perfis permitidos, mas ainda não possui edição, troca de senha ou auditoria completa.
+- Autenticação usa JWT sem refresh token, sem recuperação de senha e sem bloqueio por tentativas.
+- Cadastro de usuários cobre criação inicial de perfis permitidos, mas ainda não possui edição administrativa nem auditoria completa.
 - Relatórios não possuem filtro por período nem exportação.
 - Dashboard usa agregações simples; a atualização é por polling, sem WebSocket.
 - Testes automatizados cobrem regras financeiras, estados operacionais e autorização por perfil.
@@ -57,8 +58,8 @@
 
 - Frontend compilado com `npm run build`.
 - Backend validado com `.\mvnw.cmd test`.
-- Backend possui quatro suítes de integração e 27 testes na validação atual.
-- Frontend possui três testes em uma suíte; o TypeScript dos specs foi validado com `npx tsc -p tsconfig.spec.json --noEmit`.
+- Backend possui 37 testes passando em suítes de integração para regras financeiras, consistência operacional, seeder e autorização.
+- Frontend possui testes para app, AuthService e Minha Conta; o TypeScript dos specs foi validado com `npx tsc -p tsconfig.spec.json --noEmit`.
 - Flyway validou a migration existente.
 - Hibernate iniciou com `ddl-auto=validate`.
 - `spring.jpa.open-in-view=false` é aplicado explicitamente.

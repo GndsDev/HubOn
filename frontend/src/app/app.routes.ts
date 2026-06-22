@@ -98,8 +98,17 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/users/users-page.component').then(
         (module) => module.UsersPageComponent,
-      ),
+    ),
     data: { label: 'Usuários', roles: ['OWNER', 'ADMIN'] },
+  },
+  {
+    path: 'minha-conta',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/account/account-page.component').then(
+        (module) => module.AccountPageComponent,
+      ),
+    data: { label: 'Minha Conta', roles: [] },
   },
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
   { path: '**', redirectTo: 'dashboard' },

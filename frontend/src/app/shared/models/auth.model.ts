@@ -5,6 +5,16 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface PasswordChangeResponse {
+  message: string;
+}
+
 export interface AuthSession {
   token: string;
   tokenType: string;

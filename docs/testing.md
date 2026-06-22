@@ -60,6 +60,13 @@ Flyway e executa as suítes JUnit.
 - `403` para token válido com perfil inadequado.
 - Permissões de acesso por módulo para `WAITER` e `KITCHEN`.
 - Login inválido rejeitado.
+- Consulta de `/api/auth/me` exige autenticação e não expõe senha.
+- Alteração de senha exige autenticação.
+- Alteração de senha rejeita senha atual inválida.
+- Alteração de senha rejeita confirmação divergente.
+- Alteração de senha rejeita senha igual à atual.
+- Alteração de senha rejeita senha fraca.
+- Alteração de senha válida salva hash BCrypt e invalida a senha antiga.
 - `OWNER` cria `ADMIN` e perfis operacionais, mas não cria outro `OWNER`.
 - `ADMIN` cria somente perfis operacionais.
 - Usuário operacional não cria usuários.
@@ -109,11 +116,21 @@ npm test
 
 - Criação do componente raiz.
 - Renderização da tela de login quando não há sessão.
+- Redirecionamento de rota protegida para login com `returnUrl`.
 - Redirecionamento de rota desconhecida.
+- Acesso autenticado à rota `/minha-conta`.
 
-Autenticação e rotas protegidas ainda devem receber testes específicos no
-frontend na próxima versão. O build garante que o interceptor, guarda de rotas e
-templates compilam.
+`auth.service.spec.ts`
+
+- Consulta de `/auth/me` e atualização do usuário salvo na sessão.
+- Envio do payload de alteração de senha para `/auth/change-password`.
+
+`account-page.component.spec.ts`
+
+- Renderização dos dados do usuário autenticado.
+- Alteração de senha com logout e redirecionamento para `/login`.
+
+O build garante que interceptor, guards de rotas e templates compilam.
 
 Em ambientes de sandbox muito restritivos, o runner Angular pode falhar ao
 resolver arquivos locais com mensagens de acesso negado. Nesse caso, valide em

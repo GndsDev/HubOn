@@ -2,7 +2,13 @@ import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AuthSession, LoginRequest } from '../../shared/models/auth.model';
+import {
+  AuthSession,
+  ChangePasswordRequest,
+  LoginRequest,
+  PasswordChangeResponse,
+} from '../../shared/models/auth.model';
+import { User } from '../../shared/models/user.model';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -19,6 +25,19 @@ export class AuthService {
   login(request: LoginRequest): Observable<AuthSession> {
     return this.http.post<AuthSession>(`${environment.apiUrl}/auth/login`, request).pipe(
       tap((session) => this.setSession(session)),
+    );
+  }
+
+  me(): Observable<User> {
+    return this.http.get<User>(`${environment.apiUrl}/auth/me`).pipe(
+      tap((user) => this.updateCurrentUser(user)),
+    );
+  }
+
+  changePassword(request: ChangePasswordRequest): Observable<PasswordChangeResponse> {
+    return this.http.patch<PasswordChangeResponse>(
+      `${environment.apiUrl}/auth/change-password`,
+      request,
     );
   }
 
@@ -40,6 +59,13 @@ export class AuthService {
   private setSession(session: AuthSession): void {
     this.session.set(session);
     this.storeSession(session);
+  }
+
+  private updateCurrentUser(user: User): void {
+    const session = this.validSession();
+    if (!session) return;
+
+    this.setSession({ ...session, user });
   }
 
   private validSession(): AuthSession | null {

@@ -87,13 +87,19 @@
           >
             <i [class]="theme() === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"></i>
           </button>
-          <div class="operator-chip authenticated-user-chip">
+          <a
+            class="operator-chip authenticated-user-chip account-chip"
+            routerLink="/minha-conta"
+            title="Minha conta"
+            aria-label="Abrir minha conta"
+            (click)="closeNav()"
+          >
             <span>{{ userInitials() }}</span>
             <div>
-              <small>Usuário autenticado</small>
+              <small>{{ currentUserRoles() }}</small>
               <strong>{{ currentUser()?.name }}</strong>
             </div>
-          </div>
+          </a>
           <button type="button" class="theme-toggle-button" aria-label="Sair" title="Sair" (click)="logout()">
             <i class="pi pi-sign-out"></i>
           </button>

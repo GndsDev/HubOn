@@ -35,6 +35,8 @@ describe('App', () => {
     logout: () => authenticated.set(false),
     hasAnyRole: (roles: string[]) => roles.length === 0 || roles.some((role) => currentUser()?.roles.includes(role)),
     token: () => authenticated() ? 'token' : null,
+    me: () => of(currentUser()),
+    changePassword: () => of({ message: 'Senha alterada com sucesso.' }),
   };
 
   beforeEach(async () => {
@@ -88,5 +90,16 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(router.url).toBe('/dashboard');
+  });
+
+  it('should allow authenticated users to access account page', async () => {
+    authenticated.set(true);
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/minha-conta');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(router.url).toBe('/minha-conta');
+    expect(fixture.nativeElement.textContent).toContain('Minha Conta');
   });
 });

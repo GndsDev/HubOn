@@ -41,6 +41,7 @@ navegador em todas as chamadas autenticadas.
 - Caixa: `/payments`
 - Usuários: `/users`
 - Relatórios: reutiliza `/dashboard/summary`
+- Minha Conta: `/auth/me` e `/auth/change-password`
 
 Não há fallback silencioso para mocks nas telas operacionais. Quando a API está
 indisponível, a tela mostra erro e ação para tentar novamente.
@@ -48,6 +49,8 @@ indisponível, a tela mostra erro e ação para tentar novamente.
 ## Autenticação e autoria
 
 - A tela inicial autentica em `/auth/login`.
+- A tela `/minha-conta` consulta `/auth/me` para confirmar os dados do usuário autenticado.
+- A alteração de senha usa `/auth/change-password` e encerra a sessão após sucesso.
 - A sessão é salva em `localStorage` com a chave `hubon-auth-session`.
 - O token é enviado como `Authorization: Bearer <token>`.
 - Mesas/Comandas, Pedidos e Caixa não enviam mais o usuário responsável como
@@ -70,6 +73,8 @@ indisponível, a tela mostra erro e ação para tentar novamente.
   desabilitados e identificados como recursos futuros.
 - Cadastro de usuários existe para `OWNER` e `ADMIN`, respeitando as restrições
   de perfil definidas no backend.
+- Troca de senha existe para o usuário autenticado, mas recuperação de senha e
+  refresh token ficam fora do MVP.
 
 ## Execução
 

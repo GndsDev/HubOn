@@ -1,4 +1,5 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs';
@@ -62,6 +63,10 @@ import { apiErrorMessage } from '../../shared/util/api-error';
             <p class="auth-error" role="alert">{{ error() }}</p>
           }
 
+          @if (notice()) {
+            <p class="auth-success" role="status">{{ notice() }}</p>
+          }
+
           <button type="submit" class="primary-button auth-submit" [disabled]="loading()">
             <i class="pi pi-lock"></i>
             {{ loading() ? 'Entrando...' : 'Entrar' }}
@@ -75,20 +80,28 @@ export class LoginPageComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  readonly notice = signal<string | null>(null);
   form = { email: '', password: '' };
 
   ngOnInit(): void {
     if (this.auth.isAuthenticated()) {
       this.router.navigateByUrl(this.firstAllowedRoute(), { replaceUrl: true });
+      return;
     }
+
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => this.notice.set(params.get('message')));
   }
 
   login(): void {
     this.loading.set(true);
     this.error.set(null);
+    this.notice.set(null);
     this.auth.login(this.form)
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({

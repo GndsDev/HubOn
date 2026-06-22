@@ -190,6 +190,17 @@ a {
   font-weight: 700;
 }
 
+.auth-success {
+  margin: 0;
+  border: 1px solid rgba(34, 197, 94, 0.24);
+  border-radius: 8px;
+  background: rgba(20, 83, 45, 0.24);
+  color: #bbf7d0;
+  padding: 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .auth-submit {
   width: 100%;
   justify-content: center;
@@ -655,6 +666,21 @@ a {
   padding-right: 0.8rem;
 }
 
+.account-chip {
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.account-chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(96, 165, 250, 0.42);
+  background: var(--color-surface-strong);
+}
+
 .content-surface {
   display: grid;
   gap: 1.75rem;
@@ -687,6 +713,7 @@ app-cashier-page,
 app-dashboard-page,
 app-reports-page,
 app-users-page,
+app-account-page,
 app-collection-page {
   display: block;
   min-width: 0;
@@ -1889,6 +1916,91 @@ app-categories-page {
   font-weight: 700;
 }
 
+.account-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr));
+  gap: 1.5rem;
+}
+
+.account-profile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.account-avatar {
+  display: grid;
+  width: 4rem;
+  height: 4rem;
+  grid-row: span 2;
+  place-items: center;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.88), rgba(37, 99, 235, 0.88));
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.account-identity {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.account-identity span {
+  color: #94a3b8;
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.account-identity strong {
+  overflow-wrap: anywhere;
+  color: #f8fafc;
+  line-height: 1.25;
+}
+
+.account-role-list {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 0.5rem;
+}
+
+.account-role-list span {
+  border: 1px solid rgba(147, 197, 253, 0.22);
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.16);
+  color: #bfdbfe;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.account-profile app-status-badge {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.account-password-form {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.password-requirements {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.account-submit {
+  width: 100%;
+}
+
 .empty-panel {
   display: grid;
   place-items: center;
@@ -2411,6 +2523,10 @@ app-categories-page {
   color: var(--color-text-strong);
 }
 
+:root[data-theme="light"] .account-identity strong {
+  color: var(--color-text-strong);
+}
+
 :root[data-theme="light"] .sidebar-card span,
 :root[data-theme="light"] .sidebar-card small,
 :root[data-theme="light"] .operator-chip small,
@@ -2440,6 +2556,29 @@ app-categories-page {
 :root[data-theme="light"] .order-card-head span,
 :root[data-theme="light"] .order-notes {
   color: var(--color-text-muted);
+}
+
+:root[data-theme="light"] .account-identity span,
+:root[data-theme="light"] .password-requirements {
+  color: var(--color-text-muted);
+}
+
+:root[data-theme="light"] .auth-success {
+  border-color: rgba(22, 163, 74, 0.2);
+  background: rgba(220, 252, 231, 0.86);
+  color: #166534;
+}
+
+:root[data-theme="light"] .auth-error {
+  border-color: rgba(220, 38, 38, 0.2);
+  background: rgba(254, 242, 242, 0.92);
+  color: #991b1b;
+}
+
+:root[data-theme="light"] .account-role-list span {
+  border-color: rgba(37, 99, 235, 0.16);
+  background: rgba(219, 234, 254, 0.72);
+  color: #1d4ed8;
 }
 
 :root[data-theme="light"] .nav-group-title,
@@ -2887,6 +3026,7 @@ app-categories-page {
 
   .stats-grid,
   .dashboard-grid,
+  .account-layout,
   .cashier-layout,
   .kitchen-kanban,
   .cash-summary-list,
