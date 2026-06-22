@@ -9,20 +9,21 @@
 
 ## PostgreSQL
 
-O perfil local espera:
+O perfil local deve ser configurado por variáveis de ambiente ou pelo arquivo
+local ignorado `backend/src/main/resources/application-local.properties`.
 
 ```text
 Host: localhost
 Porta: 5432
 Banco: hubon_db
 Usuário: hubon_user
-Senha: hubon_password
+Senha: definida por DB_PASSWORD
 ```
 
 Exemplo de criação pelo `psql` com um usuário administrador:
 
 ```sql
-CREATE USER hubon_user WITH PASSWORD 'hubon_password';
+CREATE USER hubon_user WITH PASSWORD 'change-me';
 CREATE DATABASE hubon_db OWNER hubon_user;
 ```
 
@@ -34,7 +35,7 @@ Para usar outros valores:
 ```powershell
 $env:DB_URL="jdbc:postgresql://localhost:5432/hubon_db"
 $env:DB_USERNAME="hubon_user"
-$env:DB_PASSWORD="hubon_password"
+$env:DB_PASSWORD="change-me"
 ```
 
 ## Credenciais locais do seeder
@@ -42,9 +43,14 @@ $env:DB_PASSWORD="hubon_password"
 O login inicial de desenvolvimento é criado pelo backend quando
 `hubon.seed.enabled=true`. O frontend não contém e não preenche senha padrão.
 
-No perfil local, os valores padrão ficam em
-`backend/src/main/resources/application-local.properties`. Para configurar suas
-próprias credenciais antes de iniciar o backend:
+Crie a configuração local a partir do modelo seguro:
+
+```powershell
+Copy-Item backend\src\main\resources\application-local.example.properties `
+  backend\src\main\resources\application-local.properties
+```
+
+Depois configure suas próprias credenciais antes de iniciar o backend:
 
 ```powershell
 $env:HUBON_SEED_OWNER_NAME="Proprietário"
@@ -54,10 +60,12 @@ $env:HUBON_SEED_ADMIN_ENABLED="true"
 $env:HUBON_SEED_ADMIN_NAME="Administrador"
 $env:HUBON_SEED_ADMIN_EMAIL="admin.local@hubon.test"
 $env:HUBON_SEED_ADMIN_PASSWORD="senha-admin-local-forte"
+$env:HUBON_JWT_SECRET="segredo-local-longo-e-aleatorio"
 ```
 
 As senhas são salvas com BCrypt. Configure esses valores antes da primeira
-criação dos usuários seedados. Não use os valores locais padrão em produção.
+criação dos usuários seedados. Não use placeholders ou valores locais em
+produção.
 
 ## Execução em localhost
 

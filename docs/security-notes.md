@@ -24,15 +24,18 @@ vêm de propriedades do backend, não do frontend:
 | `hubon.seed.admin.email` | `HUBON_SEED_ADMIN_EMAIL` | E-mail do `ADMIN` inicial |
 | `hubon.seed.admin.password` | `HUBON_SEED_ADMIN_PASSWORD` | Senha do `ADMIN` inicial |
 
-Os valores padrão do perfil local ficam em
-`backend/src/main/resources/application-local.properties`. As senhas são
-armazenadas com BCrypt. Para alterar em ambiente local:
+O modelo versionado fica em
+`backend/src/main/resources/application-local.example.properties`. A configuração
+real fica em `backend/src/main/resources/application-local.properties`, que é
+ignorada pelo Git. As senhas são armazenadas com BCrypt. Para alterar em
+ambiente local:
 
 ```powershell
 $env:HUBON_SEED_OWNER_EMAIL="owner.local@hubon.test"
 $env:HUBON_SEED_OWNER_PASSWORD="senha-local-forte"
 $env:HUBON_SEED_ADMIN_EMAIL="admin.local@hubon.test"
 $env:HUBON_SEED_ADMIN_PASSWORD="senha-admin-local-forte"
+$env:HUBON_JWT_SECRET="segredo-local-longo-e-aleatorio"
 ```
 
 Em produção, não use os valores padrão locais. A criação do primeiro dono deve

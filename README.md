@@ -89,31 +89,25 @@ HubOn/
 - Java 21 ou superior compatível com o projeto.
 - Node.js e npm.
 - PostgreSQL em execução.
-- Banco `hubon_db` e usuário local configurados.
+- Banco PostgreSQL local configurado.
 
-O perfil local usa, por padrão:
+Configure banco, credenciais seedadas e JWT no arquivo local ignorado
+`backend/src/main/resources/application-local.properties` ou por variáveis de
+ambiente. Use o modelo seguro
+`backend/src/main/resources/application-local.example.properties`.
 
-```text
-Banco: hubon_db
-Usuário: hubon_user
-Senha: hubon_password
+Exemplo de variáveis principais:
+
+```powershell
+$env:DB_URL="jdbc:postgresql://localhost:5432/hubon_db"
+$env:DB_USERNAME="hubon_user"
+$env:DB_PASSWORD="change-me"
+$env:HUBON_JWT_SECRET="use-um-segredo-longo-e-aleatorio"
 ```
 
-Esses valores podem ser substituídos por variáveis de ambiente.
-
-Usuários locais seedados para desenvolvimento:
-
-```text
-OWNER: definido por hubon.seed.owner.*
-ADMIN: definido por hubon.seed.admin.*
-```
-
-Os valores padrão do perfil local ficam em
-`backend/src/main/resources/application-local.properties` e podem ser
-substituídos por variáveis de ambiente, como `HUBON_SEED_OWNER_EMAIL`,
-`HUBON_SEED_OWNER_PASSWORD`, `HUBON_SEED_ADMIN_EMAIL` e
-`HUBON_SEED_ADMIN_PASSWORD`. As senhas são gravadas com BCrypt. Troque esses
-valores e `HUBON_JWT_SECRET` fora do desenvolvimento local.
+As credenciais dos usuários seedados são definidas por `hubon.seed.owner.*` e
+`hubon.seed.admin.*` ou pelas variáveis `HUBON_SEED_OWNER_*` e
+`HUBON_SEED_ADMIN_*`. As senhas são gravadas com BCrypt.
 
 ## Como executar
 
@@ -204,6 +198,7 @@ Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
 ## Documentação
 
 - [Arquitetura](docs/architecture.md)
+- [Configuração segura](docs/configuration.md)
 - [Modelo de banco](docs/database-model.md)
 - [Endpoints](docs/endpoints.md)
 - [Regras de negócio](docs/regras-negocio.md)

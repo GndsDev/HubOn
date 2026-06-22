@@ -10,7 +10,9 @@ O projeto combina três níveis de validação:
 
 Os testes do backend usam o perfil local e acessam PostgreSQL. Antes de
 executá-los, confirme que o banco local está disponível e que as credenciais
-estão corretas.
+estão corretas. Configure variáveis de ambiente ou crie
+`backend/src/main/resources/application-local.properties` a partir de
+`application-local.example.properties`.
 
 ## Backend
 
