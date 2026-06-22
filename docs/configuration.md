@@ -105,8 +105,9 @@ primeira criação dos usuários no banco.
 ## Diferença entre os arquivos
 
 `application.properties`
-: Configuração base versionada. Deve conter padrões estruturais e placeholders
-seguros.
+: Configuração base versionada. Mantém segurança fechada por padrão, com
+`hubon.security.permit-all=false`, `hubon.seed.enabled=false` e
+`hubon.jwt.secret=${HUBON_JWT_SECRET}` sem fallback.
 
 `application-prod.properties`
 : Configuração versionada do perfil de produção. Deve exigir secrets por
@@ -123,8 +124,22 @@ segredo JWT local. Fica fora do Git.
 ## Boas práticas
 
 - Não coloque secrets em HTML, TypeScript, JavaScript ou documentação pública.
+- Use `HUBON_PORTFOLIO_EMAIL` e `HUBON_PORTFOLIO_PASSWORD` apenas no terminal
+  quando for gerar screenshots ou vídeo do portfólio.
 - Não commite `target/`, `dist/`, `node_modules/`, caches ou relatórios.
 - Não altere migrations para esconder dados locais; migrations são parte do
   histórico do banco.
 - Troque qualquer senha ou segredo que tenha sido exposto antes de publicar o
   repositório.
+
+## Resetar banco Docker
+
+Para descartar os dados locais do PostgreSQL criado pelo Docker Compose:
+
+```powershell
+docker compose down -v
+docker compose up -d
+```
+
+Isso remove o volume `hubon_postgres_data`. Use apenas quando quiser recriar o
+banco local do zero.

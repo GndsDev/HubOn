@@ -25,6 +25,7 @@ const videoDirectory = path.join(repositoryRoot, 'docs', 'media', 'videos');
 const baseUrl = process.env.HUBON_BASE_URL ?? 'http://localhost:4200';
 const apiUrl = process.env.HUBON_API_URL ?? 'http://localhost:8080/api';
 const mode = process.argv[2] ?? 'all';
+let authSession;
 
 process.env.PLAYWRIGHT_BROWSERS_PATH = browsersPath;
 
@@ -64,32 +65,41 @@ const demo = {
   },
 };
 
-if (!['screenshots', 'video', 'all'].includes(mode)) {
-  throw new Error(
-    `Modo inválido: ${mode}. Use screenshots, video ou all.`,
-  );
+try {
+  await run();
+} catch (error) {
+  console.error(error?.message ?? String(error));
+  process.exitCode = 1;
 }
 
-await checkServices();
-const operator = await prepareDemoData();
-const executablePath = await findBrowserExecutable();
+async function run() {
+  if (!['screenshots', 'video', 'all'].includes(mode)) {
+    throw new Error(
+      `Modo inválido: ${mode}. Use screenshots, video ou all.`,
+    );
+  }
 
-if (mode === 'screenshots' || mode === 'all') {
-  await captureScreenshots(executablePath, operator.id);
+  const portfolioCredentials = readPortfolioCredentials();
+  await checkServices();
+  authSession = await authenticateForPortfolio(portfolioCredentials);
+  await prepareDemoData(authSession.user);
+  const executablePath = await findBrowserExecutable();
+
+  if (mode === 'screenshots' || mode === 'all') {
+    await captureScreenshots(executablePath, authSession);
+  }
+
+  if (mode === 'video' || mode === 'all') {
+    await ensureVideoTools();
+    await captureVideo(executablePath, authSession);
+  }
+
+  console.log('Automação de portfólio concluída.');
 }
-
-if (mode === 'video' || mode === 'all') {
-  await ensureVideoTools();
-  await captureVideo(executablePath, operator.id);
-}
-
-console.log('Automação de portfólio concluída.');
 
 async function checkServices() {
   console.log(`Verificando frontend em ${baseUrl}...`);
   await waitForHttp(baseUrl);
-  console.log(`Verificando API em ${apiUrl}...`);
-  await waitForHttp(`${apiUrl}/users`);
 }
 
 async function waitForHttp(url) {
@@ -111,13 +121,75 @@ async function waitForHttp(url) {
   );
 }
 
-async function prepareDemoData() {
+function readPortfolioCredentials() {
+  const email = process.env.HUBON_PORTFOLIO_EMAIL?.trim();
+  const password = process.env.HUBON_PORTFOLIO_PASSWORD;
+
+  if (!email || !password) {
+    throw new Error(
+      'Configure HUBON_PORTFOLIO_EMAIL e HUBON_PORTFOLIO_PASSWORD para gerar as mídias.',
+    );
+  }
+
+  return { email, password };
+}
+
+async function authenticateForPortfolio({ email, password }) {
+  console.log(`Autenticando usuário de portfólio em ${apiUrl}/auth/login...`);
+  let lastError;
+
+  for (let attempt = 1; attempt <= 20; attempt += 1) {
+    try {
+      const response = await fetch(`${apiUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const contentType = response.headers.get('content-type') ?? '';
+      const payload = contentType.includes('application/json')
+        ? await response.json()
+        : await response.text();
+
+      if (response.ok) {
+        return payload;
+      }
+
+      const message =
+        typeof payload === 'object' && payload?.message
+          ? payload.message
+          : String(payload);
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error(`Credenciais de portfólio recusadas: ${message}`);
+      }
+
+      lastError = new Error(`${response.status} em /auth/login: ${message}`);
+    } catch (error) {
+      if (error.message?.startsWith('Credenciais de portfólio recusadas')) {
+        throw error;
+      }
+      lastError = error;
+    }
+
+    await delay(500);
+  }
+
+  throw new Error(
+    `API indisponível em ${apiUrl}. Inicie o backend antes da automação. Motivo: ${lastError?.message}`,
+  );
+}
+
+async function prepareDemoData(currentUser) {
   console.log('Preparando dados idempotentes de demonstração...');
 
-  const users = await apiRequest('/users');
-  const operator = users.find((user) => user.active);
-  if (!operator) {
-    throw new Error('Nenhum operador ativo foi encontrado para a demonstração.');
+  if (!currentUser?.active) {
+    throw new Error('O usuário autenticado para o portfólio está inativo.');
+  }
+
+  if (!currentUser.roles?.some((role) => role === 'OWNER' || role === 'ADMIN')) {
+    throw new Error(
+      'Use um usuário OWNER ou ADMIN em HUBON_PORTFOLIO_EMAIL para preparar os dados de portfólio.',
+    );
   }
 
   const categories = await apiRequest('/categories');
@@ -227,7 +299,6 @@ async function prepareDemoData() {
       method: 'POST',
       body: {
         tableId: table.id,
-        openedByUserId: operator.id,
         serviceFee: 0,
         discountAmount: 0,
       },
@@ -238,7 +309,6 @@ async function prepareDemoData() {
     orders,
     tab.id,
     product.id,
-    operator.id,
     demo.notes.received,
     'SENT_TO_KITCHEN',
   );
@@ -246,7 +316,6 @@ async function prepareDemoData() {
     orders,
     tab.id,
     product.id,
-    operator.id,
     demo.notes.preparing,
     'PREPARING',
   );
@@ -254,7 +323,6 @@ async function prepareDemoData() {
     orders,
     tab.id,
     product.id,
-    operator.id,
     demo.notes.ready,
     'READY',
   );
@@ -262,14 +330,12 @@ async function prepareDemoData() {
   console.log(
     `Dados demo prontos: mesa ${demo.tableNumber}, comanda #${tab.id}.`,
   );
-  return operator;
 }
 
 async function ensureOrderStatus(
   existingOrders,
   tabId,
   productId,
-  operatorId,
   notes,
   targetStatus,
 ) {
@@ -285,7 +351,6 @@ async function ensureOrderStatus(
     method: 'POST',
     body: {
       tabId,
-      createdByUserId: operatorId,
       type: 'TABLE',
       notes,
       items: [
@@ -320,9 +385,16 @@ async function ensureOrderStatus(
 }
 
 async function apiRequest(pathname, options = {}) {
+  if (!authSession?.token) {
+    throw new Error('Sessão de portfólio ausente. Faça login antes de chamar a API.');
+  }
+
   const response = await fetch(`${apiUrl}${pathname}`, {
     method: options.method ?? 'GET',
-    headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: {
+      Authorization: `Bearer ${authSession.token}`,
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    },
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
@@ -342,19 +414,19 @@ async function apiRequest(pathname, options = {}) {
   return payload;
 }
 
-async function captureScreenshots(executablePath, operatorId) {
+async function captureScreenshots(executablePath, session) {
   await mkdir(screenshotDirectory, { recursive: true });
   const browser = await chromium.launch({
     executablePath,
     headless: true,
   });
-  const context = await createContext(browser, operatorId);
+  const context = await createContext(browser, session);
   const page = await context.newPage();
 
   try {
     for (const [fileName, route, heading] of routes) {
       console.log(`Capturando ${fileName}...`);
-      await openStablePage(page, route, heading, operatorId);
+      await openStablePage(page, route, heading);
       await page.screenshot({
         path: path.join(screenshotDirectory, fileName),
         fullPage: false,
@@ -366,7 +438,7 @@ async function captureScreenshots(executablePath, operatorId) {
   }
 }
 
-async function captureVideo(executablePath, operatorId) {
+async function captureVideo(executablePath, session) {
   await mkdir(videoDirectory, { recursive: true });
   const outputPath = path.join(videoDirectory, 'hubon-demo.webm');
   await removeIfExists(outputPath);
@@ -381,7 +453,7 @@ async function captureVideo(executablePath, operatorId) {
     executablePath,
     headless: true,
   });
-  const context = await createContext(browser, operatorId, {
+  const context = await createContext(browser, session, {
     recordVideo: {
       dir: temporaryDirectory,
       size: { width: 1440, height: 900 },
@@ -396,7 +468,6 @@ async function captureVideo(executablePath, operatorId) {
       page,
       '/dashboard',
       'Operação em tempo real',
-      operatorId,
     );
     await delay(1800);
 
@@ -404,7 +475,7 @@ async function captureVideo(executablePath, operatorId) {
       const link = page.locator(`a[href="${route}"]`);
       await link.click();
       await page.waitForURL(`${baseUrl}${route}`);
-      await waitUntilStable(page, operatorId);
+      await waitUntilStable(page);
       await delay(label === 'Cozinha' ? 2200 : 1500);
     }
   } finally {
@@ -422,7 +493,7 @@ async function captureVideo(executablePath, operatorId) {
   );
 }
 
-async function createContext(browser, operatorId, extraOptions = {}) {
+async function createContext(browser, session, extraOptions = {}) {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     colorScheme: 'dark',
@@ -432,48 +503,32 @@ async function createContext(browser, operatorId, extraOptions = {}) {
   });
 
   await context.addInitScript(
-    ({ selectedOperatorId }) => {
+    ({ authSessionValue }) => {
       localStorage.setItem('hubon-theme', 'dark');
-      localStorage.setItem(
-        'hubon-operator-id',
-        String(selectedOperatorId),
-      );
+      localStorage.setItem('hubon-auth-session', authSessionValue);
+      localStorage.removeItem('hubon-operator-id');
     },
-    { selectedOperatorId: operatorId },
+    { authSessionValue: JSON.stringify(session) },
   );
 
   return context;
 }
 
-async function openStablePage(page, route, heading, operatorId) {
+async function openStablePage(page, route, heading) {
   await page.goto(`${baseUrl}${route}`, { waitUntil: 'domcontentloaded' });
   await page.locator('h1', { hasText: heading }).waitFor({
     state: 'visible',
     timeout: 15_000,
   });
-  await waitUntilStable(page, operatorId);
+  await waitUntilStable(page);
 }
 
-async function waitUntilStable(page, operatorId) {
+async function waitUntilStable(page) {
   await page.waitForFunction(
     () => document.querySelectorAll('.loading-card').length === 0,
     null,
     { timeout: 15_000 },
   );
-
-  const operatorSelect = page.locator('.operator-chip select');
-  await operatorSelect.waitFor({ state: 'visible', timeout: 15_000 });
-  await page.waitForFunction(
-    () => {
-      const select = document.querySelector('.operator-chip select');
-      return select instanceof HTMLSelectElement && select.options.length > 1;
-    },
-    null,
-    { timeout: 15_000 },
-  );
-  if ((await operatorSelect.inputValue()) !== String(operatorId)) {
-    await operatorSelect.selectOption(String(operatorId));
-  }
 
   await page.evaluate(async () => {
     await document.fonts.ready;

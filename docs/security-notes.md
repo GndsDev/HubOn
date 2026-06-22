@@ -99,6 +99,19 @@ $env:HUBON_JWT_SECRET="segredo-longo-e-aleatorio"
 $env:HUBON_JWT_EXPIRATION_MINUTES="480"
 ```
 
+## Automação de portfólio
+
+A geração de screenshots e vídeo também usa login JWT real. Configure as
+credenciais apenas no terminal:
+
+```powershell
+$env:HUBON_PORTFOLIO_EMAIL="owner@hubon.local"
+$env:HUBON_PORTFOLIO_PASSWORD="senha-local-nao-versionada"
+```
+
+Não versionar senha de portfólio, senha seedada ou segredo JWT. O usuário usado
+para gerar mídia deve estar ativo e possuir perfil `OWNER` ou `ADMIN`.
+
 ## Respostas de segurança
 
 - `401`: sem token, token inválido, token expirado ou credenciais inválidas.

@@ -140,6 +140,27 @@ Scripts disponíveis:
 | `npm run watch` | Build de desenvolvimento em modo observação. |
 | `npm test` | Testes Angular em modo observação. |
 
+## Automação de mídia
+
+Com backend e frontend rodando, configure um usuário `OWNER` ou `ADMIN` somente
+no terminal:
+
+```powershell
+$env:HUBON_PORTFOLIO_EMAIL="owner@hubon.local"
+$env:HUBON_PORTFOLIO_PASSWORD="senha-local-nao-versionada"
+```
+
+Depois, na pasta `frontend`:
+
+```powershell
+npm run portfolio:screenshots
+npm run portfolio:video
+```
+
+O script autentica em `/api/auth/login`, grava a sessão no `localStorage` com a
+mesma chave do frontend e envia `Authorization: Bearer <token>` nas chamadas
+diretas à API. Não salve `HUBON_PORTFOLIO_PASSWORD` em arquivo versionado.
+
 ## Como interpretar falhas
 
 - **Falha de conexão com PostgreSQL:** verifique serviço, banco, usuário, senha e
@@ -163,6 +184,17 @@ Scripts disponíveis:
 Depois dos testes automatizados, execute o roteiro em
 [manual-test-flow.md](manual-test-flow.md). Ele valida a integração real entre
 Angular, API e PostgreSQL.
+
+Valide também permissões por perfil:
+
+- Deslogado: abrir `http://localhost:4200` e confirmar redirecionamento para
+  `/login`.
+- `OWNER`: acessar Dashboard, Usuários, Categorias e Produtos.
+- `WAITER`: acessar Mesas e Pedidos, mas não Usuários, Categorias ou Produtos.
+- `ADMIN`: confirmar que não consegue criar `OWNER` nem outro `ADMIN`.
+- `KITCHEN`: acessar apenas o fluxo permitido de Cozinha.
+- `CASHIER`: acessar Caixa e Comandas conforme a regra.
+- Logout: confirmar retorno ao login.
 
 ## Testes recomendados para a próxima versão
 
