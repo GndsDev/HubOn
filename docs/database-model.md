@@ -264,3 +264,14 @@ como colunas próprias na tabela `tabs`.
 - Criar uma nova migration para qualquer alteração futura.
 - Não editar uma migration que já tenha sido aplicada.
 
+## Evolução planejada: Estoque Inteligente
+
+O modelo atual ainda não contém tabelas de estoque. Para o pós-MVP, estão em
+estudo `inventory_items`, `product_recipes`, `inventory_movements`, `suppliers`
+e uma estrutura de entradas por compra. Essa proposta é conceitual e nenhuma
+migration foi criada.
+
+Os relacionamentos e decisões pendentes estão documentados em
+[stock-management.md](stock-management.md). Quando a implementação começar, o
+modelo aprovado deverá entrar em uma nova migration Flyway.
+

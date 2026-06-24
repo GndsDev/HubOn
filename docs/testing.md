@@ -223,3 +223,7 @@ Valide também permissões por perfil:
 - Testes end-to-end do fluxo completo.
 - Testes de CORS e perfis `local`/`prod`.
 - Testes de carga para pedidos, Dashboard e pagamentos concorrentes.
+- Quando o Estoque Inteligente for implementado: conversão de unidades,
+  movimentações atômicas, venda com saldo negativo e alerta, capacidade de
+  produção, concorrência de baixas e estornos idempotentes. O planejamento do
+  módulo está em [stock-management.md](stock-management.md).

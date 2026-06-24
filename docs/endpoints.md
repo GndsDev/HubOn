@@ -1,5 +1,9 @@
 # Endpoints do HubOn MVP
 
+> O Estoque Inteligente ainda não possui endpoints. As futuras rotas somente
+> serão definidas após a validação das regras em
+> [stock-management.md](stock-management.md).
+
 Base local: `http://localhost:8080/api`
 
 Todos os controllers retornam DTOs. Erros de validação, negócio e recursos não

@@ -46,13 +46,24 @@
 - Delivery, iFood, WhatsApp e QR Code.
 - Aplicativo mobile.
 - Nota fiscal, impressão fiscal e integração com maquininha.
-- Estoque avançado.
+- Estoque inteligente por insumos, receitas e baixa automática.
 - Multiempresa e multiunidade.
 - Assinatura SaaS.
 - Refresh token, recuperação de senha, política de tentativas e auditoria completa.
 - WebSocket.
 - Paginação e relatórios exportáveis.
 - Impressão parcial e modo chamada.
+
+## Próxima fase planejada
+
+O próximo grande módulo planejado é o **Estoque Inteligente**, voltado a
+trailers, lanchonetes e pequenos restaurantes. A evolução foi dividida em
+estoque base, receitas com baixa automática, capacidade de produção e compras
+com fornecedores.
+
+Esse módulo ainda não foi implementado: não há telas, endpoints, entidades ou
+migrations de estoque entregues. A visão de produto, as regras propostas e os
+pontos em aberto estão em [stock-management.md](stock-management.md).
 
 ## Validação realizada
 

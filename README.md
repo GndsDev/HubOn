@@ -181,7 +181,8 @@ Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
 - Delivery e integrações com marketplaces.
 - WhatsApp e QR Code.
 - Nota fiscal e integração com maquininha.
-- Estoque avançado.
+- Estoque inteligente por insumos, receitas e baixa automática (planejado para
+  o pós-MVP).
 - Aplicativo mobile.
 - Multiempresa e multiunidade.
 - WebSocket.
@@ -189,12 +190,14 @@ Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
 
 ## Roadmap pós-MVP
 
-1. Adicionar refresh token, recuperação de senha e política de tentativas.
-2. Isolar ambientes de teste com banco dedicado.
-3. Ampliar testes do frontend e adicionar testes end-to-end.
-4. Criar paginação navegável e filtros por período.
-5. Adicionar observabilidade, auditoria e estratégia de backup.
-6. Preparar implantação segura com TLS, proxy reverso e gestão de segredos.
+1. Implementar o Estoque Inteligente em fases: estoque base, receitas e baixa
+   automática, capacidade de produção, compras e fornecedores.
+2. Adicionar refresh token, recuperação de senha e política de tentativas.
+3. Isolar ambientes de teste com banco dedicado.
+4. Ampliar testes do frontend e adicionar testes end-to-end.
+5. Criar paginação navegável e filtros por período.
+6. Adicionar observabilidade, auditoria e estratégia de backup.
+7. Preparar implantação segura com TLS, proxy reverso e gestão de segredos.
 
 ## Documentação
 
@@ -202,6 +205,7 @@ Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
 - [Configuração segura](docs/configuration.md)
 - [Autenticação](docs/authentication.md)
 - [Modelo de banco](docs/database-model.md)
+- [Estoque Inteligente — planejamento](docs/stock-management.md)
 - [Endpoints](docs/endpoints.md)
 - [Regras de negócio](docs/regras-negocio.md)
 - [Fluxo do sistema](docs/fluxo-sistema.md)

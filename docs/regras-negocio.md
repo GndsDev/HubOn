@@ -1,5 +1,10 @@
 # Regras de negócio do HubOn MVP
 
+As regras abaixo descrevem o que está implementado no MVP. As regras propostas
+para insumos, receitas, baixa automática, saldo negativo e estorno estão
+separadas em [stock-management.md](stock-management.md) e ainda não estão
+implementadas.
+
 ## Categorias e produtos
 
 - Categoria exige nome e pode ser ativada ou desativada sem apagar histórico.

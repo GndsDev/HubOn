@@ -248,3 +248,14 @@ da tela.
 - CORS restrito às origens configuradas.
 - Frontend de produção espera `/api` no mesmo proxy.
 - Sem exclusão física de registros operacionais importantes.
+
+## Evolução planejada: Estoque Inteligente
+
+O módulo futuro de estoque deverá seguir as mesmas camadas e manter as
+movimentações transacionais e auditáveis. A criação do pedido e a baixa dos
+insumos precisarão de uma fronteira transacional consistente, além de proteção
+contra concorrência e estornos duplicados.
+
+Nenhum módulo, endpoint ou componente de estoque está implementado atualmente.
+A proposta funcional e as decisões ainda abertas estão em
+[stock-management.md](stock-management.md).
