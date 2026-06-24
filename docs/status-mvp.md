@@ -62,8 +62,10 @@ estoque base, receitas com baixa automática, capacidade de produção e compras
 com fornecedores.
 
 Esse módulo ainda não foi implementado: não há telas, endpoints, entidades ou
-migrations de estoque entregues. A visão de produto, as regras propostas e os
-pontos em aberto estão em [stock-management.md](stock-management.md).
+migrations de estoque entregues. As decisões iniciais para v0.4.0 e v0.4.1 —
+incluindo unidades base, momento da baixa, estorno, custos e permissões — já
+foram documentadas como planejamento. A visão de produto, as decisões e os
+pontos ainda em aberto estão em [stock-management.md](stock-management.md).
 
 ## Validação realizada
 

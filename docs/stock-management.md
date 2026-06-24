@@ -47,10 +47,10 @@ Campos planejados para o domínio futuro, com nomes de código em inglês:
 - `createdAt`;
 - `updatedAt`.
 
-Unidades planejadas: `g`, `kg`, `ml`, `l`, `unidade`, `pacote` e `caixa`. Antes
-da implementação, será necessário definir a representação técnica dessas
-unidades e as regras de conversão. A receita e o saldo precisam ser
-comparáveis — por exemplo, estoque em quilogramas e consumo em gramas.
+Unidades planejadas para exibição: `g`, `kg`, `ml`, `l`, `unidade`, `pacote` e
+`caixa`. Internamente, massa usará gramas, volume usará mililitros e itens
+indivisíveis usarão unidades, conforme as decisões da primeira implementação.
+A receita e o saldo deverão ser convertidos para uma unidade base comparável.
 
 ### Receita ou ficha técnica
 
@@ -73,9 +73,9 @@ Cada linha planejada da receita terá:
 - `quantity`;
 - `active`.
 
-A ficha técnica também permitirá estimar o custo do produto com base no custo
-unitário vigente dos insumos. A forma de preservar o custo histórico da venda
-ainda precisa ser definida.
+A ficha técnica também permitirá estimar o custo do produto com base no último
+custo unitário informado para cada insumo. A forma de preservar o custo
+histórico detalhado da venda ainda precisa ser definida.
 
 ### Movimentação de estoque
 
@@ -120,12 +120,13 @@ Campos planejados:
 
 Fluxo planejado:
 
-1. O cliente compra um produto.
-2. O pedido é criado.
-3. O sistema consulta a receita ativa do produto.
-4. Para cada ingrediente, multiplica a quantidade da receita pela quantidade
+1. O cliente escolhe um produto e o pedido é criado, ainda sem movimentar o
+   estoque.
+2. Quando o pedido é enviado para a cozinha ou entra no fluxo de preparo, o
+   sistema consulta a receita ativa do produto.
+3. Para cada ingrediente, multiplica a quantidade da receita pela quantidade
    vendida, baixa o saldo e cria uma movimentação `SALE`.
-5. As movimentações ficam associadas ao pedido que as originou.
+4. As movimentações ficam associadas ao pedido que as originou.
 
 Exemplo para a venda de duas Jantinhas Tradicionais:
 
@@ -136,9 +137,9 @@ Exemplo para a venda de duas Jantinhas Tradicionais:
 | Carne | 120 g | 240 g |
 | Embalagem | 1 unidade | 2 unidades |
 
-A baixa deverá ocorrer na mesma transação da operação de pedido escolhida como
-gatilho, para não existir venda parcialmente baixada. O momento exato do
-gatilho — criação ou envio à cozinha — permanece em aberto.
+A baixa deverá ocorrer na mesma transação da transição que envia o pedido para
+a cozinha ou inicia seu preparo, para não existir pedido parcialmente baixado.
+Criar o pedido, por si só, não deverá consumir estoque.
 
 ## Estoque insuficiente
 
@@ -262,12 +263,95 @@ com nomes, tipos ou restrições até a revisão técnica.
 - Pagamento não afetará estoque; a movimentação estará ligada ao pedido/venda.
 - Ajuste manual e perda exigirão motivo.
 - Entrada registrará o usuário responsável.
-- Cancelamento antes do preparo ou da entrega poderá estornar o estoque.
+- Pedido criado e ainda não enviado à cozinha não exigirá estorno, pois ainda
+  não terá baixado estoque.
+- Cancelamento após a baixa e antes da entrega poderá estornar automaticamente,
+  desde que a baixa exista e o processo seja idempotente.
 - Pedido entregue não terá estorno automático; uma correção exigirá movimento
   manual e justificativa.
 
 Para evitar estorno duplicado, a implementação deverá tornar baixa e estorno
 idempotentes e preservar o vínculo entre movimentos relacionados.
+
+## Decisões fechadas para a primeira implementação
+
+> As decisões desta seção orientam a implementação futura das versões v0.4.0 e
+> v0.4.1. O módulo de Estoque Inteligente ainda não foi implementado.
+
+### 1. Unidade base e conversões
+
+- Massa será armazenada internamente em gramas.
+- Volume será armazenado internamente em mililitros.
+- Itens indivisíveis serão armazenados em unidades.
+- A interface poderá exibir `kg`, `g`, `l`, `ml`, `unidade`, `pacote` e `caixa`,
+  mas o cálculo interno usará uma unidade base comparável.
+- Pacote e caixa serão formas de apresentação ou entrada. Seu conteúdo deverá
+  ser convertido para gramas, mililitros ou unidades conforme o tipo do item.
+
+Exemplos:
+
+- 10 kg de arroz = 10.000 g;
+- 2 litros de óleo = 2.000 ml;
+- 100 embalagens = 100 unidades.
+
+### 2. Momento da baixa automática
+
+- A baixa ocorrerá quando o pedido for enviado para a cozinha ou entrar no
+  fluxo de preparo.
+- A simples criação do pedido ainda não baixará estoque, pois ele poderá ser
+  corrigido ou cancelado antes do preparo.
+- A baixa e a transição de status escolhida deverão ocorrer na mesma transação.
+
+### 3. Cancelamento e estorno
+
+- Pedido criado e ainda não enviado para a cozinha não terá baixa nem estorno.
+- Pedido já enviado para a cozinha, mas ainda não entregue, poderá estornar
+  automaticamente, desde que a baixa exista.
+- Baixa e estorno deverão ser idempotentes para impedir movimentações
+  duplicadas em repetição de requisição ou processamento.
+- Pedido entregue não estornará automaticamente.
+- Correções após a entrega serão feitas por movimento manual com justificativa.
+
+### 4. Estoque insuficiente
+
+- A primeira versão não bloqueará a venda.
+- O sistema permitirá saldo negativo e exibirá alerta claro.
+- Bloquear venda sem estoque poderá se tornar uma configuração futura.
+
+### 5. Custo
+
+- A primeira versão usará o último custo informado no item de estoque.
+- Uma entrada de estoque poderá atualizar o custo unitário atual.
+- Custo médio ponderado ficará para evolução futura.
+- O custo histórico detalhado da venda será discutido em uma etapa posterior.
+
+### 6. Produto sem receita
+
+- Produto sem receita poderá ser vendido normalmente.
+- A venda desse produto não fará baixa automática.
+- Receita ausente será sinalizada como alerta administrativo.
+- Produto com receita ativa fará a baixa automática dos insumos quando entrar
+  no fluxo de cozinha ou preparo.
+
+### 7. Permissões planejadas
+
+| Perfil | Permissões planejadas |
+| --- | --- |
+| `OWNER` | Gerenciar estoque, entradas, ajustes, perdas e custos. |
+| `ADMIN` | Gerenciar estoque, entradas, ajustes, perdas e custos. |
+| `CASHIER` | Consultar estoque e alertas, sem ajustar saldo. |
+| `WAITER` | Ver alertas operacionais durante a venda, sem ajustar saldo. |
+| `KITCHEN` | Consultar disponibilidade e alertas, sem ajustar saldo. |
+
+Essas permissões ainda deverão ser aplicadas tanto na API quanto na interface
+quando o módulo for implementado.
+
+### 8. Itens descartáveis
+
+- Embalagem, talher, guardanapo e itens semelhantes serão tratados como itens de
+  estoque normais.
+- O controle é relevante para trailers e vendas de jantinhas porque os
+  descartáveis afetam tanto o custo quanto a disponibilidade do produto final.
 
 ## Roadmap
 
@@ -303,18 +387,11 @@ datas prometidas.
 
 ## Pontos em aberto antes da implementação
 
-- Em qual transição do pedido ocorre a baixa: criação, envio à cozinha ou outra?
-- Como estornar cancelamentos e devoluções sem duplicidade?
-- Qual será a unidade-base e como ocorrerão conversões entre `kg`/`g`, `l`/`ml`
-  e embalagens de compra?
-- Quantidades e custos usarão qual precisão e política de arredondamento?
-- O custo estimado usará último custo, custo médio ponderado ou outro método?
-- Como definir e detectar uma receita “incompleta”?
-- Como tratar adicionais, remoções, substituições e observações do pedido?
+- Como tratar adicionais, remoções e substituições no pedido?
 - Como controlar alterações de receita sem reescrever o histórico?
-- Quais perfis poderão cadastrar itens, movimentar saldo e consultar custos?
-- A sugestão de compra repõe até o mínimo, até um estoque-alvo ou considera uma
-  previsão de vendas?
+- Como a previsão de compras considerará estoque-alvo, consumo esperado e
+  histórico de vendas?
 - `purchase_entries` e seus itens serão necessários ou uma movimentação
   `PURCHASE` será suficiente na primeira versão?
-
+- Quando e como adotar custo médio ponderado em uma evolução futura?
+- Lote e validade deverão ser controlados em uma versão futura?
