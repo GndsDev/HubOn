@@ -15,8 +15,8 @@ A autoria operacional é registrada pelo usuário autenticado no backend.
 
 Documentos principais:
 
-- [README do projeto](../README.md)
-- [Status do MVP](status-mvp.md)
-- [Arquitetura](architecture.md)
-- [Modelo de dados](database-model.md)
-- [Regras de negócio](regras-negocio.md)
+- [README do projeto](../../README.md)
+- [Status do MVP](../status-mvp.md)
+- [Arquitetura](../architecture/architecture.md)
+- [Modelo de dados](../database/database-model.md)
+- [Regras de negócio](../business/regras-negocio.md)

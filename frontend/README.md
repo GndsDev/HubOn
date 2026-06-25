@@ -27,4 +27,4 @@ npm run build
 ## Documentação
 
 Consulte o [README principal](../README.md) e
-[frontend-api-integration.md](../docs/frontend-api-integration.md).
+[frontend-api-integration.md](../docs/architecture/frontend-api-integration.md).

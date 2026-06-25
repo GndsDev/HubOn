@@ -185,7 +185,8 @@ diretas à API. Não salve `HUBON_PORTFOLIO_PASSWORD` em arquivo versionado.
 - **Falha do Flyway:** confira se o banco não possui alteração manual conflitante
   com as migrations.
 - **Falha de regra de negócio:** leia o nome do teste e a mensagem esperada; não
-  ajuste o teste antes de confirmar a regra em `regras-negocio.md`.
+  ajuste o teste antes de confirmar a regra em
+  [regras-negocio.md](../business/regras-negocio.md).
 - **Falha de contexto Spring:** procure primeiro por propriedades ausentes,
   consultas inválidas ou mapeamentos JPA incompatíveis.
 - **Falha de TypeScript/template:** execute `npm run build` para obter o arquivo e
@@ -226,4 +227,4 @@ Valide também permissões por perfil:
 - Quando o Estoque Inteligente for implementado: conversão de unidades,
   movimentações atômicas, venda com saldo negativo e alerta, capacidade de
   produção, concorrência de baixas e estornos idempotentes. O planejamento do
-  módulo está em [stock-management.md](stock-management.md).
+  módulo está em [stock-management.md](../business/stock-management.md).

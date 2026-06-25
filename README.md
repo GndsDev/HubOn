@@ -74,7 +74,7 @@ depender de serviços externos.
 [Assistir à demonstração navegável em WebM](docs/media/videos/hubon-demo.webm)
 
 As dez telas documentadas e as instruções para regenerar as mídias estão em
-[portfolio-media.md](docs/portfolio-media.md).
+[portfolio-media.md](docs/portfolio/portfolio-media.md).
 
 ## Estrutura do repositório
 
@@ -139,7 +139,7 @@ Para acesso por outro computador da rede:
 npm run start:network
 ```
 
-Consulte [deployment-local.md](docs/deployment-local.md) antes de liberar portas
+Consulte [deployment-local.md](docs/deployment/deployment-local.md) antes de liberar portas
 ou configurar o CORS.
 
 ## Como testar
@@ -160,7 +160,7 @@ npm run build
 ```
 
 Para validar o produto manualmente, siga
-[manual-test-flow.md](docs/manual-test-flow.md). O roteiro cobre a jornada de
+[manual-test-flow.md](docs/testing/manual-test-flow.md). O roteiro cobre a jornada de
 uma mesa livre até o fechamento da comanda e sua volta ao estado Livre.
 
 ## Status atual
@@ -190,6 +190,8 @@ Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
 
 ## Roadmap pós-MVP
 
+O roadmap oficial do produto está em [ROADMAP.md](docs/product/ROADMAP.md).
+
 1. Implementar o Estoque Inteligente em fases: estoque base, receitas e baixa
    automática, capacidade de produção, compras e fornecedores.
 2. Adicionar refresh token, recuperação de senha e política de tentativas.
@@ -201,21 +203,16 @@ Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
 
 ## Documentação
 
-- [Arquitetura](docs/architecture.md)
-- [Configuração segura](docs/configuration.md)
-- [Autenticação](docs/authentication.md)
-- [Modelo de banco](docs/database-model.md)
-- [Estoque Inteligente — planejamento](docs/stock-management.md)
-- [Endpoints](docs/endpoints.md)
-- [Regras de negócio](docs/regras-negocio.md)
-- [Fluxo do sistema](docs/fluxo-sistema.md)
-- [Integração frontend/API](docs/frontend-api-integration.md)
-- [Execução local e em rede](docs/deployment-local.md)
-- [Testes](docs/testing.md)
-- [Notas de segurança](docs/security-notes.md)
-- [Checklist de release](docs/release-checklist.md)
-- [Status do MVP](docs/status-mvp.md)
-- [Roteiro de teste manual](docs/manual-test-flow.md)
-- [Branding](docs/branding.md)
-- [Temas](docs/frontend-theme.md)
-- [Mídias do portfólio](docs/portfolio-media.md)
+| Área | Documento |
+| --- | --- |
+| Product Vision | [docs/product/PRODUCT_VISION.md](docs/product/PRODUCT_VISION.md) |
+| Roadmap | [docs/product/ROADMAP.md](docs/product/ROADMAP.md) |
+| Standards | [docs/STANDARDS.md](docs/STANDARDS.md) |
+| Architecture | [docs/architecture/architecture.md](docs/architecture/architecture.md) |
+| Business Rules | [docs/business/regras-negocio.md](docs/business/regras-negocio.md) |
+| Database | [docs/database/database-model.md](docs/database/database-model.md) |
+| API | [docs/api/endpoints.md](docs/api/endpoints.md) |
+| Deployment | [docs/deployment/deployment-local.md](docs/deployment/deployment-local.md) |
+| Testing | [docs/testing/testing.md](docs/testing/testing.md) |
+| Portfolio | [docs/portfolio/portfolio-media.md](docs/portfolio/portfolio-media.md) |
+| ADR | [docs/adr/README.md](docs/adr/README.md) |
