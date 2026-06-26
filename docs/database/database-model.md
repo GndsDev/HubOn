@@ -272,6 +272,6 @@ e uma estrutura de entradas por compra. Essa proposta é conceitual e nenhuma
 migration foi criada.
 
 Os relacionamentos e decisões pendentes estão documentados em
-[stock-management.md](stock-management.md). Quando a implementação começar, o
+[stock-management.md](../business/stock-management.md). Quando a implementação começar, o
 modelo aprovado deverá entrar em uma nova migration Flyway.
 

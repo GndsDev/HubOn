@@ -1,5 +1,19 @@
 # Status do MVP
 
+## Documentação oficial
+
+O HubOn agora possui documentação oficial de produto e arquitetura. A visão de
+produto, roadmap, padrões, decisões arquiteturais, regras de negócio, modelo de
+dados, API, implantação, testes e portfólio estão organizados em `docs/`.
+
+Documentos centrais:
+
+- [Product Vision](product/PRODUCT_VISION.md)
+- [Roadmap](product/ROADMAP.md)
+- [Standards](STANDARDS.md)
+- [Architecture](architecture/architecture.md)
+- [ADRs](adr/README.md)
+
 ## Funcional
 
 - Dashboard com dados reais da API, loading, erro e estados vazios.
@@ -65,7 +79,7 @@ Esse módulo ainda não foi implementado: não há telas, endpoints, entidades o
 migrations de estoque entregues. As decisões iniciais para v0.4.0 e v0.4.1 —
 incluindo unidades base, momento da baixa, estorno, custos e permissões — já
 foram documentadas como planejamento. A visão de produto, as decisões e os
-pontos ainda em aberto estão em [stock-management.md](stock-management.md).
+pontos ainda em aberto estão em [stock-management.md](business/stock-management.md).
 
 ## Validação realizada
 
@@ -82,4 +96,5 @@ ao resolver arquivos locais. O build de produção é a validação confiável u
 neste workspace.
 
 Os comandos, a cobertura e a interpretação de falhas estão documentados em
-`testing.md`. O roteiro integrado está em `manual-test-flow.md`.
+[testing.md](testing/testing.md). O roteiro integrado está em
+[manual-test-flow.md](testing/manual-test-flow.md).

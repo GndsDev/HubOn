@@ -97,8 +97,8 @@ npm run start:network
 ```
 
 Essa configuração usa o hostname aberto no navegador e a porta `8080`. O passo
-a passo completo está em [deployment-local.md](deployment-local.md).
+a passo completo está em [deployment-local.md](../deployment/deployment-local.md).
 
 O build de produção usa `/api` como URL relativa e pressupõe frontend e backend
 atrás do mesmo proxy. Não exponha o perfil local publicamente; consulte
-[security-notes.md](security-notes.md).
+[security-notes.md](../deployment/security-notes.md).

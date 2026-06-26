@@ -258,4 +258,4 @@ contra concorrência e estornos duplicados.
 
 Nenhum módulo, endpoint ou componente de estoque está implementado atualmente.
 A proposta funcional e as decisões ainda abertas estão em
-[stock-management.md](stock-management.md).
+[stock-management.md](../business/stock-management.md).

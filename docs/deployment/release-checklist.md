@@ -28,7 +28,7 @@ Use esta lista antes de criar uma versão do HubOn.
 
 ## Fluxo operacional
 
-- [ ] Operador pode ser selecionado.
+- [ ] Usuario autenticado aparece corretamente como responsavel operacional.
 - [ ] Mesa livre abre uma comanda.
 - [ ] Mesa ocupada não abre segunda comanda.
 - [ ] Pedido é criado com produto ativo.
