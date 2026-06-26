@@ -149,11 +149,11 @@ Toda documentação deve permanecer em português, salvo nomes técnicos consagr
 Ao criar ou alterar funcionalidade, verifique se é necessário atualizar:
 
 - [docs/README.md](docs/README.md), quando surgir novo documento.
-- [docs/regras-negocio.md](docs/regras-negocio.md), quando houver regra operacional.
-- [docs/endpoints.md](docs/endpoints.md), quando houver API nova ou alterada.
-- [docs/database-model.md](docs/database-model.md), quando houver mudança de dados.
+- [docs/business/regras-negocio.md](docs/business/regras-negocio.md), quando houver regra operacional.
+- [docs/api/endpoints.md](docs/api/endpoints.md), quando houver API nova ou alterada.
+- [docs/database/database-model.md](docs/database/database-model.md), quando houver mudança de dados.
 - [docs/status-mvp.md](docs/status-mvp.md), quando o status do produto mudar.
-- [docs/stock-management.md](docs/stock-management.md), quando envolver Estoque Inteligente.
+- [docs/business/stock-management.md](docs/business/stock-management.md), quando envolver Estoque Inteligente.
 
 ## Releases
 

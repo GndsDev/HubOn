@@ -206,20 +206,25 @@ O roadmap oficial do produto está em [ROADMAP.md](docs/product/ROADMAP.md).
 O HubOn passa a ser tratado como produto de software. Mudanças novas devem partir de problema real, documentação clara e decisões registradas quando necessário.
 
 - [CONTRIBUTING](CONTRIBUTING.md) — guia oficial de desenvolvimento, fluxo Git, PRs e regras do projeto.
-- [Product Vision](docs/01-visao-geral.md) — visão geral do produto e contexto de uso.
-- [Roadmap](#roadmap-pós-mvp) — direção pós-MVP e próximas prioridades planejadas.
-- [Standards](CONTRIBUTING.md#regras-oficiais) — regras oficiais para evolução do projeto.
+- [Product Vision](docs/product/PRODUCT_VISION.md) — visão geral do produto e contexto de uso.
+- [Roadmap](docs/product/ROADMAP.md) — direção pós-MVP e próximas prioridades planejadas.
+- [Standards](docs/STANDARDS.md) — regras oficiais para evolução do projeto.
 - [Glossary](docs/GLOSSARY.md) — glossário oficial de termos de produto, negócio e tecnologia.
 - [Templates](docs/README.md#templates) — modelos para módulos, features, APIs e ADRs.
-- [ADR](docs/templates/adr-template.md) — modelo para decisões arquiteturais relevantes.
+- [ADR](docs/adr/README.md) — índice de decisões arquiteturais relevantes.
 
 ## Documentação
 
 | Área | Documento |
 | --- | --- |
+| Índice geral | [docs/README.md](docs/README.md) |
+| Contribuição | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Product Vision | [docs/product/PRODUCT_VISION.md](docs/product/PRODUCT_VISION.md) |
 | Roadmap | [docs/product/ROADMAP.md](docs/product/ROADMAP.md) |
+| Changelog | [docs/product/CHANGELOG.md](docs/product/CHANGELOG.md) |
+| Decisions | [docs/product/DECISIONS.md](docs/product/DECISIONS.md) |
 | Standards | [docs/STANDARDS.md](docs/STANDARDS.md) |
+| Glossary | [docs/GLOSSARY.md](docs/GLOSSARY.md) |
 | Architecture | [docs/architecture/architecture.md](docs/architecture/architecture.md) |
 | Business Rules | [docs/business/regras-negocio.md](docs/business/regras-negocio.md) |
 | Database | [docs/database/database-model.md](docs/database/database-model.md) |
@@ -228,3 +233,4 @@ O HubOn passa a ser tratado como produto de software. Mudanças novas devem part
 | Testing | [docs/testing/testing.md](docs/testing/testing.md) |
 | Portfolio | [docs/portfolio/portfolio-media.md](docs/portfolio/portfolio-media.md) |
 | ADR | [docs/adr/README.md](docs/adr/README.md) |
+| Templates | [docs/templates/](docs/templates/) |
