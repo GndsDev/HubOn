@@ -201,6 +201,18 @@ O roadmap oficial do produto está em [ROADMAP.md](docs/product/ROADMAP.md).
 6. Adicionar observabilidade, auditoria e estratégia de backup.
 7. Preparar implantação segura com TLS, proxy reverso e gestão de segredos.
 
+## Governança
+
+O HubOn passa a ser tratado como produto de software. Mudanças novas devem partir de problema real, documentação clara e decisões registradas quando necessário.
+
+- [CONTRIBUTING](CONTRIBUTING.md) — guia oficial de desenvolvimento, fluxo Git, PRs e regras do projeto.
+- [Product Vision](docs/01-visao-geral.md) — visão geral do produto e contexto de uso.
+- [Roadmap](#roadmap-pós-mvp) — direção pós-MVP e próximas prioridades planejadas.
+- [Standards](CONTRIBUTING.md#regras-oficiais) — regras oficiais para evolução do projeto.
+- [Glossary](docs/GLOSSARY.md) — glossário oficial de termos de produto, negócio e tecnologia.
+- [Templates](docs/README.md#templates) — modelos para módulos, features, APIs e ADRs.
+- [ADR](docs/templates/adr-template.md) — modelo para decisões arquiteturais relevantes.
+
 ## Documentação
 
 | Área | Documento |
