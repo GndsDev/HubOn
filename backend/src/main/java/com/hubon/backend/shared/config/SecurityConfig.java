@@ -71,6 +71,15 @@ public class SecurityConfig {
 
                         auth.requestMatchers("/api/dashboard/**").hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers("/api/categories/**").hasAnyRole("OWNER", "ADMIN");
+                        auth.requestMatchers(HttpMethod.GET, "/api/ingredients/**")
+                                .hasAnyRole("OWNER", "ADMIN", "CASHIER", "WAITER", "KITCHEN");
+                        auth.requestMatchers("/api/ingredients/**").hasAnyRole("OWNER", "ADMIN");
+                        auth.requestMatchers(HttpMethod.GET, "/api/inventory-movements/**")
+                                .hasAnyRole("OWNER", "ADMIN", "CASHIER", "WAITER", "KITCHEN");
+                        auth.requestMatchers(HttpMethod.POST, "/api/inventory-movements/**")
+                                .hasAnyRole("OWNER", "ADMIN");
+                        auth.requestMatchers(HttpMethod.GET, "/api/products/*/ingredients")
+                                .hasAnyRole("OWNER", "ADMIN", "CASHIER", "WAITER", "KITCHEN");
                         auth.requestMatchers("/api/products/**").hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers("/api/users/**").hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers("/api/roles/**").hasAnyRole("OWNER", "ADMIN");
