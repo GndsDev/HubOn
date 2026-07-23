@@ -18,7 +18,7 @@
   --color-text: #eef2ff;
   --color-text-strong: #f8fafc;
   --color-text-muted: #94a3b8;
-  --color-text-soft: #64748b;
+  --color-text-soft: #8392a8;
   --color-primary: #2563eb;
   --color-secondary: #7c3aed;
   --color-success: #22c55e;
@@ -352,7 +352,7 @@ a {
 
 .nav-group-title {
   overflow: hidden;
-  color: #64748b;
+  color: var(--color-text-soft);
   padding: 0 0.85rem 0.15rem;
   font-size: 0.68rem;
   font-weight: 900;
@@ -1040,7 +1040,7 @@ app-dashboard-page {
 
 .activity-time small {
   display: block;
-  color: #64748b;
+  color: var(--color-text-soft);
 }
 
 .activity-amount {
@@ -1176,7 +1176,7 @@ app-dashboard-page {
 
 .seller-metrics small {
   display: block;
-  color: #64748b;
+  color: var(--color-text-soft);
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -1377,7 +1377,7 @@ app-dashboard-page {
 .table-primary-action:disabled {
   border-color: rgba(100, 116, 139, 0.2);
   background: rgba(51, 65, 85, 0.22);
-  color: #64748b;
+  color: var(--color-text-soft);
   cursor: not-allowed;
 }
 
@@ -1523,12 +1523,12 @@ app-categories-page {
 }
 
 .category-content .category-description-empty {
-  color: #64748b;
+  color: var(--color-text-soft);
   font-style: italic;
 }
 
 .category-content small {
-  color: #64748b;
+  color: var(--color-text-soft);
   font-size: 0.76rem;
 }
 
@@ -1665,6 +1665,7 @@ app-categories-page {
 
 .product-table-head {
   padding: 0 0.85rem;
+  color: var(--color-text-muted);
   font-size: 0.78rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -1734,7 +1735,7 @@ app-categories-page {
 }
 
 .search-box input::placeholder {
-  color: #64748b;
+  color: var(--color-text-soft);
 }
 
 .stock-toolbar {
@@ -1771,7 +1772,7 @@ app-categories-page {
 
 .stock-table-head {
   padding: 0 0.85rem;
-  color: #94a3b8;
+  color: var(--color-text-muted);
   font-size: 0.78rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -2464,7 +2465,7 @@ app-categories-page {
 }
 
 .order-card-head small {
-  color: #64748b;
+  color: var(--color-text-soft);
   line-height: 1.35;
 }
 
@@ -2713,6 +2714,10 @@ app-categories-page {
 :root[data-theme="light"] .account-identity span,
 :root[data-theme="light"] .password-requirements {
   color: var(--color-text-muted);
+}
+
+:root[data-theme="light"] .user-card-meta .availability {
+  color: var(--color-text-strong);
 }
 
 :root[data-theme="light"] .auth-success {
@@ -3149,8 +3154,8 @@ app-categories-page {
 
   .mobile-menu-button {
     display: inline-flex;
-    background: rgba(15, 23, 42, 0.78);
-    color: #fff;
+    background: var(--color-surface);
+    color: var(--color-text-strong);
   }
 
   .hub-topbar {

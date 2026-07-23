@@ -18,13 +18,17 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.empty;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -200,6 +204,61 @@ class StockIntegrationTests {
                 .andExpect(jsonPath("$.message").value("Estoque nao pode ficar negativo"));
 
         assertMoney("2.000", ingredientStock(ingredientId));
+    }
+
+    @Test
+    void shouldRejectMovementForInactiveIngredient() throws Exception {
+        Long ingredientId = createIngredient("Stock Test Inativo " + suffix, "UN", "3.000", "12.000");
+
+        mockMvc.perform(patch("/api/ingredients/{id}/deactivate", ingredientId)
+                        .header("Authorization", bearer(tokenFor(ownerEmail))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(false));
+
+        mockMvc.perform(post("/api/inventory-movements/entries")
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(movementPayload(ingredientId, "2.000", "Ingrediente inativo")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Ingrediente inativo nao pode movimentar estoque"));
+
+        assertMoney("0.000", ingredientStock(ingredientId));
+        assertEquals(0, movementCount(ingredientId));
+    }
+
+    @Test
+    void shouldSerializeConcurrentStockMovements() throws Exception {
+        Long ingredientId = createIngredient("Stock Test Concorrencia " + suffix, "UN", "1.000", "10.000");
+        registerEntry(ingredientId, "5.000");
+        String ownerToken = tokenFor(ownerEmail);
+
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            Future<MvcResult> first = executor.submit(() -> concurrentExit(ingredientId, ownerToken, ready, start));
+            Future<MvcResult> second = executor.submit(() -> concurrentExit(ingredientId, ownerToken, ready, start));
+
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+
+            int firstStatus = first.get(10, TimeUnit.SECONDS).getResponse().getStatus();
+            int secondStatus = second.get(10, TimeUnit.SECONDS).getResponse().getStatus();
+            long createdResponses = List.of(firstStatus, secondStatus).stream()
+                    .filter(status -> status == 201)
+                    .count();
+            long rejectedResponses = List.of(firstStatus, secondStatus).stream()
+                    .filter(status -> status == 400 || status == 409)
+                    .count();
+
+            assertEquals(1, createdResponses);
+            assertEquals(1, rejectedResponses);
+            assertMoney("2.000", ingredientStock(ingredientId));
+            assertEquals(2, movementCount(ingredientId));
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     @Test
@@ -392,6 +451,32 @@ class StockIntegrationTests {
                 BigDecimal.class,
                 ingredientId
         );
+    }
+
+    private Integer movementCount(Long ingredientId) {
+        return jdbcTemplate.queryForObject(
+                "select count(*) from inventory_movements where ingredient_id = ?",
+                Integer.class,
+                ingredientId
+        );
+    }
+
+    private MvcResult concurrentExit(
+            Long ingredientId,
+            String token,
+            CountDownLatch ready,
+            CountDownLatch start
+    ) throws Exception {
+        ready.countDown();
+        if (!start.await(5, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("Timeout aguardando inicio das movimentacoes concorrentes");
+        }
+
+        return mockMvc.perform(post("/api/inventory-movements/exits")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(movementPayload(ingredientId, "3.000", "Saida concorrente")))
+                .andReturn();
     }
 
     private Long seedRole(String name, String description) {
