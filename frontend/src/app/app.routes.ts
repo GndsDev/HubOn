@@ -80,8 +80,17 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/products/products-page.component').then(
         (module) => module.ProductsPageComponent,
-      ),
+    ),
     data: { label: 'Produtos', roles: ['OWNER', 'ADMIN'] },
+  },
+  {
+    path: 'stock',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/stock/stock-page.component').then(
+        (module) => module.StockPageComponent,
+      ),
+    data: { label: 'Estoque', roles: ['OWNER', 'ADMIN', 'CASHIER', 'WAITER', 'KITCHEN'] },
   },
   {
     path: 'relatorios',

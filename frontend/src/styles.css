@@ -706,6 +706,7 @@ a {
 app-tables-page,
 app-products-page,
 app-categories-page,
+app-stock-page,
 app-tabs-page,
 app-orders-page,
 app-kitchen-page,
@@ -1657,7 +1658,7 @@ app-categories-page {
 .product-table-head,
 .product-row {
   display: grid;
-  grid-template-columns: minmax(14rem, 1.5fr) minmax(9rem, 1fr) 8rem 7rem 6rem;
+  grid-template-columns: minmax(14rem, 1.5fr) minmax(9rem, 1fr) 8rem 7rem 8.5rem;
   align-items: center;
   gap: 0.75rem;
 }
@@ -1734,6 +1735,147 @@ app-categories-page {
 
 .search-box input::placeholder {
   color: #64748b;
+}
+
+.stock-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.stock-filter {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.stock-table {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.stock-table-head,
+.stock-row {
+  display: grid;
+  grid-template-columns:
+    minmax(13rem, 1.4fr)
+    minmax(7rem, 0.75fr)
+    minmax(7rem, 0.7fr)
+    minmax(7rem, 0.7fr)
+    7rem
+    minmax(15rem, auto);
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stock-table-head {
+  padding: 0 0.85rem;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.stock-row,
+.movement-row,
+.recipe-form-row {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.35);
+}
+
+.stock-row {
+  padding: 0.85rem;
+}
+
+.stock-row strong,
+.stock-row b,
+.movement-main strong,
+.movement-side b,
+.recipe-form-row strong {
+  color: #fff;
+}
+
+.stock-name,
+.movement-main {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.stock-name small,
+.movement-main span,
+.movement-main small,
+.movement-side small,
+.movement-side span {
+  overflow: hidden;
+  color: #94a3b8;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stock-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.movement-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.movement-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.8rem;
+}
+
+.movement-icon {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.18);
+  color: #bfdbfe;
+}
+
+.movement-icon.success {
+  background: rgba(22, 163, 74, 0.18);
+  color: #bbf7d0;
+}
+
+.movement-icon.warning {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fde68a;
+}
+
+.movement-icon.danger {
+  background: rgba(220, 38, 38, 0.18);
+  color: #fecaca;
+}
+
+.movement-side {
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+  text-align: right;
+}
+
+.recipe-form-items {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.recipe-form-row {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) 8rem auto;
+  align-items: end;
+  gap: 0.75rem;
+  padding: 0.75rem;
 }
 
 .cashier-summary {
@@ -2508,6 +2650,11 @@ app-categories-page {
 :root[data-theme="light"] .kitchen-order-top strong,
 :root[data-theme="light"] .product-row strong,
 :root[data-theme="light"] .product-row b,
+:root[data-theme="light"] .stock-row strong,
+:root[data-theme="light"] .stock-row b,
+:root[data-theme="light"] .movement-main strong,
+:root[data-theme="light"] .movement-side b,
+:root[data-theme="light"] .recipe-form-row strong,
 :root[data-theme="light"] .cashier-summary strong,
 :root[data-theme="light"] .payment-total-card strong,
 :root[data-theme="light"] .collection-side b,
@@ -2543,6 +2690,11 @@ app-categories-page {
 :root[data-theme="light"] .category-content p,
 :root[data-theme="light"] .kanban-header span,
 :root[data-theme="light"] .product-name small,
+:root[data-theme="light"] .stock-name small,
+:root[data-theme="light"] .movement-main span,
+:root[data-theme="light"] .movement-main small,
+:root[data-theme="light"] .movement-side small,
+:root[data-theme="light"] .movement-side span,
 :root[data-theme="light"] .collection-main span,
 :root[data-theme="light"] .collection-main small,
 :root[data-theme="light"] .user-identity span,
@@ -2658,6 +2810,9 @@ app-categories-page {
 :root[data-theme="light"] .collection-card,
 :root[data-theme="light"] .category-card,
 :root[data-theme="light"] .product-row,
+:root[data-theme="light"] .stock-row,
+:root[data-theme="light"] .movement-row,
+:root[data-theme="light"] .recipe-form-row,
 :root[data-theme="light"] .user-card,
 :root[data-theme="light"] .order-card,
 :root[data-theme="light"] .cash-summary-list article,
@@ -2890,11 +3045,13 @@ app-categories-page {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .product-table-head {
+  .product-table-head,
+  .stock-table-head {
     display: none;
   }
 
-  .product-row {
+  .product-row,
+  .stock-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -3113,6 +3270,9 @@ app-categories-page {
   }
 
   .product-row,
+  .stock-row,
+  .movement-row,
+  .recipe-form-row,
   .collection-card {
     grid-template-columns: 1fr;
   }
@@ -3129,6 +3289,15 @@ app-categories-page {
   .collection-side {
     justify-items: start;
     margin-left: 0;
+  }
+
+  .movement-side {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .stock-toolbar {
+    justify-content: stretch;
   }
 
   .segmented-control {
