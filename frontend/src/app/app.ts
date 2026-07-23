@@ -79,6 +79,7 @@ export class App {
     {
       label: 'Gestão',
       items: [
+        { path: '/stock', label: 'Estoque', icon: 'pi pi-warehouse', roles: ['OWNER', 'ADMIN', 'CASHIER', 'WAITER', 'KITCHEN'] },
         { path: '/relatorios', label: 'Relatórios', icon: 'pi pi-chart-bar', roles: ['OWNER', 'ADMIN'] },
         { path: '/usuarios', label: 'Usuários', icon: 'pi pi-users', roles: ['OWNER', 'ADMIN'] },
       ],

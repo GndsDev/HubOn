@@ -56,7 +56,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(PessimisticLockingFailureException.class)
     public ResponseEntity<ApiErrorResponse> handleConcurrentUpdate() {
         return buildResponse(
-                "A comanda está sendo atualizada por outra operação. Recarregue os dados e tente novamente",
+                "O registro esta sendo atualizado por outra operacao. Recarregue os dados e tente novamente",
                 HttpStatus.CONFLICT
         );
     }
