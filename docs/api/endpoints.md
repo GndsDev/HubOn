@@ -1,8 +1,7 @@
 # Endpoints do HubOn MVP
 
-> O Estoque Inteligente ainda não possui endpoints. As futuras rotas somente
-> serão definidas após a validação das regras em
-> [stock-management.md](../business/stock-management.md).
+> O Estoque Inteligente possui a primeira etapa implementada: ingredientes,
+> movimentacoes manuais, historico auditavel e ficha tecnica de produtos.
 
 Base local: `http://localhost:8080/api`
 
@@ -69,6 +68,7 @@ deve entrar novamente.
 | Caixa | `OWNER`, `ADMIN`, `CASHIER` |
 | Categorias | `OWNER`, `ADMIN` |
 | Produtos | `OWNER`, `ADMIN` |
+| Estoque | `OWNER`, `ADMIN` alteram; `CASHIER`, `WAITER` e `KITCHEN` consultam |
 | Usuários | `OWNER`, `ADMIN` |
 | Relatórios | `OWNER`, `ADMIN` |
 
@@ -93,6 +93,67 @@ deve entrar novamente.
 | PUT | `/products/{id}` | Atualiza um produto. |
 | PATCH | `/products/{id}/activate` | Ativa um produto. |
 | PATCH | `/products/{id}/deactivate` | Desativa um produto. |
+
+## Estoque - ingredientes
+
+| Metodo | Endpoint | Descricao |
+| --- | --- | --- |
+| GET | `/ingredients` | Lista ingredientes por nome. |
+| GET | `/ingredients/active` | Lista apenas ingredientes ativos. |
+| GET | `/ingredients/alerts` | Lista ingredientes ativos zerados ou abaixo/iguais ao estoque minimo. |
+| GET | `/ingredients/{id}` | Busca um ingrediente. |
+| POST | `/ingredients` | Cria ingrediente com saldo inicial `0`. |
+| PUT | `/ingredients/{id}` | Atualiza cadastro, unidade, minimo, ideal e status; nao aceita saldo atual. |
+| PATCH | `/ingredients/{id}/activate` | Ativa um ingrediente. |
+| PATCH | `/ingredients/{id}/deactivate` | Desativa sem apagar historico. |
+
+Unidades aceitas: `KG`, `G`, `L`, `ML`, `UN`, `CX`, `PACKAGE` e `TRAY`.
+O status retornado e calculado:
+
+| Condicao | `stockStatus` |
+| --- | --- |
+| `currentStock == 0` | `OUT_OF_STOCK` |
+| `currentStock <= minimumStock` | `LOW_STOCK` |
+| `currentStock > minimumStock` | `NORMAL` |
+
+Regras principais: nome unico ignorando maiusculas/minusculas, quantidades nao
+negativas, estoque ideal maior ou igual ao minimo e alteracao de saldo apenas
+por movimentacoes.
+
+## Estoque - movimentacoes
+
+| Metodo | Endpoint | Descricao |
+| --- | --- | --- |
+| GET | `/inventory-movements` | Lista as 100 movimentacoes mais recentes. |
+| GET | `/inventory-movements/ingredient/{ingredientId}` | Lista o historico recente de um ingrediente. |
+| POST | `/inventory-movements/entries` | Registra entrada manual. |
+| POST | `/inventory-movements/exits` | Registra saida manual. |
+| POST | `/inventory-movements/losses` | Registra perda com motivo. |
+| POST | `/inventory-movements/adjustments` | Ajusta o saldo fisico encontrado com motivo. |
+
+Tipos persistidos: `ENTRY`, `EXIT`, `LOSS`, `ADJUSTMENT` e `REVERSAL`. O fluxo
+automatico de estorno ainda nao esta implementado.
+
+Toda movimentacao grava ingrediente, tipo, quantidade, saldo anterior, saldo
+resultante, motivo, usuario autenticado e data. Entradas somam; saidas e perdas
+subtraem; ajustes gravam o novo saldo fisico e a diferenca absoluta como
+quantidade movimentada. Nenhum movimento manual pode deixar saldo negativo.
+
+## Ficha tecnica
+
+Base: `/products/{productId}/ingredients`
+
+| Metodo | Endpoint | Descricao |
+| --- | --- | --- |
+| GET | `/products/{productId}/ingredients` | Retorna a ficha tecnica completa do produto. |
+| POST | `/products/{productId}/ingredients` | Adiciona ingrediente a ficha. |
+| PUT | `/products/{productId}/ingredients/{ingredientId}` | Atualiza a quantidade de um ingrediente da ficha. |
+| DELETE | `/products/{productId}/ingredients/{ingredientId}` | Remove ingrediente da ficha. |
+| PUT | `/products/{productId}/ingredients` | Substitui a ficha completa em uma transacao. |
+
+Produto e ingrediente devem estar ativos para alterar a ficha. Um ingrediente
+nao pode aparecer duas vezes no mesmo produto. A unidade consumida e a unidade
+do proprio ingrediente; nao ha conversao automatica nesta etapa.
 
 ## Mesas
 

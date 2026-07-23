@@ -37,6 +37,7 @@ Módulos principais:
 - `tab`
 - `order`
 - `payment`
+- `stock`
 - `role`
 - `user`
 - `dashboard`
@@ -89,6 +90,10 @@ Operações que alteram comandas usam transações. Pagamento, criação de pedi
 fechamento obtêm a comanda com lock pessimista quando precisam proteger os
 totais. Isso serializa alterações concorrentes e impede que pagamentos
 simultâneos ultrapassem o valor final.
+
+Movimentacoes manuais de estoque tambem usam transacao e lock pessimista no
+ingrediente antes de alterar `currentStock`. A alteracao de saldo e o registro
+em `inventory_movements` ocorrem juntos, preservando o historico auditavel.
 
 ### Persistência e migrations
 
@@ -176,6 +181,7 @@ Cada tela operacional fica em `features/`:
 - Caixa
 - Categorias
 - Produtos
+- Estoque
 - Relatórios
 - Usuários
 
@@ -249,13 +255,29 @@ da tela.
 - Frontend de produção espera `/api` no mesmo proxy.
 - Sem exclusão física de registros operacionais importantes.
 
-## Evolução planejada: Estoque Inteligente
+## Estoque Inteligente
 
-O módulo futuro de estoque deverá seguir as mesmas camadas e manter as
-movimentações transacionais e auditáveis. A criação do pedido e a baixa dos
-insumos precisarão de uma fronteira transacional consistente, além de proteção
-contra concorrência e estornos duplicados.
+O modulo `stock` segue a estrutura padrao do backend:
 
-Nenhum módulo, endpoint ou componente de estoque está implementado atualmente.
-A proposta funcional e as decisões ainda abertas estão em
+```text
+stock/
+├── controller/
+├── dto/
+├── domain/
+├── repository/
+└── service/
+```
+
+A primeira etapa implementa ingredientes, movimentacoes manuais, historico
+auditavel, alertas de saldo e ficha tecnica por produto. Controllers recebem e
+retornam DTOs, services concentram regras e conversoes, repositories usam Spring
+Data JPA e o esquema e criado pela migration Flyway V2.
+
+No frontend, `/stock` concentra a gestao operacional do estoque. A tela de
+Produtos possui uma acao de ficha tecnica que substitui a receita completa em
+uma chamada transacional.
+
+Ainda nao ha compras, fornecedores, lotes, validade, multiplos depositos,
+financeiro, baixa automatica por pedido ou estorno automatico. A proxima etapa
+planejada e conectar a baixa automatica ao ciclo de pedido documentado em
 [stock-management.md](../business/stock-management.md).

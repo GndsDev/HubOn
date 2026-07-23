@@ -214,6 +214,72 @@ Uma comanda pode receber vários pagamentos. A soma não pode ultrapassar
 `tabs.final_amount`. O registro de pagamento bloqueia a comanda durante a
 transação para proteger operações concorrentes.
 
+### `ingredients`
+
+Insumos controlados pelo Estoque Inteligente.
+
+Campos principais:
+
+- `id`
+- `name`, unico por `lower(name)`
+- `description`
+- `unit`
+- `current_stock`
+- `minimum_stock`
+- `ideal_stock`
+- `active`
+- `created_at`
+- `updated_at`
+
+Unidades: `KG`, `G`, `L`, `ML`, `UN`, `CX`, `PACKAGE` e `TRAY`.
+`current_stock`, `minimum_stock` e `ideal_stock` usam `NUMERIC(15, 3)`.
+O banco impede quantidades negativas e garante `ideal_stock >= minimum_stock`.
+O saldo atual e cache operacional atualizado junto com o ledger de
+movimentacoes.
+
+### `inventory_movements`
+
+Ledger auditavel de alteracoes de estoque.
+
+Campos principais:
+
+- `id`
+- `ingredient_id`
+- `type`
+- `quantity`
+- `previous_stock`
+- `resulting_stock`
+- `reason`
+- `user_id`
+- `created_at`
+
+Tipos: `ENTRY`, `EXIT`, `LOSS`, `ADJUSTMENT` e `REVERSAL`. A etapa atual nao
+possui fluxo automatico de estorno, mas o tipo ja esta reservado no banco. O
+banco exige quantidade positiva e saldos anterior/resultante nao negativos.
+
+Indices principais:
+
+- `idx_inventory_movements_ingredient_created_at`
+- `idx_inventory_movements_type_created_at`
+- `idx_inventory_movements_user_created_at`
+- `idx_inventory_movements_created_at`
+
+### `product_ingredients`
+
+Tabela intermediaria da ficha tecnica entre produtos e ingredientes.
+
+Campos principais:
+
+- `id`
+- `product_id`
+- `ingredient_id`
+- `quantity`
+- `created_at`
+- `updated_at`
+
+A constraint `uq_product_ingredients_product_ingredient` impede ingrediente
+duplicado na ficha do mesmo produto. A quantidade deve ser maior que zero.
+
 ## Relacionamentos
 
 ```text
@@ -227,6 +293,10 @@ products 1:N order_items
 categories 1:N products
 tabs 1:N payments
 users 1:N payments              received_by_user_id
+products 1:N product_ingredients
+ingredients 1:N product_ingredients
+ingredients 1:N inventory_movements
+users 1:N inventory_movements   user_id
 ```
 
 ## DER textual
@@ -264,14 +334,14 @@ como colunas próprias na tabela `tabs`.
 - Criar uma nova migration para qualquer alteração futura.
 - Não editar uma migration que já tenha sido aplicada.
 
-## Evolução planejada: Estoque Inteligente
+## Evolucao planejada: Estoque Inteligente
 
-O modelo atual ainda não contém tabelas de estoque. Para o pós-MVP, estão em
-estudo `inventory_items`, `product_recipes`, `inventory_movements`, `suppliers`
-e uma estrutura de entradas por compra. Essa proposta é conceitual e nenhuma
-migration foi criada.
+A primeira etapa do estoque foi criada na migration
+`V2__add_stock_module.sql`, com `ingredients`, `inventory_movements` e
+`product_ingredients`.
 
-Os relacionamentos e decisões pendentes estão documentados em
-[stock-management.md](../business/stock-management.md). Quando a implementação começar, o
-modelo aprovado deverá entrar em uma nova migration Flyway.
+Ainda nao existem tabelas de compras, fornecedores, lotes, validade,
+financeiro, multiplos depositos ou baixa automatica por pedido. Esses pontos
+continuam planejados em [stock-management.md](../business/stock-management.md)
+e devem entrar somente por novas migrations Flyway.
 
