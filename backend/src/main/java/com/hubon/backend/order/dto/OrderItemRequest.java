@@ -5,8 +5,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record OrderItemRequest(
-        @NotNull
         Long productId,
+
+        Long variantId,
 
         @NotNull
         @Min(1)

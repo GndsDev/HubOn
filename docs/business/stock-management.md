@@ -1,20 +1,22 @@
-# Estoque Inteligente
+# Controle de Estoque Hibrido
 
-Status: primeira etapa implementada.
+Status: implementado para controle manual e baixa automatica simples por venda.
 
-O Estoque Inteligente separa produto vendido de ingrediente ou insumo
-controlado. Um produto e o item do cardapio; um ingrediente e algo consumido,
-perdido, ajustado ou reposto manualmente, como carne, pao, queijo, molho,
-refrigerante ou embalagem.
+O Estoque Inteligente do HubOn controla itens de estoque em dois modos:
 
-Esta etapa entrega a base operacional e auditavel do estoque, sem compras,
-fornecedores, financeiro ou baixa automatica por pedido.
+- `MANUAL`: o saldo muda somente por movimentacoes manuais.
+- `DIRECT_SALE`: o item pode ser vinculado a um produto vendido e baixado
+  automaticamente quando o pedido e enviado para a cozinha.
+
+Nao existe ficha tecnica, receita multi-ingrediente, producao, rendimento,
+conversao automatica de unidades, compras, fornecedores, lotes, validade ou
+multiplos depositos neste escopo.
 
 ## Entidades
 
 ### `Ingredient`
 
-Representa um insumo controlado.
+Representa um item de estoque controlado.
 
 Campos principais:
 
@@ -22,6 +24,7 @@ Campos principais:
 - `name`
 - `description`
 - `unit`
+- `controlMode`
 - `currentStock`
 - `minimumStock`
 - `idealStock`
@@ -30,17 +33,18 @@ Campos principais:
 - `updatedAt`
 
 Unidades aceitas: `KG`, `G`, `L`, `ML`, `UN`, `CX`, `PACKAGE` e `TRAY`.
-Nao ha conversao automatica entre unidades nesta etapa.
+Nao ha conversao automatica entre unidades.
 
 Regras:
 
 - nome obrigatorio;
 - nome unico ignorando maiusculas e minusculas;
 - unidade obrigatoria;
+- `controlMode` padrao e `MANUAL`;
 - saldos usam `BigDecimal`;
 - `currentStock`, `minimumStock` e `idealStock` nao podem ser negativos;
 - `idealStock` deve ser maior ou igual a `minimumStock`;
-- ingrediente novo inicia com `currentStock = 0`;
+- item novo inicia com `currentStock = 0`;
 - o CRUD nao aceita alteracao direta de `currentStock`;
 - saldo muda somente por movimentacao;
 - exclusao fisica nao faz parte do fluxo, apenas ativacao/desativacao.
@@ -53,9 +57,33 @@ Status de estoque:
 | `currentStock <= minimumStock` | `LOW_STOCK` |
 | `currentStock > minimumStock` | `NORMAL` |
 
+### `ProductStockLink`
+
+Representa o vinculo simples entre uma variacao vendida e um item de estoque.
+
+Campos principais:
+
+- `id`
+- `productVariant`
+- `stockItem`
+- `quantityPerSale`
+- `active`
+- `createdAt`
+- `updatedAt`
+
+Regras:
+
+- existe no maximo um vinculo ativo por variacao;
+- variacao, produto base e categoria devem estar ativos;
+- item de estoque deve estar ativo;
+- item vinculado deve ter `controlMode = DIRECT_SALE`;
+- `quantityPerSale` deve ser maior que zero;
+- remover o vinculo apenas desativa o registro;
+- movimentacoes antigas permanecem no historico.
+
 ### `InventoryMovement`
 
-Registra toda alteracao manual do saldo de um ingrediente.
+Registra toda alteracao do saldo de um item.
 
 Campos principais:
 
@@ -66,55 +94,86 @@ Campos principais:
 - `previousStock`
 - `resultingStock`
 - `reason`
+- `originType`
+- `originReference`
+- `order`
+- `orderItem`
 - `user`
 - `createdAt`
 
 Tipos:
 
-- `ENTRY`: entrada, soma ao saldo.
-- `EXIT`: saida manual, subtrai do saldo.
+- `ENTRY`: entrada manual, soma ao saldo.
+- `EXIT`: saida manual ou baixa automatica, subtrai do saldo.
 - `LOSS`: perda, subtrai do saldo e exige motivo.
 - `ADJUSTMENT`: ajuste para um novo saldo fisico e exige motivo.
-- `REVERSAL`: reservado para estornos futuros.
+- `REVERSAL`: estorno automatico de uma baixa por pedido.
+
+Origens:
+
+- `MANUAL`: movimentacoes registradas pela tela de estoque.
+- `ORDER_ITEM`: baixa automatica criada por um item vendido.
+- `ORDER_CANCELLATION`: estorno automatico criado ao cancelar pedido elegivel.
 
 Regras:
 
 - toda alteracao de estoque cria movimentacao;
 - quantidade movimentada deve ser positiva;
-- movimentos manuais nao podem deixar saldo negativo;
+- nenhum movimento pode deixar saldo negativo;
 - saldo anterior e saldo resultante sao gravados;
-- usuario e sempre o usuario autenticado;
-- o frontend nao envia nem escolhe usuario;
-- ingrediente e movimento sao alterados na mesma transacao;
-- o ingrediente e bloqueado com lock pessimista durante a movimentacao;
-- movimentacoes nao possuem endpoint de edicao ou exclusao.
+- usuario e registrado a partir da autenticacao, com fallback para o criador do
+  pedido nos fluxos internos;
+- item e movimento sao alterados na mesma transacao;
+- o item e bloqueado com lock pessimista durante a movimentacao;
+- reenvio do mesmo pedido para cozinha nao duplica baixa de itens `KITCHEN`;
+- itens `DIRECT_SERVICE` nao dependem do envio para cozinha para baixar estoque;
+- cancelamento repetido de pedido ja cancelado nao duplica estorno.
 
-### `ProductIngredient`
+## Baixa automatica por pedido
 
-Representa a ficha tecnica de um produto.
+A baixa automatica depende do fluxo de preparo do produto base:
 
-Campos principais:
+- `KITCHEN`: ocorre em `POST /api/orders/{id}/send-to-kitchen`, na transicao
+  `CREATED -> SENT_TO_KITCHEN`.
+- `DIRECT_SERVICE`: ocorre na criacao do pedido. O item nao entra na fila da
+  cozinha e fica pronto imediatamente.
 
-- `id`
-- `product`
-- `ingredient`
-- `quantity`
-- `createdAt`
-- `updatedAt`
+Para cada item ativo do pedido:
 
-Regras:
+1. O sistema procura um vinculo ativo da variacao vendida.
+2. Se nao existir vinculo, nao ha movimentacao de estoque.
+3. Se existir vinculo, o item de estoque e bloqueado.
+4. A quantidade baixada e `orderItem.quantity * quantityPerSale`.
+5. Se o saldo for insuficiente, a operacao e bloqueada. Para itens `KITCHEN`, o
+   pedido permanece em `CREATED`.
+6. A movimentacao `EXIT` e gravada com origem `ORDER_ITEM`.
 
-- produto e ingrediente devem estar ativos para alterar a ficha;
-- a quantidade deve ser maior que zero;
-- o mesmo ingrediente nao pode aparecer duas vezes no mesmo produto;
-- a unidade consumida e a unidade cadastrada no ingrediente;
-- nao ha conversao automatica nesta etapa;
-- a substituicao completa da ficha valida toda a lista antes de alterar e roda
-  em uma unica transacao.
+Itens `MANUAL` nunca sao baixados por pedidos.
+
+Mensagem de saldo insuficiente:
+
+```text
+Estoque insuficiente para Coca-Cola Lata. Disponivel: 2 UN. Necessario: 3 UN.
+```
+
+## Estorno por cancelamento
+
+Quando um pedido que ja gerou baixa automatica e cancelado, o HubOn cria uma
+movimentacao `REVERSAL` para cada baixa `ORDER_ITEM` ainda nao estornada.
+
+O estorno:
+
+- soma a quantidade baixada de volta ao item;
+- mantem referencia ao pedido e ao item do pedido;
+- roda na mesma transacao do cancelamento;
+- e idempotente para chamadas repetidas.
+
+Pedidos entregues continuam sem cancelamento. Pedidos em comandas fechadas ou
+com pagamentos registrados continuam bloqueados pelas regras financeiras atuais.
 
 ## Endpoints
 
-Ingredientes:
+Itens de estoque:
 
 - `GET /api/ingredients`
 - `GET /api/ingredients/active`
@@ -134,23 +193,22 @@ Movimentacoes:
 - `POST /api/inventory-movements/losses`
 - `POST /api/inventory-movements/adjustments`
 
-Ficha tecnica:
+Vinculo variacao-estoque:
 
-- `GET /api/products/{productId}/ingredients`
-- `POST /api/products/{productId}/ingredients`
-- `PUT /api/products/{productId}/ingredients/{ingredientId}`
-- `DELETE /api/products/{productId}/ingredients/{ingredientId}`
-- `PUT /api/products/{productId}/ingredients`
+- `GET /api/product-variants/{variantId}/stock-link`
+- `POST /api/product-variants/{variantId}/stock-link`
+- `PUT /api/product-variants/{variantId}/stock-link`
+- `DELETE /api/product-variants/{variantId}/stock-link`
 
 ## Permissoes
 
 | Perfil | Permissao |
 | --- | --- |
-| `OWNER` | Gerencia ingredientes, movimentacoes e ficha tecnica. |
-| `ADMIN` | Gerencia ingredientes, movimentacoes e ficha tecnica. |
-| `CASHIER` | Consulta ingredientes, alertas, historico e ficha tecnica. |
-| `WAITER` | Consulta ingredientes, alertas, historico e ficha tecnica. |
-| `KITCHEN` | Consulta ingredientes, alertas, historico e ficha tecnica. |
+| `OWNER` | Gerencia itens, movimentacoes e vinculos. |
+| `ADMIN` | Gerencia itens, movimentacoes e vinculos. |
+| `CASHIER` | Consulta itens, alertas, historico e vinculos. |
+| `WAITER` | Consulta itens, alertas e historico. |
+| `KITCHEN` | Consulta itens, alertas e historico. |
 
 A seguranca real esta no backend. O frontend apenas oculta acoes que o perfil
 nao pode executar.
@@ -159,34 +217,37 @@ nao pode executar.
 
 A rota `/stock` exibe:
 
-- cards de ingredientes ativos, zerados, baixo estoque e movimentos recentes;
-- tabela de ingredientes com busca por nome;
-- filtro por status;
-- cadastro e edicao de ingredientes para `OWNER` e `ADMIN`;
+- cards de itens ativos, zerados, baixo estoque, manuais, baixa automatica e
+  movimentos recentes;
+- tabela de itens com busca por nome;
+- filtros por todos, controle manual, baixa automatica, zerados, estoque baixo
+  e inativos;
+- cadastro e edicao de itens para `OWNER` e `ADMIN`;
+- modo de controle com ajuda contextual;
 - ativacao e desativacao;
 - registro de entrada, saida, perda e ajuste;
-- historico por ingrediente.
+- saida manual com saldo atual, quantidade, saldo previsto e sugestoes de
+  motivo;
+- historico por item;
+- menu compacto de acoes por item.
 
-Na tela de Produtos, a acao "Ficha tecnica" abre a receita do produto e permite
-adicionar, editar quantidade, remover ingredientes e salvar a ficha completa.
+Na tela de Produtos, o produto base guarda nome, descricao, categoria, fluxo de
+preparo e status. As variacoes guardam nome, SKU, preco, status e o vinculo de
+estoque. A acao de vinculo permite escolher um item ativo em `DIRECT_SALE` e
+informar a quantidade por venda da variacao.
 
-## Ainda nao implementado
+## Fora do escopo atual
 
+- ficha tecnica;
+- receita multi-ingrediente;
+- producao;
+- rendimento;
+- conversao automatica de unidades;
 - compras;
 - fornecedores;
-- contas a pagar;
-- financeiro;
+- financeiro de compras;
 - lotes;
 - validade;
 - multiplos depositos;
-- conversao automatica de unidades;
-- baixa automatica ligada ao pedido;
-- estorno automatico;
 - sugestao automatica de compra;
 - capacidade de producao.
-
-## Proxima etapa
-
-A proxima etapa e conectar a ficha tecnica ao ciclo do pedido para criar baixa
-automatica quando o pedido entrar no evento operacional escolhido, preservando
-idempotencia, historico auditavel e regras futuras de estorno.

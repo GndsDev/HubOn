@@ -8,7 +8,7 @@ import { OrderApiService } from '../../core/services/order-api.service';
 import { ProductApiService } from '../../core/services/product-api.service';
 import { TabApiService } from '../../core/services/tab-api.service';
 import { OrderItemRequest, OrderStatus, RestaurantOrder } from '../../shared/models/order.model';
-import { Product } from '../../shared/models/product.model';
+import { Product, ProductVariant } from '../../shared/models/product.model';
 import { Tab, TabStatus } from '../../shared/models/tab.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
@@ -49,7 +49,7 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
               </div>
               <div class="order-item-list">
                 @for (item of order.items; track item.id) {
-                  <div><span>{{ item.quantity }}x {{ item.productNameSnapshot }}</span><b>{{ currency(item.subtotal) }}</b></div>
+                  <div><span>{{ item.quantity }}x {{ item.displayNameSnapshot || item.productNameSnapshot }}</span><b>{{ currency(item.subtotal) }}</b></div>
                 }
               </div>
               @if (order.notes) { <p class="order-notes">{{ order.notes }}</p> }
@@ -110,9 +110,18 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
               <div class="order-form-row">
                 <label class="field">
                   <span>Produto</span>
-                  <select [name]="'product-' + index" [(ngModel)]="item.productId">
+                  <select [name]="'product-' + index" [(ngModel)]="item.productId" (ngModelChange)="onProductChange(item, $event)">
                     <option [ngValue]="0" disabled>Selecione</option>
-                    @for (product of products(); track product.id) { <option [ngValue]="product.id">{{ product.name }} · {{ currency(product.price) }}</option> }
+                    @for (product of products(); track product.id) { <option [ngValue]="product.id">{{ product.name }} · {{ priceSummary(product) }}</option> }
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Variacao</span>
+                  <select [name]="'variant-' + index" [(ngModel)]="item.variantId" [disabled]="activeVariants(item.productId).length <= 1">
+                    <option [ngValue]="0" disabled>{{ activeVariants(item.productId).length ? 'Selecione' : 'Sem variacao ativa' }}</option>
+                    @for (variant of activeVariants(item.productId); track variant.id) {
+                      <option [ngValue]="variant.id">{{ variant.name }} · {{ currency(variant.price) }}</option>
+                    }
                   </select>
                 </label>
                 <label class="field quantity-field"><span>Qtd.</span><input [name]="'quantity-' + index" type="number" min="1" [(ngModel)]="item.quantity" /></label>
@@ -157,7 +166,8 @@ export class OrdersPageComponent implements OnInit {
         next: ({ orders, tabs, products }) => {
           this.orders.set(orders);
           this.tabs.set(tabs);
-          this.products.set(products.filter((product) => product.active && product.categoryActive));
+          this.products.set(products.filter((product) =>
+            product.active && product.categoryActive && product.variants.some((variant) => variant.active)));
         },
         error: (error) => this.error.set(apiErrorMessage(error)),
       });
@@ -182,7 +192,7 @@ export class OrdersPageComponent implements OnInit {
       this.feedback.error('Faça login antes de criar o pedido.');
       return;
     }
-    if (!this.form.tabId || this.form.items.some((item) => !item.productId || item.quantity < 1)) {
+    if (!this.form.tabId || this.form.items.some((item) => !item.productId || !item.variantId || item.quantity < 1)) {
       this.feedback.error('Selecione a comanda e preencha todos os itens.');
       return;
     }
@@ -210,7 +220,9 @@ export class OrdersPageComponent implements OnInit {
   }
 
   canSendToKitchen(order: RestaurantOrder): boolean {
-    return order.status === 'CREATED' && this.effectiveTabStatus(order) === 'OPEN';
+    return order.status === 'CREATED'
+      && this.effectiveTabStatus(order) === 'OPEN'
+      && order.items.some((item) => item.status === 'ACTIVE' && item.preparationFlow === 'KITCHEN');
   }
 
   canCancel(order: RestaurantOrder): boolean {
@@ -242,5 +254,16 @@ export class OrdersPageComponent implements OnInit {
   statusLabel(status: OrderStatus): string { return { CREATED: 'Criado', SENT_TO_KITCHEN: 'Recebido', PREPARING: 'Preparando', READY: 'Pronto', DELIVERED: 'Entregue', CANCELLED: 'Cancelado' }[status]; }
   statusTone(status: OrderStatus): string { return { CREATED: 'info', SENT_TO_KITCHEN: 'info', PREPARING: 'warning', READY: 'success', DELIVERED: 'success', CANCELLED: 'danger' }[status]; }
   currency(value: number): string { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
-  private emptyItem(): OrderItemRequest { return { productId: 0, quantity: 1, notes: '' }; }
+  activeVariants(productId: number): ProductVariant[] {
+    return this.products().find((product) => product.id === productId)?.variants.filter((variant) => variant.active) ?? [];
+  }
+  onProductChange(item: OrderItemRequest, productId: number): void {
+    item.productId = productId;
+    const variants = this.activeVariants(item.productId);
+    item.variantId = variants.length === 1 ? variants[0].id : 0;
+  }
+  priceSummary(product: Product): string {
+    return product.minimumVariantPrice == null ? 'sem preco' : `a partir de ${this.currency(product.minimumVariantPrice)}`;
+  }
+  private emptyItem(): OrderItemRequest { return { productId: 0, variantId: 0, quantity: 1, notes: '' }; }
 }

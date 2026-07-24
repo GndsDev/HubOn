@@ -11,7 +11,7 @@ O objetivo é facilitar evolução do produto, revisão de decisões e entrada d
 - [Changelog](product/CHANGELOG.md): histórico de mudanças documentadas.
 - [Decisions](product/DECISIONS.md): guia narrativo para decisões relevantes e ADRs.
 - [Status do MVP](status-mvp.md): o que está funcional, parcial, fora do MVP e planejado.
-- [Estoque Inteligente](business/stock-management.md): planejamento do módulo de estoque, decisões iniciais e pontos em aberto.
+- [Estoque Inteligente](business/stock-management.md): controle hibrido de estoque, baixas automaticas simples e limites do escopo.
 - [Fluxo do sistema](architecture/fluxo-sistema.md): jornada principal entre mesa, comanda, pedido, cozinha e pagamento.
 
 ## Arquitetura
@@ -25,7 +25,7 @@ O objetivo é facilitar evolução do produto, revisão de decisões e entrada d
 ## Negócio
 
 - [Regras de negócio](business/regras-negocio.md): regras operacionais do MVP.
-- [Estoque Inteligente](business/stock-management.md): regras planejadas de insumos, receitas e baixa automática.
+- [Estoque Inteligente](business/stock-management.md): regras de itens manuais, baixa automatica simples e estornos.
 - [Glossário](GLOSSARY.md): termos oficiais usados no produto e na documentação.
 
 ## Banco

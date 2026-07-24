@@ -48,6 +48,7 @@ class FinancialRulesIntegrationTests {
         jdbcTemplate.update("delete from order_items where order_id = ?", scenario.orderId());
         jdbcTemplate.update("delete from orders where id = ?", scenario.orderId());
         jdbcTemplate.update("delete from tabs where id = ?", scenario.tabId());
+        jdbcTemplate.update("delete from product_variants where id = ?", scenario.productVariantId());
         jdbcTemplate.update("delete from products where id = ?", scenario.productId());
         jdbcTemplate.update("delete from categories where id = ?", scenario.categoryId());
         jdbcTemplate.update("delete from restaurant_tables where id = ?", scenario.tableId());
@@ -262,6 +263,15 @@ class FinancialRulesIntegrationTests {
                 categoryId,
                 "Produto " + suffix
         );
+        Long productVariantId = jdbcTemplate.queryForObject(
+                """
+                insert into product_variants (product_id, name, price, active)
+                values (?, 'Padrão', 100.00, true)
+                returning id
+                """,
+                Long.class,
+                productId
+        );
         Long tableId = jdbcTemplate.queryForObject(
                 """
                 insert into restaurant_tables (number, name, status, active)
@@ -305,20 +315,23 @@ class FinancialRulesIntegrationTests {
                 insert into order_items (
                     order_id,
                     product_id,
+                    product_variant_id,
                     product_name_snapshot,
+                    product_variant_name_snapshot,
                     unit_price_snapshot,
                     quantity,
                     status,
                     subtotal
                 )
-                values (?, ?, ?, 100.00, 1, 'ACTIVE', 100.00)
+                values (?, ?, ?, ?, 'Padrão', 100.00, 1, 'ACTIVE', 100.00)
                 """,
                 orderId,
                 productId,
+                productVariantId,
                 "Produto " + suffix
         );
 
-        return new Scenario(userId, categoryId, productId, tableId, tabId, orderId);
+        return new Scenario(userId, categoryId, productId, productVariantId, tableId, tabId, orderId);
     }
 
     private void createPayment(String amount, String method) throws Throwable {
@@ -493,6 +506,7 @@ class FinancialRulesIntegrationTests {
             Long userId,
             Long categoryId,
             Long productId,
+            Long productVariantId,
             Long tableId,
             Long tabId,
             Long orderId

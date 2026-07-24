@@ -37,6 +37,7 @@ class OperationalConsistencyIntegrationTests {
     private Long tabId;
     private Long categoryId;
     private Long productId;
+    private Long productVariantId;
 
     @AfterEach
     void cleanup() {
@@ -50,6 +51,7 @@ class OperationalConsistencyIntegrationTests {
             jdbcTemplate.update("delete from tabs where id = ?", tabId);
         }
         if (productId != null) {
+            jdbcTemplate.update("delete from product_variants where product_id = ?", productId);
             jdbcTemplate.update("delete from products where id = ?", productId);
         }
         if (categoryId != null) {
@@ -224,8 +226,8 @@ class OperationalConsistencyIntegrationTests {
                 "com.hubon.backend.order.dto.OrderItemRequest"
         );
         Object itemRequest = itemRequestClass
-                .getConstructor(Long.class, Integer.class, String.class)
-                .newInstance(productId, 1, null);
+                .getConstructor(Long.class, Long.class, Integer.class, String.class)
+                .newInstance(productId, productVariantId, 1, null);
         Class<?> orderRequestClass = Class.forName(
                 "com.hubon.backend.order.dto.RestaurantOrderRequest"
         );
@@ -361,7 +363,7 @@ class OperationalConsistencyIntegrationTests {
     }
 
     private Long insertProduct() {
-        return jdbcTemplate.queryForObject(
+        Long insertedProductId = jdbcTemplate.queryForObject(
                 """
                 insert into products (category_id, name, price, active)
                 values (?, ?, 25.00, true)
@@ -371,6 +373,16 @@ class OperationalConsistencyIntegrationTests {
                 categoryId,
                 "Produto de categoria inativa"
         );
+        productVariantId = jdbcTemplate.queryForObject(
+                """
+                insert into product_variants (product_id, name, price, active)
+                values (?, 'Padrão', 25.00, true)
+                returning id
+                """,
+                Long.class,
+                insertedProductId
+        );
+        return insertedProductId;
     }
 
     private Integer tableNumber() {

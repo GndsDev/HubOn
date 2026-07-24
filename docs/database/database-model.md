@@ -224,6 +224,7 @@ Campos principais:
 - `name`, unico por `lower(name)`
 - `description`
 - `unit`
+- `control_mode`
 - `current_stock`
 - `minimum_stock`
 - `ideal_stock`
@@ -232,6 +233,7 @@ Campos principais:
 - `updated_at`
 
 Unidades: `KG`, `G`, `L`, `ML`, `UN`, `CX`, `PACKAGE` e `TRAY`.
+Modos: `MANUAL` e `DIRECT_SALE`; o padrao e `MANUAL`.
 `current_stock`, `minimum_stock` e `ideal_stock` usam `NUMERIC(15, 3)`.
 O banco impede quantidades negativas e garante `ideal_stock >= minimum_stock`.
 O saldo atual e cache operacional atualizado junto com o ledger de
@@ -250,11 +252,15 @@ Campos principais:
 - `previous_stock`
 - `resulting_stock`
 - `reason`
+- `origin_type`
+- `origin_reference`
+- `order_id`
+- `order_item_id`
 - `user_id`
 - `created_at`
 
-Tipos: `ENTRY`, `EXIT`, `LOSS`, `ADJUSTMENT` e `REVERSAL`. A etapa atual nao
-possui fluxo automatico de estorno, mas o tipo ja esta reservado no banco. O
+Tipos: `ENTRY`, `EXIT`, `LOSS`, `ADJUSTMENT` e `REVERSAL`. Origens automaticas
+usam `ORDER_ITEM` para baixa por pedido e `ORDER_CANCELLATION` para estorno. O
 banco exige quantidade positiva e saldos anterior/resultante nao negativos.
 
 Indices principais:
@@ -263,22 +269,29 @@ Indices principais:
 - `idx_inventory_movements_type_created_at`
 - `idx_inventory_movements_user_created_at`
 - `idx_inventory_movements_created_at`
+- `idx_inventory_movements_order_created_at`
+- `idx_inventory_movements_order_item`
+- `uq_inventory_movements_order_item_exit`
+- `uq_inventory_movements_order_item_reversal`
 
-### `product_ingredients`
+### `product_stock_links`
 
-Tabela intermediaria da ficha tecnica entre produtos e ingredientes.
+Vinculo simples entre produtos vendidos e itens de estoque de baixa automatica.
 
 Campos principais:
 
 - `id`
 - `product_id`
-- `ingredient_id`
-- `quantity`
+- `stock_item_id`
+- `quantity_per_sale`
+- `active`
 - `created_at`
 - `updated_at`
 
-A constraint `uq_product_ingredients_product_ingredient` impede ingrediente
-duplicado na ficha do mesmo produto. A quantidade deve ser maior que zero.
+O indice parcial `uq_product_stock_links_active_product` garante no maximo um
+vinculo ativo por produto. A quantidade por venda deve ser maior que zero. O
+item referenciado fica em `ingredients` e deve ser validado pela aplicacao como
+`DIRECT_SALE`.
 
 ## Relacionamentos
 
@@ -293,10 +306,12 @@ products 1:N order_items
 categories 1:N products
 tabs 1:N payments
 users 1:N payments              received_by_user_id
-products 1:N product_ingredients
-ingredients 1:N product_ingredients
+products 1:N product_stock_links
+ingredients 1:N product_stock_links
 ingredients 1:N inventory_movements
 users 1:N inventory_movements   user_id
+orders 1:N inventory_movements  order_id
+order_items 1:N inventory_movements order_item_id
 ```
 
 ## DER textual
@@ -338,10 +353,12 @@ como colunas próprias na tabela `tabs`.
 
 A primeira etapa do estoque foi criada na migration
 `V2__add_stock_module.sql`, com `ingredients`, `inventory_movements` e
-`product_ingredients`.
+`product_ingredients`. A migration `V3__hybrid_stock_control.sql` adiciona
+`control_mode`, campos de origem no ledger, `product_stock_links` e remove a
+tabela `product_ingredients`.
 
 Ainda nao existem tabelas de compras, fornecedores, lotes, validade,
-financeiro, multiplos depositos ou baixa automatica por pedido. Esses pontos
-continuam planejados em [stock-management.md](../business/stock-management.md)
-e devem entrar somente por novas migrations Flyway.
+financeiro, multiplos depositos, ficha tecnica, receita multi-ingrediente,
+producao, rendimento ou conversao automatica de unidades. Esses pontos devem
+entrar somente por novas migrations Flyway se forem retomados.
 

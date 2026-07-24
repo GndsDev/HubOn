@@ -1,6 +1,7 @@
 package com.hubon.backend.order.domain;
 
 import com.hubon.backend.product.domain.Product;
+import com.hubon.backend.product.domain.ProductVariant;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -28,8 +29,15 @@ public class OrderItem {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_variant_id", nullable = false)
+    private ProductVariant productVariant;
+
     @Column(name = "product_name_snapshot", nullable = false, length = 120)
     private String productNameSnapshot;
+
+    @Column(name = "product_variant_name_snapshot", nullable = false, length = 120)
+    private String productVariantNameSnapshot;
 
     @Column(name = "unit_price_snapshot", nullable = false, precision = 10, scale = 2)
     private BigDecimal unitPriceSnapshot;

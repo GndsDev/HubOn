@@ -1,12 +1,14 @@
 package com.hubon.backend.stock.domain;
 
+import com.hubon.backend.product.domain.ProductVariant;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -20,40 +22,28 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "ingredients")
+@Table(name = "product_stock_links")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Ingredient {
+public class ProductStockLink {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 120)
-    private String name;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_variant_id", nullable = false)
+    private ProductVariant productVariant;
 
-    @Column(length = 255)
-    private String description;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "stock_item_id", nullable = false)
+    private Ingredient stockItem;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private UnitOfMeasure unit;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "control_mode", nullable = false, length = 30)
-    private StockControlMode controlMode;
-
-    @Column(name = "current_stock", nullable = false, precision = 15, scale = 3)
-    private BigDecimal currentStock;
-
-    @Column(name = "minimum_stock", nullable = false, precision = 15, scale = 3)
-    private BigDecimal minimumStock;
-
-    @Column(name = "ideal_stock", nullable = false, precision = 15, scale = 3)
-    private BigDecimal idealStock;
+    @Column(name = "quantity_per_sale", nullable = false, precision = 15, scale = 3)
+    private BigDecimal quantityPerSale;
 
     @Column(nullable = false)
     private Boolean active;
@@ -67,18 +57,6 @@ public class Ingredient {
     @PrePersist
     void prePersist() {
         LocalDateTime now = LocalDateTime.now();
-        if (currentStock == null) {
-            currentStock = BigDecimal.ZERO;
-        }
-        if (controlMode == null) {
-            controlMode = StockControlMode.MANUAL;
-        }
-        if (minimumStock == null) {
-            minimumStock = BigDecimal.ZERO;
-        }
-        if (idealStock == null) {
-            idealStock = minimumStock;
-        }
         if (active == null) {
             active = true;
         }

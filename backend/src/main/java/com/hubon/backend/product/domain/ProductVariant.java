@@ -1,6 +1,5 @@
-package com.hubon.backend.stock.domain;
+package com.hubon.backend.product.domain;
 
-import com.hubon.backend.product.domain.Product;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -22,13 +21,13 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "product_ingredients")
+@Table(name = "product_variants")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProductIngredient {
+public class ProductVariant {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,12 +37,17 @@ public class ProductIngredient {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ingredient_id", nullable = false)
-    private Ingredient ingredient;
+    @Column(nullable = false, length = 120)
+    private String name;
 
-    @Column(nullable = false, precision = 15, scale = 3)
-    private BigDecimal quantity;
+    @Column(length = 80)
+    private String sku;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal price;
+
+    @Column(nullable = false)
+    private Boolean active;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -54,6 +58,9 @@ public class ProductIngredient {
     @PrePersist
     void prePersist() {
         LocalDateTime now = LocalDateTime.now();
+        if (active == null) {
+            active = true;
+        }
         if (createdAt == null) {
             createdAt = now;
         }

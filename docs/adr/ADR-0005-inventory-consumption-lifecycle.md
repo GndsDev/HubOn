@@ -1,11 +1,12 @@
 # ADR-0005 Inventory Consumption Lifecycle
 
 Data: 2026-06-25
-Status: Aceito para implementacao futura
+Status: Implementado no escopo hibrido
 
 ## Contexto
 
-O HubOn planeja baixar insumos automaticamente a partir de pedidos e receitas.
+O HubOn baixa itens `DIRECT_SALE` automaticamente a partir de pedidos com
+vinculo simples produto-estoque.
 
 ## Problema
 
@@ -21,22 +22,23 @@ sem duplicar consumo nem impedir estornos corretos.
 
 ## Decisao
 
-A baixa automatica deve ser definida como parte do ciclo operacional do pedido e
-registrada no ledger. A decisao inicial orienta que o consumo seja acionado em
-evento operacional documentado e idempotente, com regra explicita de estorno para
-cancelamentos elegiveis.
+A baixa automatica ocorre no evento operacional `send-to-kitchen`, na transicao
+`CREATED -> SENT_TO_KITCHEN`, e e registrada no ledger como `EXIT` com origem
+`ORDER_ITEM`. Cancelamentos elegiveis criam `REVERSAL` com origem
+`ORDER_CANCELLATION`.
 
 ## Consequencias
 
-- O ciclo de estoque fica conectado ao ciclo de producao.
+- O ciclo de estoque fica conectado ao ciclo operacional do pedido.
 - Cancelamentos precisam conhecer se ja houve baixa.
 - Reprocessamentos devem evitar consumo duplicado.
-- A implementacao final deve atualizar regras de negocio, testes e modelo de
-  dados antes de entrega.
+- Itens `MANUAL` permanecem fora da baixa automatica.
+- O escopo nao inclui ficha tecnica, receita multi-ingrediente, producao,
+  rendimento ou conversao automatica.
 
 ## Status
 
-Aceito para implementacao futura.
+Implementado para o controle hibrido simples.
 
 ## Data
 

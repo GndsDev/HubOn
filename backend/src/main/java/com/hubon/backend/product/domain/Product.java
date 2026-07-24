@@ -4,7 +4,6 @@ import com.hubon.backend.category.domain.Category;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -30,8 +29,9 @@ public class Product {
     @Column(length = 255)
     private String description;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal price;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "preparation_flow", nullable = false, length = 30)
+    private PreparationFlow preparationFlow;
 
     @Column(nullable = false)
     private Boolean active;
@@ -50,6 +50,9 @@ public class Product {
         LocalDateTime now = LocalDateTime.now();
         if (active == null) {
             active = true;
+        }
+        if (preparationFlow == null) {
+            preparationFlow = PreparationFlow.KITCHEN;
         }
         if (createdAt == null) {
             createdAt = now;

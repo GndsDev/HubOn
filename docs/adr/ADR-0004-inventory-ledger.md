@@ -1,12 +1,12 @@
 # ADR-0004 Inventory Ledger
 
 Data: 2026-06-25
-Status: Aceito para implementacao futura
+Status: Implementado no modulo de estoque
 
 ## Contexto
 
-O Estoque Inteligente esta planejado para controlar insumos, receitas, baixa
-automatica, compras e estornos.
+O Estoque Inteligente controla itens de estoque, movimentacoes manuais, baixa
+automatica simples por venda e estornos.
 
 ## Problema
 
@@ -22,8 +22,8 @@ mudou, dificulta auditoria e torna estornos arriscados.
 ## Decisao
 
 O estoque deve possuir ledger de movimentacoes como fonte oficial de historico.
-Entradas, saidas, ajustes e estornos devem ser registrados como eventos
-auditaveis.
+Entradas, saidas, ajustes, perdas e estornos sao registrados como eventos
+auditaveis, com origem manual ou referencia a pedido quando aplicavel.
 
 ## Consequencias
 
@@ -34,7 +34,7 @@ auditaveis.
 
 ## Status
 
-Aceito para implementacao futura.
+Implementado para o escopo atual.
 
 ## Data
 

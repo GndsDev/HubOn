@@ -4,6 +4,7 @@ import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.shared.exception.ResourceNotFoundException;
 import com.hubon.backend.stock.domain.Ingredient;
 import com.hubon.backend.stock.domain.StockStatus;
+import com.hubon.backend.stock.domain.StockControlMode;
 import com.hubon.backend.stock.dto.IngredientRequest;
 import com.hubon.backend.stock.dto.IngredientResponse;
 import com.hubon.backend.stock.repository.IngredientRepository;
@@ -53,6 +54,7 @@ public class IngredientService {
                 .name(name)
                 .description(request.description())
                 .unit(request.unit())
+                .controlMode(controlModeOrDefault(request.controlMode()))
                 .currentStock(BigDecimal.ZERO)
                 .minimumStock(request.minimumStock())
                 .idealStock(request.idealStock())
@@ -75,6 +77,7 @@ public class IngredientService {
         ingredient.setName(name);
         ingredient.setDescription(request.description());
         ingredient.setUnit(request.unit());
+        ingredient.setControlMode(controlModeOrDefault(request.controlMode()));
         ingredient.setMinimumStock(request.minimumStock());
         ingredient.setIdealStock(request.idealStock());
         ingredient.setActive(request.active() == null ? ingredient.getActive() : request.active());
@@ -116,6 +119,7 @@ public class IngredientService {
                 ingredient.getName(),
                 ingredient.getDescription(),
                 ingredient.getUnit(),
+                ingredient.getControlMode(),
                 ingredient.getCurrentStock(),
                 ingredient.getMinimumStock(),
                 ingredient.getIdealStock(),
@@ -144,6 +148,10 @@ public class IngredientService {
         if (idealStock.compareTo(minimumStock) < 0) {
             throw new BusinessException("Estoque ideal nao pode ser menor que o estoque minimo");
         }
+    }
+
+    private StockControlMode controlModeOrDefault(StockControlMode controlMode) {
+        return controlMode == null ? StockControlMode.MANUAL : controlMode;
     }
 
     private void validateNonNegative(BigDecimal value, String message) {

@@ -29,7 +29,7 @@ medios negocios de alimentacao, cobrindo:
 - atendimento no salao;
 - producao da cozinha;
 - caixa e fechamento financeiro;
-- estoque por insumos, receitas e consumo real;
+- estoque por itens controlados, baixas automaticas simples e consumo real;
 - compras e fornecedores;
 - indicadores executivos;
 - auditoria operacional;
@@ -131,7 +131,7 @@ O roadmap oficial esta em [ROADMAP.md](ROADMAP.md).
 - v0.1 MVP: operacao principal de salao, cozinha, caixa e autenticacao.
 - v0.2 Segurança: hardening, refresh token, recuperacao de senha e auditoria.
 - v0.3 Operação: melhorias de usabilidade, filtros, paginacao e rotina diaria.
-- v0.4 Estoque Inteligente: insumos, receitas, ledger e baixa automatica.
+- v0.4 Estoque Inteligente: itens controlados, ledger e baixa automatica simples.
 - v0.5 Gestão Financeira: relatorios financeiros, fechamento e exportacoes.
 - v0.6 Inteligência Operacional: indicadores, alertas e analises.
 - v0.7 Compras: fornecedores, sugestao de compra e reposicao.

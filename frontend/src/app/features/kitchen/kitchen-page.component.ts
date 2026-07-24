@@ -52,7 +52,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
                     <app-status-badge [label]="elapsed(order.createdAt)" [tone]="elapsedMinutes(order.createdAt) > 25 ? 'danger' : 'info'" />
                   </div>
                   <div class="kitchen-items">
-                    @for (item of order.items; track item.id) { <span>{{ item.quantity }}x {{ item.productNameSnapshot }}</span> }
+                    @for (item of kitchenItems(order); track item.id) { <span>{{ item.quantity }}x {{ item.displayNameSnapshot || item.productNameSnapshot }}</span> }
                   </div>
                   @if (order.notes) { <p>{{ order.notes }}</p> }
                   @if (effectiveTabStatus(order) !== 'OPEN') {
@@ -127,7 +127,12 @@ export class KitchenPageComponent implements OnInit {
   load(): void {
     this.refreshRequests.next(true);
   }
-  ordersByStatus(status: OrderStatus): RestaurantOrder[] { return this.orders().filter((order) => order.status === status); }
+  ordersByStatus(status: OrderStatus): RestaurantOrder[] {
+    return this.orders().filter((order) => order.status === status && this.kitchenItems(order).length > 0);
+  }
+  kitchenItems(order: RestaurantOrder) {
+    return order.items.filter((item) => item.status === 'ACTIVE' && item.preparationFlow === 'KITCHEN');
+  }
   nextOrderStatus(status: OrderStatus): OrderStatus | null {
     return {
       CREATED: 'SENT_TO_KITCHEN',

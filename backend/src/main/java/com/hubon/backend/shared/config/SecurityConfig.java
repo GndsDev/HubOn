@@ -78,8 +78,9 @@ public class SecurityConfig {
                                 .hasAnyRole("OWNER", "ADMIN", "CASHIER", "WAITER", "KITCHEN");
                         auth.requestMatchers(HttpMethod.POST, "/api/inventory-movements/**")
                                 .hasAnyRole("OWNER", "ADMIN");
-                        auth.requestMatchers(HttpMethod.GET, "/api/products/*/ingredients")
-                                .hasAnyRole("OWNER", "ADMIN", "CASHIER", "WAITER", "KITCHEN");
+                        auth.requestMatchers(HttpMethod.GET, "/api/product-variants/*/stock-link")
+                                .hasAnyRole("OWNER", "ADMIN", "CASHIER");
+                        auth.requestMatchers("/api/product-variants/**").hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers("/api/products/**").hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers("/api/users/**").hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers("/api/roles/**").hasAnyRole("OWNER", "ADMIN");

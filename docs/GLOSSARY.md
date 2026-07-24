@@ -18,11 +18,13 @@ Item vendido ao cliente, como refeição, bebida, adicional ou serviço cadastra
 
 ### Receita
 
-Composição planejada de um produto a partir de ingredientes ou insumos, usada para calcular consumo, custo e disponibilidade.
+Composição planejada de um produto a partir de ingredientes ou insumos. Termo
+fora do escopo implementado no estoque atual.
 
 ### Ficha Técnica
 
-Descrição detalhada da receita de um produto, incluindo insumos, quantidades, unidade de medida, rendimento e custo planejado.
+Descrição detalhada da receita de um produto. Termo fora do escopo implementado
+no estoque atual.
 
 ### Ingrediente
 
@@ -66,7 +68,8 @@ Movimentação que registra descarte, vencimento, dano ou desperdício de um ite
 
 ### Capacidade de Produção
 
-Quantidade estimada de produtos que ainda podem ser preparados com base no estoque disponível e nas receitas cadastradas.
+Quantidade estimada de produtos que ainda podem ser preparados. Fora do escopo
+implementado no estoque atual.
 
 ### Fluxo de Caixa
 

@@ -23,14 +23,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -43,6 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class StockIntegrationTests {
 
     private static final String PASSWORD = "secret123";
+    private static final AtomicInteger TABLE_NUMBER = new AtomicInteger(40_000);
 
     @Autowired
     private MockMvc mockMvc;
@@ -58,7 +58,11 @@ class StockIntegrationTests {
 
     private final List<Long> ingredientIds = new ArrayList<>();
     private final List<Long> productIds = new ArrayList<>();
+    private final List<Long> variantIds = new ArrayList<>();
     private final List<Long> categoryIds = new ArrayList<>();
+    private final List<Long> orderIds = new ArrayList<>();
+    private final List<Long> tabIds = new ArrayList<>();
+    private final List<Long> tableIds = new ArrayList<>();
 
     private String suffix;
     private String ownerEmail;
@@ -81,13 +85,28 @@ class StockIntegrationTests {
 
     @AfterEach
     void cleanup() {
-        for (Long productId : productIds) {
-            jdbcTemplate.update("delete from product_ingredients where product_id = ?", productId);
+        for (Long orderId : orderIds) {
+            jdbcTemplate.update("delete from inventory_movements where order_id = ?", orderId);
+            jdbcTemplate.update("delete from order_items where order_id = ?", orderId);
+            jdbcTemplate.update("delete from orders where id = ?", orderId);
+        }
+        for (Long tabId : tabIds) {
+            jdbcTemplate.update("delete from payments where tab_id = ?", tabId);
+            jdbcTemplate.update("delete from tabs where id = ?", tabId);
+        }
+        for (Long tableId : tableIds) {
+            jdbcTemplate.update("delete from restaurant_tables where id = ?", tableId);
+        }
+        for (Long variantId : variantIds) {
+            jdbcTemplate.update("delete from product_stock_links where product_variant_id = ?", variantId);
         }
         for (Long ingredientId : ingredientIds) {
-            jdbcTemplate.update("delete from product_ingredients where ingredient_id = ?", ingredientId);
+            jdbcTemplate.update("delete from product_stock_links where stock_item_id = ?", ingredientId);
             jdbcTemplate.update("delete from inventory_movements where ingredient_id = ?", ingredientId);
             jdbcTemplate.update("delete from ingredients where id = ?", ingredientId);
+        }
+        for (Long variantId : variantIds) {
+            jdbcTemplate.update("delete from product_variants where id = ?", variantId);
         }
         for (Long productId : productIds) {
             jdbcTemplate.update("delete from products where id = ?", productId);
@@ -107,7 +126,7 @@ class StockIntegrationTests {
     }
 
     @Test
-    void shouldCreateIngredientWithZeroStockAndStatus() throws Exception {
+    void shouldCreateIngredientWithZeroStockStatusAndManualMode() throws Exception {
         Long ingredientId = createIngredient("Stock Test Carne " + suffix, "KG", "1.000", "5.000");
 
         mockMvc.perform(get("/api/ingredients/{id}", ingredientId)
@@ -115,8 +134,44 @@ class StockIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Stock Test Carne " + suffix))
                 .andExpect(jsonPath("$.unit").value("KG"))
+                .andExpect(jsonPath("$.controlMode").value("MANUAL"))
                 .andExpect(jsonPath("$.currentStock").value(0))
                 .andExpect(jsonPath("$.stockStatus").value("OUT_OF_STOCK"));
+    }
+
+    @Test
+    void shouldCreateIngredientWithDirectSaleMode() throws Exception {
+        Long ingredientId = createIngredient(
+                "Stock Test Lata " + suffix,
+                "UN",
+                "2.000",
+                "12.000",
+                "DIRECT_SALE"
+        );
+
+        mockMvc.perform(get("/api/ingredients/{id}", ingredientId)
+                        .header("Authorization", bearer(tokenFor(ownerEmail))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.controlMode").value("DIRECT_SALE"));
+    }
+
+    @Test
+    void shouldRejectInvalidControlMode() throws Exception {
+        mockMvc.perform(post("/api/ingredients")
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Stock Test Modo Invalido %s",
+                                  "description": "Ingrediente de teste",
+                                  "unit": "UN",
+                                  "controlMode": "RECIPE",
+                                  "minimumStock": 1,
+                                  "idealStock": 2,
+                                  "active": true
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -160,6 +215,7 @@ class StockIntegrationTests {
                 .andExpect(jsonPath("$.quantity").value(10))
                 .andExpect(jsonPath("$.previousStock").value(0))
                 .andExpect(jsonPath("$.resultingStock").value(10))
+                .andExpect(jsonPath("$.originType").value("MANUAL"))
                 .andExpect(jsonPath("$.userName").value("Owner Stock"));
 
         assertMoney("10.000", ingredientStock(ingredientId));
@@ -280,61 +336,156 @@ class StockIntegrationTests {
     }
 
     @Test
-    void shouldManageProductRecipeWithMultipleIngredientsAndRejectDuplicates() throws Exception {
+    void shouldCreateProductStockLinkOnlyForDirectSaleItems() throws Exception {
         Long productId = insertProduct(true);
-        Long meatId = createIngredient("Stock Test Receita Carne " + suffix, "KG", "1.000", "5.000");
-        Long breadId = createIngredient("Stock Test Receita Pao " + suffix, "UN", "5.000", "20.000");
+        Long variantId = defaultVariantId(productId);
+        Long manualId = createIngredient("Stock Test Manual Link " + suffix, "KG", "1.000", "5.000");
+        Long directSaleId = createIngredient(
+                "Stock Test Link Lata " + suffix,
+                "UN",
+                "2.000",
+                "10.000",
+                "DIRECT_SALE"
+        );
 
-        mockMvc.perform(put("/api/products/{productId}/ingredients", productId)
+        mockMvc.perform(post("/api/product-variants/{variantId}/stock-link", variantId)
                         .header("Authorization", bearer(tokenFor(ownerEmail)))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(recipePayload(
-                                List.of(
-                                        new RecipeItem(meatId, new BigDecimal("0.180")),
-                                        new RecipeItem(breadId, new BigDecimal("1.000"))
-                                )
-                        )))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ingredients", hasSize(2)));
-
-        mockMvc.perform(post("/api/products/{productId}/ingredients", productId)
-                        .header("Authorization", bearer(tokenFor(ownerEmail)))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(recipeItemPayload(meatId, "0.200")))
+                        .content(stockLinkPayload(manualId, "1.000")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Ingrediente ja existe na ficha tecnica deste produto"));
+                .andExpect(jsonPath("$.message").value("Somente itens com baixa automatica podem ser vinculados a produtos"));
+
+        mockMvc.perform(post("/api/product-variants/{variantId}/stock-link", variantId)
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(stockLinkPayload(directSaleId, "1.000")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.variantId").value(variantId))
+                .andExpect(jsonPath("$.productId").value(productId))
+                .andExpect(jsonPath("$.stockItemId").value(directSaleId))
+                .andExpect(jsonPath("$.quantityPerSale").value(1));
+
+        mockMvc.perform(post("/api/product-variants/{variantId}/stock-link", variantId)
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(stockLinkPayload(directSaleId, "2.000")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Variacao ja possui vinculo ativo de estoque"));
+
+        mockMvc.perform(get("/api/products/{id}", productId)
+                        .header("Authorization", bearer(tokenFor(ownerEmail))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hasAutomaticStockLink").value(true))
+                .andExpect(jsonPath("$.variants[0].stockLinkActive").value(true))
+                .andExpect(jsonPath("$.variants[0].stockItemId").value(directSaleId));
     }
 
     @Test
-    void shouldKeepRecipeUnchangedWhenReplacementFails() throws Exception {
+    void shouldApplyDirectSaleStockMovementWhenOrderIsSentToKitchenOnce() throws Exception {
         Long productId = insertProduct(true);
-        Long meatId = createIngredient("Stock Test Transacao Carne " + suffix, "KG", "1.000", "5.000");
-        Long cheeseId = createIngredient("Stock Test Transacao Queijo " + suffix, "UN", "5.000", "20.000");
+        Long ingredientId = createIngredient(
+                "Stock Test Baixa Lata " + suffix,
+                "UN",
+                "1.000",
+                "10.000",
+                "DIRECT_SALE"
+        );
+        registerEntry(ingredientId, "5.000");
+        createStockLink(productId, ingredientId, "1.500");
+        Long orderId = insertOrder(productId, 2);
 
-        mockMvc.perform(put("/api/products/{productId}/ingredients", productId)
+        mockMvc.perform(post("/api/orders/{id}/send-to-kitchen", orderId)
                         .header("Authorization", bearer(tokenFor(ownerEmail)))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(recipePayload(List.of(new RecipeItem(meatId, new BigDecimal("0.180"))))))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ingredients[0].ingredientId").value(meatId));
+                .andExpect(jsonPath("$.status").value("SENT_TO_KITCHEN"));
 
-        mockMvc.perform(put("/api/products/{productId}/ingredients", productId)
+        mockMvc.perform(post("/api/orders/{id}/send-to-kitchen", orderId)
                         .header("Authorization", bearer(tokenFor(ownerEmail)))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(recipePayload(
-                                List.of(
-                                        new RecipeItem(cheeseId, new BigDecimal("1.000")),
-                                        new RecipeItem(cheeseId, new BigDecimal("2.000"))
-                                )
-                        )))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SENT_TO_KITCHEN"));
+
+        assertMoney("2.000", ingredientStock(ingredientId));
+        assertEquals(1, movementCountByOrigin(ingredientId, "ORDER_ITEM", "EXIT"));
+    }
+
+    @Test
+    void shouldBlockOrderWhenDirectSaleStockIsInsufficient() throws Exception {
+        Long productId = insertProduct(true);
+        Long ingredientId = createIngredient(
+                "Stock Test Insuficiente " + suffix,
+                "UN",
+                "1.000",
+                "10.000",
+                "DIRECT_SALE"
+        );
+        registerEntry(ingredientId, "2.000");
+        createStockLink(productId, ingredientId, "1.000");
+        Long orderId = insertOrder(productId, 3);
+
+        mockMvc.perform(post("/api/orders/{id}/send-to-kitchen", orderId)
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Ficha tecnica nao pode conter ingredientes duplicados"));
+                .andExpect(jsonPath("$.message").value(
+                        "Estoque insuficiente para Stock Test Insuficiente " + suffix
+                                + ". Disponivel: 2 UN. Necessario: 3 UN."
+                ));
 
-        mockMvc.perform(get("/api/products/{productId}/ingredients", productId)
-                        .header("Authorization", bearer(tokenFor(ownerEmail))))
+        assertMoney("2.000", ingredientStock(ingredientId));
+        assertEquals("CREATED", orderStatus(orderId));
+        assertEquals(0, movementCountByOrigin(ingredientId, "ORDER_ITEM", "EXIT"));
+    }
+
+    @Test
+    void shouldReverseAutomaticMovementOnCancellationOnlyOnce() throws Exception {
+        Long productId = insertProduct(true);
+        Long ingredientId = createIngredient(
+                "Stock Test Estorno " + suffix,
+                "UN",
+                "1.000",
+                "10.000",
+                "DIRECT_SALE"
+        );
+        registerEntry(ingredientId, "4.000");
+        createStockLink(productId, ingredientId, "1.000");
+        Long orderId = insertOrder(productId, 2);
+
+        mockMvc.perform(post("/api/orders/{id}/send-to-kitchen", orderId)
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/orders/{id}/cancel", orderId)
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ingredients", hasSize(1)))
-                .andExpect(jsonPath("$.ingredients[0].ingredientId").value(meatId));
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+        mockMvc.perform(post("/api/orders/{id}/cancel", orderId)
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+
+        assertMoney("4.000", ingredientStock(ingredientId));
+        assertEquals(1, movementCountByOrigin(ingredientId, "ORDER_CANCELLATION", "REVERSAL"));
+    }
+
+    @Test
+    void shouldNotMoveManualStockItemsWhenOrderIsSentToKitchenWithoutLink() throws Exception {
+        Long productId = insertProduct(true);
+        Long ingredientId = createIngredient("Stock Test Manual Sem Link " + suffix, "UN", "1.000", "10.000");
+        registerEntry(ingredientId, "3.000");
+        Long orderId = insertOrder(productId, 2);
+
+        mockMvc.perform(post("/api/orders/{id}/send-to-kitchen", orderId)
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SENT_TO_KITCHEN"));
+
+        assertMoney("3.000", ingredientStock(ingredientId));
+        assertEquals(0, movementCountByOrigin(ingredientId, "ORDER_ITEM", "EXIT"));
     }
 
     @Test
@@ -362,11 +513,51 @@ class StockIntegrationTests {
                 .andExpect(jsonPath("$.status").value(403));
     }
 
+    @Test
+    void shouldEnforceProductStockLinkAuthorization() throws Exception {
+        Long productId = insertProduct(true);
+        Long variantId = defaultVariantId(productId);
+        Long ingredientId = createIngredient(
+                "Stock Test Permissao Link " + suffix,
+                "UN",
+                "1.000",
+                "10.000",
+                "DIRECT_SALE"
+        );
+
+        mockMvc.perform(post("/api/product-variants/{variantId}/stock-link", variantId)
+                        .header("Authorization", bearer(tokenFor(cashierEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(stockLinkPayload(ingredientId, "1.000")))
+                .andExpect(status().isForbidden());
+
+        createStockLink(productId, ingredientId, "1.000");
+
+        mockMvc.perform(get("/api/product-variants/{variantId}/stock-link", variantId)
+                        .header("Authorization", bearer(tokenFor(cashierEmail))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stockItemId").value(ingredientId));
+
+        mockMvc.perform(get("/api/product-variants/{variantId}/stock-link", variantId)
+                        .header("Authorization", bearer(tokenFor(waiterEmail))))
+                .andExpect(status().isForbidden());
+    }
+
     private Long createIngredient(String name, String unit, String minimumStock, String idealStock) throws Exception {
+        return createIngredient(name, unit, minimumStock, idealStock, null);
+    }
+
+    private Long createIngredient(
+            String name,
+            String unit,
+            String minimumStock,
+            String idealStock,
+            String controlMode
+    ) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/ingredients")
                         .header("Authorization", bearer(tokenFor(ownerEmail)))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(ingredientPayload(name, unit, minimumStock, idealStock)))
+                        .content(ingredientPayload(name, unit, minimumStock, idealStock, controlMode)))
                 .andExpect(status().isCreated())
                 .andReturn();
         Long id = objectMapper.readTree(result.getResponse().getContentAsString()).path("id").asLong();
@@ -383,10 +574,21 @@ class StockIntegrationTests {
     }
 
     private String ingredientPayload(String name, String unit, String minimumStock, String idealStock) throws Exception {
+        return ingredientPayload(name, unit, minimumStock, idealStock, null);
+    }
+
+    private String ingredientPayload(
+            String name,
+            String unit,
+            String minimumStock,
+            String idealStock,
+            String controlMode
+    ) throws Exception {
         return objectMapper.writeValueAsString(new IngredientPayload(
                 name,
                 "Ingrediente de teste",
                 unit,
+                controlMode,
                 new BigDecimal(minimumStock),
                 new BigDecimal(idealStock),
                 true
@@ -409,12 +611,17 @@ class StockIntegrationTests {
         ));
     }
 
-    private String recipeItemPayload(Long ingredientId, String quantity) throws Exception {
-        return objectMapper.writeValueAsString(new RecipeItem(ingredientId, new BigDecimal(quantity)));
+    private String stockLinkPayload(Long ingredientId, String quantity) throws Exception {
+        return objectMapper.writeValueAsString(new StockLinkPayload(ingredientId, new BigDecimal(quantity)));
     }
 
-    private String recipePayload(List<RecipeItem> items) throws Exception {
-        return objectMapper.writeValueAsString(items);
+    private void createStockLink(Long productId, Long ingredientId, String quantity) throws Exception {
+        Long variantId = defaultVariantId(productId);
+        mockMvc.perform(post("/api/product-variants/{variantId}/stock-link", variantId)
+                        .header("Authorization", bearer(tokenFor(ownerEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(stockLinkPayload(ingredientId, quantity)))
+                .andExpect(status().isCreated());
     }
 
     private Long insertProduct(boolean active) {
@@ -442,7 +649,96 @@ class StockIntegrationTests {
                 active
         );
         productIds.add(productId);
+        Long variantId = jdbcTemplate.queryForObject(
+                """
+                insert into product_variants (product_id, name, price, active)
+                values (?, 'Padrão', 25.00, true)
+                returning id
+                """,
+                Long.class,
+                productId
+        );
+        variantIds.add(variantId);
         return productId;
+    }
+
+    private Long insertOrder(Long productId, int quantity) {
+        Long userId = userIdByEmail(ownerEmail);
+        Long tableId = jdbcTemplate.queryForObject(
+                """
+                insert into restaurant_tables (number, name, status, active)
+                values (?, ?, 'OCCUPIED', true)
+                returning id
+                """,
+                Long.class,
+                TABLE_NUMBER.incrementAndGet(),
+                "Mesa estoque"
+        );
+        tableIds.add(tableId);
+
+        Long tabId = jdbcTemplate.queryForObject(
+                """
+                insert into tabs (
+                    restaurant_table_id,
+                    status,
+                    opened_by_user_id,
+                    total_amount,
+                    service_fee,
+                    discount_amount,
+                    final_amount
+                )
+                values (?, 'OPEN', ?, 0, 0, 0, 0)
+                returning id
+                """,
+                Long.class,
+                tableId,
+                userId
+        );
+        tabIds.add(tabId);
+
+        Long orderId = jdbcTemplate.queryForObject(
+                """
+                insert into orders (tab_id, status, type, created_by_user_id)
+                values (?, 'CREATED', 'TABLE', ?)
+                returning id
+                """,
+                Long.class,
+                tabId,
+                userId
+        );
+        orderIds.add(orderId);
+
+        jdbcTemplate.update(
+                """
+                insert into order_items (
+                    order_id,
+                    product_id,
+                    product_variant_id,
+                    product_name_snapshot,
+                    product_variant_name_snapshot,
+                    unit_price_snapshot,
+                    quantity,
+                    status,
+                    subtotal
+                )
+                values (?, ?, ?, ?, 'Padrão', 25.00, ?, 'ACTIVE', ?)
+                """,
+                orderId,
+                productId,
+                defaultVariantId(productId),
+                "Produto Estoque " + suffix,
+                quantity,
+                new BigDecimal("25.00").multiply(BigDecimal.valueOf(quantity))
+        );
+        return orderId;
+    }
+
+    private Long defaultVariantId(Long productId) {
+        return jdbcTemplate.queryForObject(
+                "select id from product_variants where product_id = ? and name = 'Padrão'",
+                Long.class,
+                productId
+        );
     }
 
     private BigDecimal ingredientStock(Long ingredientId) {
@@ -458,6 +754,38 @@ class StockIntegrationTests {
                 "select count(*) from inventory_movements where ingredient_id = ?",
                 Integer.class,
                 ingredientId
+        );
+    }
+
+    private Integer movementCountByOrigin(Long ingredientId, String originType, String type) {
+        return jdbcTemplate.queryForObject(
+                """
+                select count(*)
+                from inventory_movements
+                where ingredient_id = ?
+                  and origin_type = ?
+                  and type = ?
+                """,
+                Integer.class,
+                ingredientId,
+                originType,
+                type
+        );
+    }
+
+    private String orderStatus(Long orderId) {
+        return jdbcTemplate.queryForObject(
+                "select status from orders where id = ?",
+                String.class,
+                orderId
+        );
+    }
+
+    private Long userIdByEmail(String email) {
+        return jdbcTemplate.queryForObject(
+                "select id from users where email = ?",
+                Long.class,
+                email
         );
     }
 
@@ -547,6 +875,7 @@ class StockIntegrationTests {
             String name,
             String description,
             String unit,
+            String controlMode,
             BigDecimal minimumStock,
             BigDecimal idealStock,
             Boolean active
@@ -567,9 +896,9 @@ class StockIntegrationTests {
     ) {
     }
 
-    private record RecipeItem(
-            Long ingredientId,
-            BigDecimal quantity
+    private record StockLinkPayload(
+            Long stockItemId,
+            BigDecimal quantityPerSale
     ) {
     }
 }

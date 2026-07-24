@@ -268,16 +268,18 @@ stock/
 └── service/
 ```
 
-A primeira etapa implementa ingredientes, movimentacoes manuais, historico
-auditavel, alertas de saldo e ficha tecnica por produto. Controllers recebem e
-retornam DTOs, services concentram regras e conversoes, repositories usam Spring
-Data JPA e o esquema e criado pela migration Flyway V2.
+A implementacao atual usa controle hibrido: itens `MANUAL`, itens
+`DIRECT_SALE`, movimentacoes manuais, historico auditavel, alertas de saldo,
+vinculo simples produto-estoque e baixa automatica no envio do pedido para a
+cozinha. Controllers recebem e retornam DTOs, services concentram regras e
+conversoes, repositories usam Spring Data JPA e o esquema e evoluido por
+migrations Flyway.
 
 No frontend, `/stock` concentra a gestao operacional do estoque. A tela de
-Produtos possui uma acao de ficha tecnica que substitui a receita completa em
-uma chamada transacional.
+Produtos possui uma acao de vinculo ao estoque para produtos que baixam um item
+unitario automaticamente.
 
-Ainda nao ha compras, fornecedores, lotes, validade, multiplos depositos,
-financeiro, baixa automatica por pedido ou estorno automatico. A proxima etapa
-planejada e conectar a baixa automatica ao ciclo de pedido documentado em
+Nao ha ficha tecnica, receita multi-ingrediente, producao, rendimento, compras,
+fornecedores, lotes, validade, multiplos depositos, financeiro de compras ou
+conversao automatica de unidades neste escopo. As regras detalhadas ficam em
 [stock-management.md](../business/stock-management.md).

@@ -1,4 +1,5 @@
 import { TabStatus } from './tab.model';
+import { PreparationFlow } from './product.model';
 
 export type OrderStatus =
   | 'CREATED'
@@ -12,7 +13,11 @@ export type OrderType = 'TABLE' | 'COUNTER' | 'TAKEAWAY';
 export interface OrderItem {
   id: number;
   productId: number;
+  variantId: number | null;
   productNameSnapshot: string;
+  variantNameSnapshot: string | null;
+  displayNameSnapshot: string;
+  preparationFlow: PreparationFlow;
   unitPriceSnapshot: number;
   quantity: number;
   notes: string | null;
@@ -38,6 +43,7 @@ export interface RestaurantOrder {
 
 export interface OrderItemRequest {
   productId: number;
+  variantId: number;
   quantity: number;
   notes: string | null;
 }

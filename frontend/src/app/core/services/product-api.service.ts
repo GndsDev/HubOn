@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Product, ProductRequest } from '../../shared/models/product.model';
+import { Product, ProductRequest, ProductVariant, ProductVariantRequest } from '../../shared/models/product.model';
 
 @Injectable({ providedIn: 'root' })
 export class ProductApiService {
@@ -31,5 +31,25 @@ export class ProductApiService {
 
   deactivate(id: number): Observable<Product> {
     return this.http.patch<Product>(`${this.baseUrl}/${id}/deactivate`, {});
+  }
+
+  getVariants(productId: number): Observable<ProductVariant[]> {
+    return this.http.get<ProductVariant[]>(`${this.baseUrl}/${productId}/variants`);
+  }
+
+  createVariant(productId: number, request: ProductVariantRequest): Observable<ProductVariant> {
+    return this.http.post<ProductVariant>(`${this.baseUrl}/${productId}/variants`, request);
+  }
+
+  updateVariant(productId: number, variantId: number, request: ProductVariantRequest): Observable<ProductVariant> {
+    return this.http.put<ProductVariant>(`${this.baseUrl}/${productId}/variants/${variantId}`, request);
+  }
+
+  activateVariant(productId: number, variantId: number): Observable<ProductVariant> {
+    return this.http.patch<ProductVariant>(`${this.baseUrl}/${productId}/variants/${variantId}/activate`, {});
+  }
+
+  deactivateVariant(productId: number, variantId: number): Observable<ProductVariant> {
+    return this.http.patch<ProductVariant>(`${this.baseUrl}/${productId}/variants/${variantId}/deactivate`, {});
   }
 }

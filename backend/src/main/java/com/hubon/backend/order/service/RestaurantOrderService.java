@@ -14,10 +14,13 @@ import com.hubon.backend.order.dto.RestaurantOrderResponse;
 import com.hubon.backend.order.repository.OrderItemRepository;
 import com.hubon.backend.order.repository.RestaurantOrderRepository;
 import com.hubon.backend.payment.repository.PaymentRepository;
+import com.hubon.backend.product.domain.PreparationFlow;
 import com.hubon.backend.product.domain.Product;
-import com.hubon.backend.product.repository.ProductRepository;
+import com.hubon.backend.product.domain.ProductVariant;
+import com.hubon.backend.product.service.ProductVariantService;
 import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.shared.exception.ResourceNotFoundException;
+import com.hubon.backend.stock.service.InventoryMovementService;
 import com.hubon.backend.tab.domain.Tab;
 import com.hubon.backend.tab.domain.TabStatus;
 import com.hubon.backend.tab.repository.TabRepository;
@@ -42,17 +45,16 @@ public class RestaurantOrderService {
     private final RestaurantOrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final TabRepository tabRepository;
-    private final ProductRepository productRepository;
+    private final ProductVariantService productVariantService;
     private final UserRepository userRepository;
     private final PaymentRepository paymentRepository;
     private final TabAccountingService accountingService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final InventoryMovementService inventoryMovementService;
 
     @Transactional(readOnly = true)
     public List<RestaurantOrderResponse> listAll() {
-        List<RestaurantOrder> orders = orderRepository.findAllByOrderByCreatedAtDesc(
-                PageRequest.of(0, 100)
-        );
+        List<RestaurantOrder> orders = orderRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 100));
         if (orders.isEmpty()) {
             return List.of();
         }
@@ -63,10 +65,7 @@ public class RestaurantOrderService {
                 .collect(Collectors.groupingBy(item -> item.getOrder().getId()));
 
         return orders.stream()
-                .map(order -> toResponse(
-                        order,
-                        itemsByOrder.getOrDefault(order.getId(), Collections.emptyList())
-                ))
+                .map(order -> toResponse(order, itemsByOrder.getOrDefault(order.getId(), Collections.emptyList())))
                 .toList();
     }
 
@@ -79,7 +78,7 @@ public class RestaurantOrderService {
     @Transactional
     public RestaurantOrderResponse create(RestaurantOrderRequest request) {
         Tab tab = tabRepository.findByIdForUpdate(request.tabId())
-                .orElseThrow(() -> new ResourceNotFoundException("Comanda não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Comanda nao encontrada"));
         User createdByUser = authenticatedUserProvider.currentUser()
                 .orElseGet(() -> findRequestedUser(request.createdByUserId()));
 
@@ -100,6 +99,11 @@ public class RestaurantOrderService {
                 .map(orderItemRepository::save)
                 .toList();
 
+        inventoryMovementService.applyAutomaticSaleMovements(savedOrder, savedItems, PreparationFlow.DIRECT_SERVICE);
+        if (hasActiveItems(savedItems) && !hasKitchenItems(savedItems)) {
+            savedOrder.setStatus(OrderStatus.READY);
+        }
+
         accountingService.refreshAmounts(tab);
 
         return toResponse(savedOrder, savedItems);
@@ -107,14 +111,24 @@ public class RestaurantOrderService {
 
     @Transactional
     public RestaurantOrderResponse sendToKitchen(Long id) {
-        RestaurantOrder order = findEntityById(id);
+        RestaurantOrder order = findEntityByIdForUpdate(id);
         ensureOrderTabOpen(order);
+        List<OrderItem> items = orderItemRepository.findAllByOrderId(order.getId());
+        if (order.getStatus() == OrderStatus.SENT_TO_KITCHEN) {
+            return toResponse(order, items);
+        }
         if (order.getStatus() != OrderStatus.CREATED) {
-            throw new BusinessException("Somente pedidos criados podem ser enviados à cozinha");
+            throw new BusinessException("Somente pedidos criados podem ser enviados a cozinha");
         }
 
+        if (!hasKitchenItems(items)) {
+            order.setStatus(OrderStatus.READY);
+            return toResponse(order, items);
+        }
+
+        inventoryMovementService.applyAutomaticSaleMovements(order, items, PreparationFlow.KITCHEN);
         order.setStatus(OrderStatus.SENT_TO_KITCHEN);
-        return toResponse(order, orderItemRepository.findAllByOrderId(order.getId()));
+        return toResponse(order, items);
     }
 
     @Transactional
@@ -122,12 +136,12 @@ public class RestaurantOrderService {
         RestaurantOrder order = findEntityById(id);
         ensureOrderTabOpen(order);
 
-        if (order.getStatus() == OrderStatus.CANCELLED) {
-            throw new BusinessException("Pedido cancelado não pode ter status alterado");
-        }
-
         if (request.status() == OrderStatus.CANCELLED) {
             return cancel(id);
+        }
+
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new BusinessException("Pedido cancelado nao pode ter status alterado");
         }
 
         OrderStatus expectedNextStatus = switch (order.getStatus()) {
@@ -138,7 +152,7 @@ public class RestaurantOrderService {
         };
 
         if (expectedNextStatus == null || request.status() != expectedNextStatus) {
-            throw new BusinessException("Transição de status do pedido não permitida");
+            throw new BusinessException("Transicao de status do pedido nao permitida");
         }
 
         order.setStatus(request.status());
@@ -147,23 +161,25 @@ public class RestaurantOrderService {
 
     @Transactional
     public RestaurantOrderResponse cancel(Long id) {
-        RestaurantOrder order = findEntityById(id);
+        RestaurantOrder order = findEntityByIdForUpdate(id);
         Tab tab = tabRepository.findByIdForUpdate(order.getTab().getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Comanda não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Comanda nao encontrada"));
 
         if (order.getStatus() == OrderStatus.DELIVERED) {
             throw new BusinessException("Pedido entregue não pode ser cancelado");
         }
         if (order.getStatus() == OrderStatus.CANCELLED) {
-            throw new BusinessException("Pedido já está cancelado");
+            inventoryMovementService.reverseAutomaticSaleMovements(order);
+            return toResponse(order, orderItemRepository.findAllByOrderId(order.getId()));
         }
         if (tab.getStatus() == TabStatus.CLOSED) {
-            throw new BusinessException("Pedido de comanda fechada não pode ser cancelado");
+            throw new BusinessException("Pedido de comanda fechada nao pode ser cancelado");
         }
         if (paymentRepository.existsByTabId(tab.getId())) {
             throw new BusinessException("Não é possível cancelar um pedido de uma comanda com pagamentos registrados");
         }
 
+        inventoryMovementService.reverseAutomaticSaleMovements(order);
         order.setStatus(OrderStatus.CANCELLED);
         accountingService.refreshAmounts(tab);
 
@@ -171,23 +187,18 @@ public class RestaurantOrderService {
     }
 
     private OrderItem buildOrderItem(RestaurantOrder order, OrderItemRequest itemRequest) {
-        Product product = productRepository.findById(itemRequest.productId())
-                .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
+        ProductVariant variant = productVariantService.findSellableVariant(itemRequest.productId(), itemRequest.variantId());
+        Product product = variant.getProduct();
 
-        if (!Boolean.TRUE.equals(product.getActive())) {
-            throw new BusinessException("Produto inativo não pode ser vendido");
-        }
-        if (!Boolean.TRUE.equals(product.getCategory().getActive())) {
-            throw new BusinessException("Produto pertence a uma categoria inativa.");
-        }
-
-        BigDecimal unitPrice = product.getPrice();
+        BigDecimal unitPrice = variant.getPrice();
         BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(itemRequest.quantity()));
 
         return OrderItem.builder()
                 .order(order)
                 .product(product)
+                .productVariant(variant)
                 .productNameSnapshot(product.getName())
+                .productVariantNameSnapshot(variant.getName())
                 .unitPriceSnapshot(unitPrice)
                 .quantity(itemRequest.quantity())
                 .notes(itemRequest.notes())
@@ -198,7 +209,7 @@ public class RestaurantOrderService {
 
     private void ensureTabCanReceiveOrder(Tab tab) {
         if (tab.getStatus() != TabStatus.OPEN) {
-            throw new BusinessException("Comanda fechada ou cancelada não pode receber pedido");
+            throw new BusinessException("Comanda fechada ou cancelada nao pode receber pedido");
         }
     }
 
@@ -208,15 +219,20 @@ public class RestaurantOrderService {
 
     private RestaurantOrder findEntityById(Long id) {
         return orderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Pedido não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido nao encontrado"));
+    }
+
+    private RestaurantOrder findEntityByIdForUpdate(Long id) {
+        return orderRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido nao encontrado"));
     }
 
     private User findRequestedUser(Long userId) {
         if (userId == null) {
-            throw new BusinessException("Usuário responsável é obrigatório");
+            throw new BusinessException("Usuario responsavel e obrigatorio");
         }
         return userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario nao encontrado"));
     }
 
     private RestaurantOrderResponse toResponse(RestaurantOrder order, List<OrderItem> items) {
@@ -238,15 +254,38 @@ public class RestaurantOrderService {
     }
 
     private OrderItemResponse toItemResponse(OrderItem item) {
+        ProductVariant variant = item.getProductVariant();
         return new OrderItemResponse(
                 item.getId(),
                 item.getProduct().getId(),
+                variant == null ? null : variant.getId(),
                 item.getProductNameSnapshot(),
+                item.getProductVariantNameSnapshot(),
+                displayName(item),
+                item.getProduct().getPreparationFlow(),
                 item.getUnitPriceSnapshot(),
                 item.getQuantity(),
                 item.getNotes(),
                 item.getStatus(),
                 item.getSubtotal()
         );
+    }
+
+    private boolean hasActiveItems(List<OrderItem> items) {
+        return items.stream().anyMatch(item -> item.getStatus() == OrderItemStatus.ACTIVE);
+    }
+
+    private boolean hasKitchenItems(List<OrderItem> items) {
+        return items.stream()
+                .filter(item -> item.getStatus() == OrderItemStatus.ACTIVE)
+                .anyMatch(item -> item.getProduct().getPreparationFlow() == PreparationFlow.KITCHEN);
+    }
+
+    private String displayName(OrderItem item) {
+        String variantName = item.getProductVariantNameSnapshot();
+        if (variantName == null || "Padrao".equalsIgnoreCase(variantName) || "Padrão".equalsIgnoreCase(variantName)) {
+            return item.getProductNameSnapshot();
+        }
+        return item.getProductNameSnapshot() + " - " + variantName;
     }
 }
