@@ -1,46 +1,54 @@
-# Regras de negócio do HubOn MVP
+# Regras de negocio do HubOn MVP
 
-As regras abaixo descrevem o que está implementado no MVP. As regras propostas
-para insumos, receitas, baixa automática, saldo negativo e estorno estão
-separadas em [stock-management.md](stock-management.md) e ainda não estão
-implementadas.
+As regras abaixo descrevem o que esta implementado no MVP. As regras de estoque
+hibrido, baixa automatica simples, saldo negativo e estorno estao separadas em
+[stock-management.md](stock-management.md).
 
 ## Categorias e produtos
 
-- Categoria exige nome e pode ser ativada ou desativada sem apagar histórico.
-- Produto exige nome, categoria e preço maior ou igual a zero.
-- Produto inativo não pode entrar em um novo pedido.
-- Produto pertencente a uma categoria inativa não pode entrar em um novo pedido.
-- Alterar nome ou preço de produto não muda itens antigos.
-- Cada item congela `productNameSnapshot` e `unitPriceSnapshot`.
+- Categoria exige nome e pode ser ativada ou desativada sem apagar historico.
+- Produto base exige nome, categoria e fluxo de preparo.
+- O nome do produto deve ser unico dentro da categoria, ignorando maiusculas e
+  minusculas.
+- O preco pertence a `ProductVariant`, nao ao produto base.
+- Variacao exige nome e preco maior ou igual a zero.
+- O nome da variacao deve ser unico dentro do produto, ignorando maiusculas e
+  minusculas.
+- Produto so pode ser vendido quando possui ao menos uma variacao ativa e disponivel.
+- Produto inativo ou indisponivel nao pode entrar em um novo pedido.
+- Produto pertencente a uma categoria inativa nao pode entrar em um novo pedido.
+- Variacao inativa ou indisponivel nao pode entrar em um novo pedido.
+- Alterar nome ou preco de produto/variacao nao muda itens antigos.
+- Cada item congela `productNameSnapshot`, `productVariantNameSnapshot` e
+  `unitPriceSnapshot`.
 - Quantidade deve ser maior que zero.
-- Subtotal é `unitPriceSnapshot * quantity`.
+- Subtotal e `unitPriceSnapshot * quantity`.
 
 ## Mesas
 
-- Número é obrigatório e único.
-- Status disponíveis: `AVAILABLE`, `OCCUPIED`, `RESERVED` e `DISABLED`.
+- Numero e obrigatorio e unico.
+- Status disponiveis: `AVAILABLE`, `OCCUPIED`, `RESERVED` e `DISABLED`.
 - Na interface: Livre, Ocupada, Reservada e Desativada.
-- Cadastro e edição manual permitem apenas `AVAILABLE`, `RESERVED` e `DISABLED`.
-- `OCCUPIED` é controlado exclusivamente pelo ciclo da comanda.
-- `active=false` é tratado como `DISABLED`.
+- Cadastro e edicao manual permitem apenas `AVAILABLE`, `RESERVED` e `DISABLED`.
+- `OCCUPIED` e controlado exclusivamente pelo ciclo da comanda.
+- `active=false` e tratado como `DISABLED`.
 - `DISABLED` sempre grava `active=false`.
 - Qualquer outro status grava `active=true`.
-- Mesa reservada não abre comanda diretamente no MVP.
-- Mesa desativada não abre comanda.
-- Mesa ocupada ou com comanda aberta não pode ser desativada.
-- Não há exclusão definitiva de mesa.
+- Mesa reservada nao abre comanda diretamente no MVP.
+- Mesa desativada nao abre comanda.
+- Mesa ocupada ou com comanda aberta nao pode ser desativada.
+- Nao ha exclusao definitiva de mesa.
 
 ## Comandas
 
-- Uma mesa não pode ter mais de uma comanda aberta.
+- Uma mesa nao pode ter mais de uma comanda aberta.
 - Somente mesa livre e ativa pode abrir comanda.
-- Mesa `RESERVED` não pode abrir comanda diretamente no MVP.
+- Mesa `RESERVED` nao pode abrir comanda diretamente no MVP.
 - Ao abrir, a mesa muda para `OCCUPIED`.
-- Comanda fechada ou cancelada não recebe pedidos nem pagamentos.
-- Uma comanda não pode ser fechada ou cancelada enquanto possuir pedidos pendentes.
-- Comanda com qualquer pagamento registrado não pode ser cancelada.
-- Comanda com pedido entregue não pode ser cancelada.
+- Comanda fechada ou cancelada nao recebe pedidos nem pagamentos.
+- Uma comanda nao pode ser fechada ou cancelada enquanto possuir pedidos pendentes.
+- Comanda com qualquer pagamento registrado nao pode ser cancelada.
+- Comanda com pedido entregue nao pode ser cancelada.
 - Cancelar uma comanda devolve a mesa para `AVAILABLE`.
 - Fechar exige que o valor pago seja exatamente igual ao `finalAmount`.
 - Pagamento incompleto ou excedente impede o fechamento.
@@ -48,51 +56,43 @@ implementadas.
 
 ## Pedidos e cozinha
 
-- Pedido pertence a uma comanda aberta e começa como `CREATED`.
-- `CREATED` pode avançar para `SENT_TO_KITCHEN`.
-- A cozinha segue somente esta sequência:
-  `SENT_TO_KITCHEN` → `PREPARING` → `READY` → `DELIVERED`.
-- Transições fora dessa sequência são rejeitadas.
-- Pedido entregue não pode ser cancelado.
-- Pedido não pode ser cancelado se sua comanda já possui pagamento registrado.
-- Um pedido pendente ligado a uma comanda cancelada pode apenas ser cancelado, permitindo regularizar dados antigos sem avançar a produção.
-- Pedido ligado a uma comanda fechada não pode ser alterado.
-- Pedido cancelado não entra no total da comanda.
+- Pedido pertence a uma comanda aberta, começa como `CREATED` e seus itens como `DRAFT`.
+- A confirmação envia itens `REQUIRES_PREPARATION` para `WAITING_PREPARATION`.
+- Itens `DIRECT_SERVICE` não entram na fila e ficam `READY` imediatamente.
+- Pedido composto somente por itens `DIRECT_SERVICE` fica `READY`.
+- A fila segue por item: `WAITING_PREPARATION` -> `IN_PREPARATION` -> `READY`.
+- Transicoes fora dessa sequencia sao rejeitadas.
+- Pedido entregue nao pode ser cancelado.
+- Pedido nao pode ser cancelado se sua comanda ja possui pagamento registrado.
+- Um pedido pendente ligado a uma comanda cancelada pode apenas ser cancelado,
+  permitindo regularizar dados antigos sem avancar a producao.
+- Pedido ligado a uma comanda fechada nao pode ser alterado.
+- Pedido cancelado nao entra no total da comanda.
 - Um pedido possui um ou mais itens.
-- Cancelamento por item não faz parte do MVP; `OrderItemStatus.CANCELLED` fica reservado para evolução futura.
+- Cancelamento por item nao faz parte do MVP; `OrderItemStatus.CANCELLED` fica
+  reservado para evolucao futura.
 
 ## Pagamentos e totais
 
-- Pagamento exige método e valor maior que zero.
+- Pagamento exige metodo e valor maior que zero.
 - Pagamento pertence a uma comanda aberta.
-- A soma paga não pode ultrapassar `finalAmount`.
-- Pagamento maior que o saldo restante é rejeitado.
-- Pagamento excedente já existente impede o fechamento da comanda.
-- Registro de pagamento e fechamento obtêm lock pessimista da comanda.
-- Pagamentos concorrentes são serializados; somente valores compatíveis com o saldo atualizado são aceitos.
-- Em conflito de lock, a API retorna erro para recarregar os dados e tentar novamente.
-- `totalAmount` soma itens ativos de pedidos não cancelados.
+- A soma paga nao pode ultrapassar `finalAmount`.
+- Pagamento maior que o saldo restante e rejeitado.
+- Pagamento excedente ja existente impede o fechamento da comanda.
+- Registro de pagamento e fechamento obtem lock pessimista da comanda.
+- Pagamentos concorrentes sao serializados; somente valores compativeis com o
+  saldo atualizado sao aceitos.
+- Em conflito de lock, a API retorna erro para recarregar os dados e tentar
+  novamente.
+- `totalAmount` soma itens ativos de pedidos nao cancelados.
 - `finalAmount = totalAmount + serviceFee - discountAmount`, limitado a zero.
 - `remainingAmount = finalAmount - paidAmount`, limitado a zero.
-- A consulta de pagamentos retorna total, pago, restante e histórico.
+- A consulta de pagamentos retorna total, pago, restante e historico.
 
-## Segurança e persistência
+## Seguranca e persistencia
 
-- Endpoints operacionais exigem JWT válido.
-- O token carrega usuário autenticado e perfis.
-- Abrir comanda, criar pedido e registrar pagamento usam o usuário autenticado no backend.
-- O frontend não escolhe operador manualmente como fonte principal de autoria.
-- Sem token válido, endpoints protegidos retornam `401`.
-- Com token válido e perfil inadequado, endpoints protegidos retornam `403`.
-- `OWNER` pode criar `ADMIN`, `WAITER`, `KITCHEN` e `CASHIER`.
-- `OWNER` não cria outro `OWNER` pelo fluxo atual.
-- `ADMIN` pode criar apenas `WAITER`, `KITCHEN` e `CASHIER`.
-- `ADMIN` não cria `OWNER` nem outro `ADMIN`.
-- `WAITER`, `KITCHEN` e `CASHIER` não criam usuários.
-- CSRF está desabilitado porque a API usa JWT stateless no MVP.
-- CORS aceita apenas origens configuradas.
-- Flyway controla o esquema.
-- `spring.jpa.hibernate.ddl-auto=validate` permanece obrigatório.
-- Open Session in View permanece desativado.
-- Senhas seedadas são gravadas com BCrypt.
-- Senhas padrão e segredo JWT devem ser trocados fora do ambiente de desenvolvimento.
+- Endpoints operacionais exigem JWT valido.
+- Autorizacao e definida por perfil no backend.
+- O frontend apenas oculta acoes indisponiveis; nao e fonte de seguranca.
+- Entidades historicas usam desativacao quando ha impacto em auditoria.
+- Alteracoes financeiras, de comanda, pedidos e estoque usam transacao.

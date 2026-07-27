@@ -4,9 +4,12 @@ import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.shared.exception.ResourceNotFoundException;
 import com.hubon.backend.stock.domain.Ingredient;
 import com.hubon.backend.stock.domain.StockStatus;
+import com.hubon.backend.stock.domain.StockControlMode;
 import com.hubon.backend.stock.dto.IngredientRequest;
 import com.hubon.backend.stock.dto.IngredientResponse;
 import com.hubon.backend.stock.repository.IngredientRepository;
+import com.hubon.backend.stock.repository.InventoryMovementRepository;
+import com.hubon.backend.stock.repository.ProductStockLinkRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,8 @@ import java.util.List;
 public class IngredientService {
 
     private final IngredientRepository ingredientRepository;
+    private final InventoryMovementRepository inventoryMovementRepository;
+    private final ProductStockLinkRepository productStockLinkRepository;
 
     @Transactional(readOnly = true)
     public List<IngredientResponse> listAll() {
@@ -53,6 +58,7 @@ public class IngredientService {
                 .name(name)
                 .description(request.description())
                 .unit(request.unit())
+                .controlMode(controlModeOrDefault(request.controlMode()))
                 .currentStock(BigDecimal.ZERO)
                 .minimumStock(request.minimumStock())
                 .idealStock(request.idealStock())
@@ -72,9 +78,24 @@ public class IngredientService {
             throw new BusinessException("Ja existe um ingrediente com este nome");
         }
 
+        if (ingredient.getUnit() != request.unit() && inventoryMovementRepository.existsByIngredientId(id)) {
+            throw new BusinessException("Unidade nao pode ser alterada depois que o item possui movimentacoes");
+        }
+        StockControlMode nextControlMode = controlModeOrDefault(request.controlMode());
+        boolean hasActiveLink = productStockLinkRepository.existsByStockItemIdAndActiveTrue(id);
+        if (ingredient.getControlMode() == StockControlMode.DIRECT_SALE
+                && nextControlMode == StockControlMode.MANUAL
+                && hasActiveLink) {
+            throw new BusinessException("Remova os vinculos ativos antes de mudar para controle manual");
+        }
+        if (Boolean.FALSE.equals(request.active()) && hasActiveLink) {
+            throw new BusinessException("Remova os vinculos ativos antes de desativar o item");
+        }
+
         ingredient.setName(name);
         ingredient.setDescription(request.description());
         ingredient.setUnit(request.unit());
+        ingredient.setControlMode(nextControlMode);
         ingredient.setMinimumStock(request.minimumStock());
         ingredient.setIdealStock(request.idealStock());
         ingredient.setActive(request.active() == null ? ingredient.getActive() : request.active());
@@ -92,6 +113,9 @@ public class IngredientService {
     @Transactional
     public IngredientResponse deactivate(Long id) {
         Ingredient ingredient = findEntityById(id);
+        if (productStockLinkRepository.existsByStockItemIdAndActiveTrue(id)) {
+            throw new BusinessException("Remova os vinculos ativos antes de desativar o item");
+        }
         ingredient.setActive(false);
         return toResponse(ingredient);
     }
@@ -116,6 +140,7 @@ public class IngredientService {
                 ingredient.getName(),
                 ingredient.getDescription(),
                 ingredient.getUnit(),
+                ingredient.getControlMode(),
                 ingredient.getCurrentStock(),
                 ingredient.getMinimumStock(),
                 ingredient.getIdealStock(),
@@ -144,6 +169,10 @@ public class IngredientService {
         if (idealStock.compareTo(minimumStock) < 0) {
             throw new BusinessException("Estoque ideal nao pode ser menor que o estoque minimo");
         }
+    }
+
+    private StockControlMode controlModeOrDefault(StockControlMode controlMode) {
+        return controlMode == null ? StockControlMode.MANUAL : controlMode;
     }
 
     private void validateNonNegative(BigDecimal value, String message) {

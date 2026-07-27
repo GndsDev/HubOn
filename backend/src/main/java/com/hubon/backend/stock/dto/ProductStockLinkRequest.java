@@ -5,12 +5,12 @@ import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 
-public record ProductIngredientRequest(
+public record ProductStockLinkRequest(
         @NotNull
-        Long ingredientId,
+        Long stockItemId,
 
         @NotNull
         @DecimalMin(value = "0.000", inclusive = false)
-        BigDecimal quantity
+        BigDecimal quantityPerSale
 ) {
 }

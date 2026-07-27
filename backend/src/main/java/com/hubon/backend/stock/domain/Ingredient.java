@@ -42,6 +42,10 @@ public class Ingredient {
     @Column(nullable = false, length = 30)
     private UnitOfMeasure unit;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "control_mode", nullable = false, length = 30)
+    private StockControlMode controlMode;
+
     @Column(name = "current_stock", nullable = false, precision = 15, scale = 3)
     private BigDecimal currentStock;
 
@@ -65,6 +69,9 @@ public class Ingredient {
         LocalDateTime now = LocalDateTime.now();
         if (currentStock == null) {
             currentStock = BigDecimal.ZERO;
+        }
+        if (controlMode == null) {
+            controlMode = StockControlMode.MANUAL;
         }
         if (minimumStock == null) {
             minimumStock = BigDecimal.ZERO;

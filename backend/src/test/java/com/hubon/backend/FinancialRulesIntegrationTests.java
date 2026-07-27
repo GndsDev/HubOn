@@ -1,11 +1,16 @@
 package com.hubon.backend;
 
+import com.hubon.backend.auth.service.AuthenticatedUser;
+import com.hubon.backend.order.dto.OrderCancellationRequest;
+import com.hubon.backend.user.domain.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -40,14 +45,17 @@ class FinancialRulesIntegrationTests {
 
     @AfterEach
     void cleanup() {
+        SecurityContextHolder.clearContext();
         if (scenario == null) {
             return;
         }
 
         jdbcTemplate.update("delete from payments where tab_id = ?", scenario.tabId());
+        jdbcTemplate.update("delete from order_item_options where order_item_id in (select id from order_items where order_id = ?)", scenario.orderId());
         jdbcTemplate.update("delete from order_items where order_id = ?", scenario.orderId());
         jdbcTemplate.update("delete from orders where id = ?", scenario.orderId());
         jdbcTemplate.update("delete from tabs where id = ?", scenario.tabId());
+        jdbcTemplate.update("delete from product_variants where id = ?", scenario.productVariantId());
         jdbcTemplate.update("delete from products where id = ?", scenario.productId());
         jdbcTemplate.update("delete from categories where id = ?", scenario.categoryId());
         jdbcTemplate.update("delete from restaurant_tables where id = ?", scenario.tableId());
@@ -134,7 +142,7 @@ class FinancialRulesIntegrationTests {
                 failure,
                 "Não é possível cancelar um pedido de uma comanda com pagamentos registrados"
         );
-        assertEquals("CREATED", orderStatus());
+        assertEquals("READY", orderStatus());
     }
 
     @Test
@@ -254,13 +262,22 @@ class FinancialRulesIntegrationTests {
         );
         Long productId = jdbcTemplate.queryForObject(
                 """
-                insert into products (category_id, name, price, active)
-                values (?, ?, 100.00, true)
+                insert into products (category_id, name, active)
+                values (?, ?, true)
                 returning id
                 """,
                 Long.class,
                 categoryId,
                 "Produto " + suffix
+        );
+        Long productVariantId = jdbcTemplate.queryForObject(
+                """
+                insert into product_variants (product_id, name, price, active)
+                values (?, 'Padrão', 100.00, true)
+                returning id
+                """,
+                Long.class,
+                productId
         );
         Long tableId = jdbcTemplate.queryForObject(
                 """
@@ -292,8 +309,8 @@ class FinancialRulesIntegrationTests {
         );
         Long orderId = jdbcTemplate.queryForObject(
                 """
-                insert into orders (tab_id, status, type, created_by_user_id)
-                values (?, 'CREATED', 'TABLE', ?)
+                insert into orders (tab_id, status, type, created_by_user_id, confirmed_at)
+                values (?, 'READY', 'TABLE', ?, current_timestamp)
                 returning id
                 """,
                 Long.class,
@@ -305,20 +322,34 @@ class FinancialRulesIntegrationTests {
                 insert into order_items (
                     order_id,
                     product_id,
+                    product_variant_id,
                     product_name_snapshot,
+                    product_variant_name_snapshot,
                     unit_price_snapshot,
                     quantity,
                     status,
                     subtotal
                 )
-                values (?, ?, ?, 100.00, 1, 'ACTIVE', 100.00)
+                values (?, ?, ?, ?, 'Padrão', 100.00, 1, 'READY', 100.00)
                 """,
                 orderId,
                 productId,
+                productVariantId,
                 "Produto " + suffix
         );
 
-        return new Scenario(userId, categoryId, productId, tableId, tabId, orderId);
+        User authenticatedUser = User.builder()
+                .id(userId)
+                .name("Operador financeiro")
+                .email("financial-" + suffix + "@hubon.test")
+                .password("{noop}test")
+                .active(true)
+                .build();
+        AuthenticatedUser principal = new AuthenticatedUser(authenticatedUser);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
+        );
+        return new Scenario(userId, categoryId, productId, productVariantId, tableId, tabId, orderId);
     }
 
     private void createPayment(String amount, String method) throws Throwable {
@@ -327,7 +358,12 @@ class FinancialRulesIntegrationTests {
     }
 
     private void cancelOrder(Long orderId) throws Throwable {
-        invokeService("restaurantOrderService", "cancel", orderId);
+        invokeService(
+                "restaurantOrderService",
+                "cancel",
+                orderId,
+                new OrderCancellationRequest("Cancelamento de teste")
+        );
     }
 
     private void cancelTab(Long tabId) throws Throwable {
@@ -364,11 +400,15 @@ class FinancialRulesIntegrationTests {
         );
     }
 
-    private Object invokeService(String beanName, String methodName, Object argument) throws Throwable {
+    private Object invokeService(String beanName, String methodName, Object... arguments) throws Throwable {
         Object service = applicationContext.getBean(beanName);
-        Method method = service.getClass().getMethod(methodName, argument.getClass());
+        Method method = java.util.Arrays.stream(service.getClass().getMethods())
+                .filter(candidate -> candidate.getName().equals(methodName))
+                .filter(candidate -> candidate.getParameterCount() == arguments.length)
+                .findFirst()
+                .orElseThrow();
         try {
-            return method.invoke(service, argument);
+            return method.invoke(service, arguments);
         } catch (InvocationTargetException exception) {
             throw exception.getCause();
         }
@@ -493,6 +533,7 @@ class FinancialRulesIntegrationTests {
             Long userId,
             Long categoryId,
             Long productId,
+            Long productVariantId,
             Long tableId,
             Long tabId,
             Long orderId

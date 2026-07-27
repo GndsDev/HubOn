@@ -1,192 +1,92 @@
-# Estoque Inteligente
+# Controle de estoque híbrido
 
-Status: primeira etapa implementada.
+Status: implementado para operação manual e baixa automática simples por venda.
 
-O Estoque Inteligente separa produto vendido de ingrediente ou insumo
-controlado. Um produto e o item do cardapio; um ingrediente e algo consumido,
-perdido, ajustado ou reposto manualmente, como carne, pao, queijo, molho,
-refrigerante ou embalagem.
+## Modos de controle
 
-Esta etapa entrega a base operacional e auditavel do estoque, sem compras,
-fornecedores, financeiro ou baixa automatica por pedido.
+`MANUAL` atende ingredientes e itens de consumo variável. Pedidos não alteram
+seu saldo. A operação usa entrada, saída, perda e ajuste.
 
-## Entidades
+`DIRECT_SALE` atende bebidas e mercadorias prontas. Uma variação pode ter um
+vínculo ativo com um item desse modo e informar `quantityPerSale`.
 
-### `Ingredient`
+## Vínculo por variação
 
-Representa um insumo controlado.
+O vínculo pertence à `ProductVariant`, nunca ao produto base. Regras:
 
-Campos principais:
+- no máximo um vínculo ativo por variação;
+- variação, produto e item de estoque ativos;
+- item obrigatoriamente `DIRECT_SALE`;
+- quantidade por venda maior que zero;
+- remoção apenas desativa o vínculo e preserva histórico;
+- unidade não muda após existir movimentação;
+- item vinculado não pode ser desativado nem convertido para `MANUAL`.
 
-- `id`
-- `name`
-- `description`
-- `unit`
-- `currentStock`
-- `minimumStock`
-- `idealStock`
-- `active`
-- `createdAt`
-- `updatedAt`
+## Confirmação do pedido
 
-Unidades aceitas: `KG`, `G`, `L`, `ML`, `UN`, `CX`, `PACKAGE` e `TRAY`.
-Nao ha conversao automatica entre unidades nesta etapa.
+A baixa automática ocorre em `POST /api/orders/{id}/confirm`, na mesma
+transação da confirmação. Para cada item:
 
-Regras:
+```text
+quantidade movimentada = quantidade vendida * quantityPerSale
+```
 
-- nome obrigatorio;
-- nome unico ignorando maiusculas e minusculas;
-- unidade obrigatoria;
-- saldos usam `BigDecimal`;
-- `currentStock`, `minimumStock` e `idealStock` nao podem ser negativos;
-- `idealStock` deve ser maior ou igual a `minimumStock`;
-- ingrediente novo inicia com `currentStock = 0`;
-- o CRUD nao aceita alteracao direta de `currentStock`;
-- saldo muda somente por movimentacao;
-- exclusao fisica nao faz parte do fluxo, apenas ativacao/desativacao.
+O serviço agrega necessidades pelo item de estoque, ordena os IDs, aplica lock
+pessimista e valida todos os saldos antes de gravar. Se faltar saldo, a
+confirmação inteira é revertida e a mensagem consolida os produtos afetados,
+saldo disponível, necessário e unidade formatada.
 
-Status de estoque:
+Cada baixa grava `SALE`, saldos anterior/resultante, usuário autenticado,
+pedido, item do pedido, motivo e origem `ORDER_ITEM`. O índice único por
+`ingredient_id + order_item_id + SALE` e a validação do serviço garantem
+idempotência.
 
-| Condicao | Status |
-| --- | --- |
-| `currentStock == 0` | `OUT_OF_STOCK` |
-| `currentStock <= minimumStock` | `LOW_STOCK` |
-| `currentStock > minimumStock` | `NORMAL` |
+O endpoint legado `send-to-kitchen` delega temporariamente para a confirmação,
+mas não define mais a regra de estoque.
 
-### `InventoryMovement`
+## Cancelamento e estorno
 
-Registra toda alteracao manual do saldo de um ingrediente.
+Cancelamento exige motivo. Uma venda automática já baixada gera `REVERSAL` com
+a quantidade exata da `SALE`, usuário autenticado, pedido, item e origem
+`ORDER_CANCELLATION`. A venda original permanece no ledger.
 
-Campos principais:
+Cancelar novamente não duplica estorno. Item sem baixa apenas muda para
+`CANCELED`. Cancelamento total processa todos os itens na mesma transação.
+Pedidos entregues, comandas fechadas ou comandas com pagamentos seguem as
+restrições financeiras existentes.
 
-- `id`
-- `ingredient`
-- `type`
-- `quantity`
-- `previousStock`
-- `resultingStock`
-- `reason`
-- `user`
-- `createdAt`
+## Movimentações manuais
 
-Tipos:
+- `ENTRY`: aumenta o saldo;
+- `EXIT`: reduz o saldo sem permitir resultado negativo;
+- `LOSS`: reduz com motivo obrigatório;
+- `ADJUSTMENT`: registra o saldo físico encontrado e exige motivo.
 
-- `ENTRY`: entrada, soma ao saldo.
-- `EXIT`: saida manual, subtrai do saldo.
-- `LOSS`: perda, subtrai do saldo e exige motivo.
-- `ADJUSTMENT`: ajuste para um novo saldo fisico e exige motivo.
-- `REVERSAL`: reservado para estornos futuros.
-
-Regras:
-
-- toda alteracao de estoque cria movimentacao;
-- quantidade movimentada deve ser positiva;
-- movimentos manuais nao podem deixar saldo negativo;
-- saldo anterior e saldo resultante sao gravados;
-- usuario e sempre o usuario autenticado;
-- o frontend nao envia nem escolhe usuario;
-- ingrediente e movimento sao alterados na mesma transacao;
-- o ingrediente e bloqueado com lock pessimista durante a movimentacao;
-- movimentacoes nao possuem endpoint de edicao ou exclusao.
-
-### `ProductIngredient`
-
-Representa a ficha tecnica de um produto.
-
-Campos principais:
-
-- `id`
-- `product`
-- `ingredient`
-- `quantity`
-- `createdAt`
-- `updatedAt`
-
-Regras:
-
-- produto e ingrediente devem estar ativos para alterar a ficha;
-- a quantidade deve ser maior que zero;
-- o mesmo ingrediente nao pode aparecer duas vezes no mesmo produto;
-- a unidade consumida e a unidade cadastrada no ingrediente;
-- nao ha conversao automatica nesta etapa;
-- a substituicao completa da ficha valida toda a lista antes de alterar e roda
-  em uma unica transacao.
-
-## Endpoints
-
-Ingredientes:
-
-- `GET /api/ingredients`
-- `GET /api/ingredients/active`
-- `GET /api/ingredients/alerts`
-- `GET /api/ingredients/{id}`
-- `POST /api/ingredients`
-- `PUT /api/ingredients/{id}`
-- `PATCH /api/ingredients/{id}/activate`
-- `PATCH /api/ingredients/{id}/deactivate`
-
-Movimentacoes:
-
-- `GET /api/inventory-movements`
-- `GET /api/inventory-movements/ingredient/{ingredientId}`
-- `POST /api/inventory-movements/entries`
-- `POST /api/inventory-movements/exits`
-- `POST /api/inventory-movements/losses`
-- `POST /api/inventory-movements/adjustments`
-
-Ficha tecnica:
-
-- `GET /api/products/{productId}/ingredients`
-- `POST /api/products/{productId}/ingredients`
-- `PUT /api/products/{productId}/ingredients/{ingredientId}`
-- `DELETE /api/products/{productId}/ingredients/{ingredientId}`
-- `PUT /api/products/{productId}/ingredients`
-
-## Permissoes
-
-| Perfil | Permissao |
-| --- | --- |
-| `OWNER` | Gerencia ingredientes, movimentacoes e ficha tecnica. |
-| `ADMIN` | Gerencia ingredientes, movimentacoes e ficha tecnica. |
-| `CASHIER` | Consulta ingredientes, alertas, historico e ficha tecnica. |
-| `WAITER` | Consulta ingredientes, alertas, historico e ficha tecnica. |
-| `KITCHEN` | Consulta ingredientes, alertas, historico e ficha tecnica. |
-
-A seguranca real esta no backend. O frontend apenas oculta acoes que o perfil
-nao pode executar.
+Todas usam `BigDecimal`, lock pessimista, usuário autenticado e saldos
+anterior/resultante. Movimentações automáticas não têm edição ou exclusão.
 
 ## Interface
 
-A rota `/stock` exibe:
+A tela mantém resumos, busca, filtros, cadastro, histórico e ações por menu de
+três pontos. O menu é um overlay fixo fora da linha, calculado pelo botão:
 
-- cards de ingredientes ativos, zerados, baixo estoque e movimentos recentes;
-- tabela de ingredientes com busca por nome;
-- filtro por status;
-- cadastro e edicao de ingredientes para `OWNER` e `ADMIN`;
-- ativacao e desativacao;
-- registro de entrada, saida, perda e ajuste;
-- historico por ingrediente.
+- abre acima quando não há espaço inferior;
+- limita altura e permite scroll;
+- corrige posição horizontal para não sair da viewport;
+- fecha por clique externo ou `Escape`;
+- oferece foco visível e navegação por teclado;
+- usa tokens dos temas claro e escuro.
 
-Na tela de Produtos, a acao "Ficha tecnica" abre a receita do produto e permite
-adicionar, editar quantidade, remover ingredientes e salvar a ficha completa.
+Saída manual mostra saldo atual, quantidade e saldo previsto, bloqueando valor
+superior ao disponível. Sugestões de motivo continuam editáveis.
 
-## Ainda nao implementado
+## Unidades
 
-- compras;
-- fornecedores;
-- contas a pagar;
-- financeiro;
-- lotes;
-- validade;
-- multiplos depositos;
-- conversao automatica de unidades;
-- baixa automatica ligada ao pedido;
-- estorno automatico;
-- sugestao automatica de compra;
-- capacidade de producao.
+O formatter central apresenta `kg`, `g`, `L`, `mL`, `UN`, `CX`, `Pacote` e
+`Bandeja` sem alterar os enums persistidos.
 
-## Proxima etapa
+## Limites
 
-A proxima etapa e conectar a ficha tecnica ao ciclo do pedido para criar baixa
-automatica quando o pedido entrar no evento operacional escolhido, preservando
-idempotencia, historico auditavel e regras futuras de estorno.
+Não há receita multi-ingrediente, ficha técnica, produção, conversão automática
+de unidades, compras, fornecedores, lotes, validade, múltiplos depósitos ou
+custo médio.

@@ -42,6 +42,8 @@ Documentos centrais:
 - Toasts de erro anunciados como `alert`.
 - Regras financeiras protegem pagamento excedente, cancelamentos e concorrência.
 - Regras de criação de usuários protegem OWNER/ADMIN contra escalonamento indevido.
+- Estoque Inteligente com itens manuais, baixa automática por variação,
+  ledger e estorno por cancelamento.
 - Build de produção do frontend configurado.
 
 ## Parcial
@@ -60,7 +62,6 @@ Documentos centrais:
 - Delivery, iFood, WhatsApp e QR Code.
 - Aplicativo mobile.
 - Nota fiscal, impressão fiscal e integração com maquininha.
-- Estoque inteligente por insumos, receitas e baixa automática.
 - Multiempresa e multiunidade.
 - Assinatura SaaS.
 - Refresh token, recuperação de senha, política de tentativas e auditoria completa.
@@ -70,16 +71,14 @@ Documentos centrais:
 
 ## Próxima fase planejada
 
-O próximo grande módulo planejado é o **Estoque Inteligente**, voltado a
-trailers, lanchonetes e pequenos restaurantes. A evolução foi dividida em
-estoque base, receitas com baixa automática, capacidade de produção e compras
-com fornecedores.
+O **Estoque Inteligente** ja possui o recorte hibrido implementado: itens
+manuais, itens `DIRECT_SALE`, vínculo por variação, baixa na confirmação do
+pedido e estorno idempotente em cancelamentos elegíveis.
 
-Esse módulo ainda não foi implementado: não há telas, endpoints, entidades ou
-migrations de estoque entregues. As decisões iniciais para v0.4.0 e v0.4.1 —
-incluindo unidades base, momento da baixa, estorno, custos e permissões — já
-foram documentadas como planejamento. A visão de produto, as decisões e os
-pontos ainda em aberto estão em [stock-management.md](business/stock-management.md).
+Continuam fora do MVP: ficha tecnica, receita multi-ingrediente, producao,
+rendimento, conversao automatica de unidades, compras, fornecedores, lotes,
+validade e multiplos depositos. A visao atual esta em
+[stock-management.md](business/stock-management.md).
 
 ## Validação realizada
 

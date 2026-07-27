@@ -2,8 +2,11 @@ package com.hubon.backend.shared.config;
 
 import com.hubon.backend.category.domain.Category;
 import com.hubon.backend.category.repository.CategoryRepository;
+import com.hubon.backend.product.domain.PreparationFlow;
 import com.hubon.backend.product.domain.Product;
+import com.hubon.backend.product.domain.ProductVariant;
 import com.hubon.backend.product.repository.ProductRepository;
+import com.hubon.backend.product.repository.ProductVariantRepository;
 import com.hubon.backend.role.domain.Role;
 import com.hubon.backend.role.repository.RoleRepository;
 import com.hubon.backend.table.domain.RestaurantTable;
@@ -31,6 +34,7 @@ public class DataSeeder implements CommandLineRunner {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
+    private final ProductVariantRepository productVariantRepository;
     private final RestaurantTableRepository tableRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -142,28 +146,29 @@ public class DataSeeder implements CommandLineRunner {
                 .active(true)
                 .build());
 
-        productRepository.save(Product.builder()
-                .category(beverages)
-                .name("Suco natural")
-                .description("Suco natural da casa")
-                .price(new BigDecimal("9.90"))
+        seedProduct(beverages, "Suco natural", "Suco natural da casa", new BigDecimal("9.90"));
+        seedProduct(beverages, "Refrigerante lata", "Lata 350ml", new BigDecimal("7.50"));
+        seedProduct(mains, "Executivo da casa", "Prato executivo com acompanhamento", new BigDecimal("32.90"));
+    }
+
+    private void seedProduct(Category category, String name, String description, BigDecimal price) {
+        Product product = productRepository.save(Product.builder()
+                .category(category)
+                .name(name)
+                .description(description)
+                .preparationFlow(PreparationFlow.REQUIRES_PREPARATION)
                 .active(true)
+                .available(true)
+                .displayOrder(0)
                 .build());
 
-        productRepository.save(Product.builder()
-                .category(beverages)
-                .name("Refrigerante lata")
-                .description("Lata 350ml")
-                .price(new BigDecimal("7.50"))
+        productVariantRepository.save(ProductVariant.builder()
+                .product(product)
+                .name("Padrão")
+                .price(price)
                 .active(true)
-                .build());
-
-        productRepository.save(Product.builder()
-                .category(mains)
-                .name("Executivo da casa")
-                .description("Prato executivo com acompanhamento")
-                .price(new BigDecimal("32.90"))
-                .active(true)
+                .available(true)
+                .displayOrder(0)
                 .build());
     }
 

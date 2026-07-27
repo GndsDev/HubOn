@@ -5,5 +5,6 @@ public enum InventoryMovementType {
     EXIT,
     LOSS,
     ADJUSTMENT,
+    SALE,
     REVERSAL
 }

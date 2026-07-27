@@ -6,7 +6,7 @@ import { Component, Input } from '@angular/core';
   template: `
     <section class="premium-card section-card">
       <div class="section-card-header">
-        <div>
+        <div class="section-card-copy">
           <span>{{ eyebrow }}</span>
           <h2>{{ title }}</h2>
         </div>

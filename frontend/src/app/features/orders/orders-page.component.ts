@@ -7,69 +7,60 @@ import { FeedbackService } from '../../core/services/feedback.service';
 import { OrderApiService } from '../../core/services/order-api.service';
 import { ProductApiService } from '../../core/services/product-api.service';
 import { TabApiService } from '../../core/services/tab-api.service';
-import { OrderItemRequest, OrderStatus, RestaurantOrder } from '../../shared/models/order.model';
-import { Product } from '../../shared/models/product.model';
-import { Tab, TabStatus } from '../../shared/models/tab.model';
-import { apiErrorMessage } from '../../shared/util/api-error';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
+import { OrderItem, OrderItemRequest, OrderStatus, RestaurantOrder } from '../../shared/models/order.model';
+import { Product, ProductOptionGroup, ProductVariant } from '../../shared/models/product.model';
+import { Tab, TabStatus } from '../../shared/models/tab.model';
+import { apiErrorMessage } from '../../shared/util/api-error';
+import {
+  automaticVariantId,
+  isCatalogProductSellable,
+  operationalVariantLabel,
+  optionSelectionsAreValid,
+  priceRangeSummary,
+  sellableVariants,
+} from '../../shared/util/catalog-workflow';
 
 @Component({
   selector: 'app-orders-page',
   standalone: true,
   imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent, AccessibleDialogDirective],
   template: `
-    <app-page-header kicker="Pedidos" title="Pedidos" description="Crie pedidos, acompanhe itens congelados e envie a produção para a cozinha.">
-      <button type="button" class="primary-button" (click)="openForm()"><i class="pi pi-shopping-cart"></i>Novo pedido</button>
+    <app-page-header kicker="Pedidos" title="Pedidos" description="Monte o pedido, revise as escolhas e confirme a operação.">
+      <button type="button" class="primary-button" (click)="openCreate()"><i class="pi pi-shopping-cart"></i>Novo pedido</button>
     </app-page-header>
 
     <app-section-card eyebrow="Fluxo de venda" title="Pedidos do turno">
       @if (loading()) {
         <div class="loading-grid">@for (item of [1,2,3,4]; track item) { <div class="loading-row"></div> }</div>
       } @else if (error()) {
-        <div class="error-panel"><i class="pi pi-exclamation-triangle"></i><div><strong>Não foi possível carregar</strong><p>{{ error() }}</p></div>
-          <button type="button" class="ghost-button" (click)="load()"><i class="pi pi-refresh"></i>Tentar novamente</button>
-        </div>
+        <div class="error-panel"><i class="pi pi-exclamation-triangle"></i><div><strong>Não foi possível carregar</strong><p>{{ error() }}</p></div><button type="button" class="ghost-button" (click)="load()"><i class="pi pi-refresh"></i>Tentar novamente</button></div>
       } @else if (orders().length === 0) {
         <app-empty-state icon="pi pi-shopping-cart" title="Nenhum pedido criado" description="Abra uma comanda e registre o primeiro pedido." />
       } @else {
         <div class="order-list">
           @for (order of orders(); track order.id) {
             <article class="order-card">
-              <div class="order-card-head">
-                <div>
-                  <span>Pedido #{{ order.id }}</span>
-                  <strong>Mesa {{ order.tableNumber }}</strong>
-                  <small>Comanda #{{ order.tabId }} · {{ tabStatusLabel(effectiveTabStatus(order)) }}</small>
-                </div>
-                <app-status-badge [label]="statusLabel(order.status)" [tone]="statusTone(order.status)" />
-              </div>
-              <div class="order-item-list">
+              <div class="order-card-head"><div><span>Pedido #{{ order.id }}</span><strong>Mesa {{ order.tableNumber }}</strong><small>Comanda #{{ order.tabId }} · {{ tabStatusLabel(effectiveTabStatus(order)) }}</small></div><app-status-badge [label]="statusLabel(order.status)" [tone]="statusTone(order.status)" /></div>
+              <div class="order-item-list detailed-order-items">
                 @for (item of order.items; track item.id) {
-                  <div><span>{{ item.quantity }}x {{ item.productNameSnapshot }}</span><b>{{ currency(item.subtotal) }}</b></div>
+                  <div class="detailed-order-item" [class.cancelled]="item.status === 'CANCELED'">
+                    <div><span>{{ item.quantity }}x {{ item.displayNameSnapshot || item.productNameSnapshot }}</span>@for (option of item.options; track option.id) { <small>{{ option.groupName }}: {{ option.optionName }}</small> }@if (item.notes) { <small>Observação: {{ item.notes }}</small> }@if (item.cancellationReason) { <small>Cancelado: {{ item.cancellationReason }}</small> }</div>
+                    <div class="order-item-side"><app-status-badge [label]="itemStatusLabel(item.status)" [tone]="itemStatusTone(item.status)" /><b>{{ currency(item.subtotal) }}</b>@if (canCancelItem(order, item)) { <button type="button" class="text-action danger-text" (click)="openCancelItem(order, item)">Cancelar item</button> }</div>
+                  </div>
                 }
               </div>
               @if (order.notes) { <p class="order-notes">{{ order.notes }}</p> }
-              <div class="order-card-footer">
-                <strong>{{ currency(orderTotal(order)) }}</strong>
-                <div class="action-cluster">
-                  @if (canSendToKitchen(order)) {
-                    <button type="button" class="primary-button compact-button" (click)="send(order)"><i class="pi pi-send"></i>Enviar à cozinha</button>
-                  }
-                  @if (canCancel(order)) {
-                    <button type="button" class="danger-button compact-button" (click)="cancel(order)"><i class="pi pi-times"></i>Cancelar pedido</button>
-                  }
-                  @if (orderStateMessage(order); as message) {
-                    <span class="order-state-note" [class.blocked]="effectiveTabStatus(order) !== 'OPEN'">
-                      <i [class]="orderStateIcon(order)"></i>
-                      {{ message }}
-                    </span>
-                  }
-                </div>
-              </div>
+              <div class="order-card-footer"><strong>{{ currency(orderTotal(order)) }}</strong><div class="action-cluster">
+                @if (canEdit(order)) { <button type="button" class="ghost-button compact-button" (click)="openEdit(order)"><i class="pi pi-pencil"></i>Editar</button><button type="button" class="primary-button compact-button" (click)="confirm(order)"><i class="pi pi-check"></i>Confirmar pedido</button> }
+                @if (order.status === 'READY' && effectiveTabStatus(order) === 'OPEN') { <button type="button" class="primary-button compact-button" (click)="deliver(order)"><i class="pi pi-check-circle"></i>Marcar entregue</button> }
+                @if (canCancel(order)) { <button type="button" class="danger-button compact-button" (click)="openCancelOrder(order)"><i class="pi pi-times"></i>Cancelar pedido</button> }
+                @if (orderStateMessage(order); as message) { <span class="order-state-note" [class.blocked]="effectiveTabStatus(order) !== 'OPEN'"><i class="pi pi-info-circle"></i>{{ message }}</span> }
+              </div></div>
             </article>
           }
         </div>
@@ -77,56 +68,39 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
     </app-section-card>
 
     @if (formOpen()) {
-      <div class="modal-backdrop" (click)="formOpen.set(false)">
-        <form
-          class="modal-panel wide"
-          appAccessibleDialog
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="order-dialog-title"
-          [dialogCloseDisabled]="saving()"
-          (dialogClose)="formOpen.set(false)"
-          (click)="$event.stopPropagation()"
-          (ngSubmit)="create()"
-        >
-          <div class="modal-header">
-            <div><span>Venda</span><h2 id="order-dialog-title">Novo pedido</h2></div>
-            <button type="button" class="icon-button" aria-label="Fechar" (click)="formOpen.set(false)"><i class="pi pi-times"></i></button>
-          </div>
-          <div class="form-grid">
-            <label class="field full">
-              <span>Comanda aberta</span>
-              <select name="tabId" [(ngModel)]="form.tabId" required autofocus>
-                @for (tab of tabs(); track tab.id) { <option [ngValue]="tab.id">#{{ tab.id }} · Mesa {{ tab.tableNumber }}</option> }
-              </select>
-            </label>
-            <label class="field full"><span>Observação geral</span><textarea name="notes" [(ngModel)]="form.notes" maxlength="500"></textarea></label>
-          </div>
-          <div class="form-section-title"><div><span>Itens do pedido</span><small>Nome e preço serão congelados pelo backend.</small></div>
-            <button type="button" class="ghost-button compact-button" (click)="addItem()"><i class="pi pi-plus"></i>Adicionar item</button>
-          </div>
-          <div class="order-form-items">
+      <div class="modal-backdrop" (click)="closeForm()">
+        <form class="modal-panel wide order-builder-panel" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="order-dialog-title" [dialogCloseDisabled]="saving()" (dialogClose)="closeForm()" (click)="$event.stopPropagation()" (ngSubmit)="saveDraft()">
+          <div class="modal-header"><div><span>Venda</span><h2 id="order-dialog-title">{{ editingOrder() ? 'Editar pedido' : 'Novo pedido' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="closeForm()"><i class="pi pi-times"></i></button></div>
+          <div class="form-grid"><label class="field full"><span>Comanda aberta</span><select name="tabId" [(ngModel)]="form.tabId" [disabled]="!!editingOrder()" required autofocus>@for (tab of tabs(); track tab.id) { <option [ngValue]="tab.id">#{{ tab.id }} · Mesa {{ tab.tableNumber }}</option> }</select></label><label class="field full"><span>Observação geral</span><textarea name="notes" [(ngModel)]="form.notes" maxlength="500"></textarea></label></div>
+          <div class="form-section-title"><div><span>Itens do pedido</span><small>Preço e disponibilidade são validados pelo sistema.</small></div><button type="button" class="ghost-button compact-button" (click)="addItem()"><i class="pi pi-plus"></i>Adicionar item</button></div>
+          <div class="order-builder-items">
             @for (item of form.items; track $index; let index = $index) {
-              <div class="order-form-row">
-                <label class="field">
-                  <span>Produto</span>
-                  <select [name]="'product-' + index" [(ngModel)]="item.productId">
-                    <option [ngValue]="0" disabled>Selecione</option>
-                    @for (product of products(); track product.id) { <option [ngValue]="product.id">{{ product.name }} · {{ currency(product.price) }}</option> }
-                  </select>
-                </label>
-                <label class="field quantity-field"><span>Qtd.</span><input [name]="'quantity-' + index" type="number" min="1" [(ngModel)]="item.quantity" /></label>
-                <label class="field"><span>Observação</span><input [name]="'notes-' + index" [(ngModel)]="item.notes" /></label>
-                <button type="button" class="icon-button danger-icon" title="Remover item" (click)="removeItem(index)"><i class="pi pi-trash"></i></button>
-              </div>
+              <section class="order-builder-item">
+                <div class="order-builder-main">
+                  <label class="field"><span>Produto</span><select [name]="'product-' + index" [(ngModel)]="item.productId" (ngModelChange)="onProductChange(item, $event)"><option [ngValue]="0" disabled>Selecione</option>@for (product of products(); track product.id) { <option [ngValue]="product.id">{{ product.name }} · {{ priceSummary(product) }}</option> }</select></label>
+                  @if (activeVariants(item.productId).length > 1) { <label class="field"><span>Variação</span><select [name]="'variant-' + index" [(ngModel)]="item.variantId" (ngModelChange)="item.optionIds = []"><option [ngValue]="0" disabled>Selecione</option>@for (variant of activeVariants(item.productId); track variant.id) { <option [ngValue]="variant.id">{{ variant.name }} · {{ currency(variant.price) }}</option> }</select></label> }
+                  @else if (selectedVariant(item); as variant) { <div class="selected-variant"><span>Variação</span><strong>{{ variantLabel(variant) }}</strong><small>{{ currency(variant.price) }}</small></div> }
+                  <label class="field quantity-field"><span>Qtd.</span><input [name]="'quantity-' + index" type="number" min="1" [(ngModel)]="item.quantity" /></label>
+                  <label class="field"><span>Observação</span><input [name]="'notes-' + index" [(ngModel)]="item.notes" placeholder="Ex.: sem cebola" /></label>
+                  <button type="button" class="icon-button danger-icon" title="Remover item" (click)="removeItem(index)" [disabled]="form.items.length === 1"><i class="pi pi-trash"></i></button>
+                </div>
+                @if (optionGroups(item.productId).length) {
+                  <div class="order-choice-groups">
+                    @for (group of optionGroups(item.productId); track group.id) {
+                      <fieldset class="order-choice-group"><legend>{{ group.name }} @if (group.required) { <small>Obrigatório</small> }</legend><div class="choice-pills">@for (option of activeOptions(group); track option.id) { <label [class.selected]="item.optionIds.includes(option.id)"><input [type]="group.maximumSelections === 1 ? 'radio' : 'checkbox'" [name]="'choice-' + index + '-' + group.id" [checked]="item.optionIds.includes(option.id)" (change)="toggleOption(item, group, option.id)" /><span>{{ option.name }} @if (option.additionalPrice) { <small>+ {{ currency(option.additionalPrice) }}</small> }</span></label> }</div><small>Escolha de {{ group.minimumSelections }} a {{ group.maximumSelections }}.</small></fieldset>
+                    }
+                  </div>
+                }
+              </section>
             }
           </div>
-          <div class="modal-actions">
-            <button type="button" class="ghost-button" (click)="formOpen.set(false)">Cancelar</button>
-            <button type="submit" class="primary-button" [disabled]="saving()"><i class="pi pi-check"></i>{{ saving() ? 'Criando...' : 'Criar pedido' }}</button>
-          </div>
+          <div class="modal-actions"><button type="button" class="ghost-button" (click)="closeForm()">Cancelar</button><button type="submit" class="primary-button" [disabled]="saving()"><i class="pi pi-save"></i>{{ saving() ? 'Salvando...' : 'Salvar rascunho' }}</button></div>
         </form>
       </div>
+    }
+
+    @if (cancelOpen()) {
+      <div class="modal-backdrop" (click)="closeCancel()"><form class="modal-panel compact" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="cancel-title" [dialogCloseDisabled]="saving()" (dialogClose)="closeCancel()" (click)="$event.stopPropagation()" (ngSubmit)="confirmCancellation()"><div class="modal-header"><div><span>Auditoria</span><h2 id="cancel-title">{{ cancelItem() ? 'Cancelar item' : 'Cancelar pedido' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="closeCancel()"><i class="pi pi-times"></i></button></div><label class="field"><span>Motivo</span><textarea name="cancelReason" [(ngModel)]="cancelReason" maxlength="500" required autofocus></textarea></label><div class="modal-actions"><button type="button" class="ghost-button" (click)="closeCancel()">Voltar</button><button type="submit" class="danger-button" [disabled]="saving()"><i class="pi pi-times"></i>Confirmar cancelamento</button></div></form></div>
     }
   `,
 })
@@ -144,103 +118,50 @@ export class OrdersPageComponent implements OnInit {
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly formOpen = signal(false);
+  readonly editingOrder = signal<RestaurantOrder | null>(null);
+  readonly cancelOpen = signal(false);
+  readonly cancelOrder = signal<RestaurantOrder | null>(null);
+  readonly cancelItem = signal<OrderItem | null>(null);
+  cancelReason = '';
   form: { tabId: number; notes: string; items: OrderItemRequest[] } = { tabId: 0, notes: '', items: [] };
 
   ngOnInit(): void { this.load(); }
+  load(): void { this.loading.set(true); this.error.set(null); forkJoin({ orders: this.api.getAll(), tabs: this.tabApi.getOpen(), products: this.productApi.getAll() }).pipe(finalize(() => this.loading.set(false))).subscribe({ next: ({ orders, tabs, products }) => { this.orders.set(orders); this.tabs.set(tabs); this.products.set(products.filter(isCatalogProductSellable)); }, error: (error) => this.error.set(apiErrorMessage(error)) }); }
 
-  load(): void {
-    this.loading.set(true);
-    this.error.set(null);
-    forkJoin({ orders: this.api.getAll(), tabs: this.tabApi.getOpen(), products: this.productApi.getAll() })
-      .pipe(finalize(() => this.loading.set(false)))
-      .subscribe({
-        next: ({ orders, tabs, products }) => {
-          this.orders.set(orders);
-          this.tabs.set(tabs);
-          this.products.set(products.filter((product) => product.active && product.categoryActive));
-        },
-        error: (error) => this.error.set(apiErrorMessage(error)),
-      });
-  }
-
-  openForm(): void {
-    if (!this.auth.currentUser()) {
-      this.feedback.error('Faça login antes de criar o pedido.');
-      return;
-    }
-    if (!this.tabs().length) { this.feedback.info('Abra uma comanda antes de criar um pedido.'); return; }
-    if (!this.products().length) { this.feedback.info('Não há produtos ativos disponíveis.'); return; }
-    this.form = { tabId: this.tabs()[0].id, notes: '', items: [this.emptyItem()] };
-    this.formOpen.set(true);
-  }
-
+  openCreate(): void { if (!this.auth.currentUser()) { this.feedback.error('Faça login antes de criar o pedido.'); return; } if (!this.tabs().length) { this.feedback.info('Abra uma comanda antes de criar um pedido.'); return; } if (!this.products().length) { this.feedback.info('Não há produtos disponíveis.'); return; } this.editingOrder.set(null); this.form = { tabId: this.tabs()[0].id, notes: '', items: [this.emptyItem()] }; this.formOpen.set(true); }
+  openEdit(order: RestaurantOrder): void { this.editingOrder.set(order); this.form = { tabId: order.tabId, notes: order.notes ?? '', items: order.items.filter((item) => item.status === 'DRAFT').map((item) => ({ productId: item.productId, variantId: item.variantId ?? 0, quantity: item.quantity, notes: item.notes, optionIds: item.options.map((option) => option.optionId).filter((id): id is number => id != null) })) }; if (!this.form.items.length) this.form.items = [this.emptyItem()]; this.formOpen.set(true); }
+  closeForm(): void { if (!this.saving()) this.formOpen.set(false); }
   addItem(): void { this.form.items.push(this.emptyItem()); }
   removeItem(index: number): void { if (this.form.items.length > 1) this.form.items.splice(index, 1); }
+  saveDraft(): void { if (!this.form.tabId || this.form.items.some((item) => !item.productId || !item.variantId || item.quantity < 1 || !this.validSelections(item))) { this.feedback.error('Revise os produtos, variações e escolhas obrigatórias.'); return; } this.saving.set(true); const payload = { tabId: this.form.tabId, type: 'TABLE' as const, notes: this.form.notes.trim() || null, items: this.form.items }; const current = this.editingOrder(); const operation = current ? this.api.updateDraft(current.id, payload) : this.api.create(payload); operation.pipe(finalize(() => this.saving.set(false))).subscribe({ next: () => { this.feedback.success('Rascunho salvo. Revise e confirme o pedido.'); this.formOpen.set(false); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
+  confirm(order: RestaurantOrder): void { this.api.confirm(order.id).subscribe({ next: () => { this.feedback.success('Pedido confirmado.'); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
+  deliver(order: RestaurantOrder): void { this.api.updateStatus(order.id, 'DELIVERED').subscribe({ next: () => { this.feedback.success('Pedido entregue.'); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
 
-  create(): void {
-    if (!this.auth.currentUser()) {
-      this.feedback.error('Faça login antes de criar o pedido.');
-      return;
-    }
-    if (!this.form.tabId || this.form.items.some((item) => !item.productId || item.quantity < 1)) {
-      this.feedback.error('Selecione a comanda e preencha todos os itens.');
-      return;
-    }
-    this.saving.set(true);
-    this.api.create({ tabId: this.form.tabId, type: 'TABLE', notes: this.form.notes, items: this.form.items })
-      .pipe(finalize(() => this.saving.set(false)))
-      .subscribe({
-        next: () => { this.feedback.success('Pedido criado com sucesso.'); this.formOpen.set(false); this.load(); },
-        error: (error) => this.feedback.error(apiErrorMessage(error)),
-      });
-  }
+  openCancelOrder(order: RestaurantOrder): void { this.cancelOrder.set(order); this.cancelItem.set(null); this.cancelReason = ''; this.cancelOpen.set(true); }
+  openCancelItem(order: RestaurantOrder, item: OrderItem): void { this.cancelOrder.set(order); this.cancelItem.set(item); this.cancelReason = ''; this.cancelOpen.set(true); }
+  closeCancel(): void { if (!this.saving()) this.cancelOpen.set(false); }
+  confirmCancellation(): void { const order = this.cancelOrder(); const item = this.cancelItem(); const reason = this.cancelReason.trim(); if (!order || !reason) { this.feedback.error('Informe o motivo do cancelamento.'); return; } this.saving.set(true); const operation = item ? this.api.cancelItem(order.id, item.id, reason) : this.api.cancel(order.id, reason); operation.pipe(finalize(() => this.saving.set(false))).subscribe({ next: () => { this.feedback.success(item ? 'Item cancelado.' : 'Pedido cancelado.'); this.cancelOpen.set(false); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
 
-  send(order: RestaurantOrder): void {
-    this.api.sendToKitchen(order.id).subscribe({
-      next: () => { this.feedback.success('Pedido enviado para a cozinha.'); this.load(); },
-      error: (error) => this.feedback.error(apiErrorMessage(error)),
-    });
-  }
-
-  cancel(order: RestaurantOrder): void {
-    this.api.cancel(order.id).subscribe({
-      next: () => { this.feedback.success('Pedido cancelado com sucesso.'); this.load(); },
-      error: (error) => this.feedback.error(apiErrorMessage(error)),
-    });
-  }
-
-  canSendToKitchen(order: RestaurantOrder): boolean {
-    return order.status === 'CREATED' && this.effectiveTabStatus(order) === 'OPEN';
-  }
-
-  canCancel(order: RestaurantOrder): boolean {
-    return order.status !== 'DELIVERED'
-      && order.status !== 'CANCELLED'
-      && this.effectiveTabStatus(order) !== 'CLOSED';
-  }
-
-  orderStateMessage(order: RestaurantOrder): string | null {
-    if (order.status === 'DELIVERED') return 'Pedido entregue';
-    if (order.status === 'CANCELLED') return 'Pedido cancelado';
-    if (this.effectiveTabStatus(order) === 'CANCELLED') return 'Comanda cancelada: cancele este pedido para regularizar o registro.';
-    if (this.effectiveTabStatus(order) === 'CLOSED') return 'Comanda fechada: nenhuma ação está disponível.';
-    return null;
-  }
-
-  effectiveTabStatus(order: RestaurantOrder): TabStatus {
-    return order.tabStatus ?? 'OPEN';
-  }
-
-  orderStateIcon(order: RestaurantOrder): string {
-    if (order.status === 'DELIVERED') return 'pi pi-check-circle';
-    if (order.status === 'CANCELLED') return 'pi pi-ban';
-    return 'pi pi-exclamation-triangle';
-  }
-
-  orderTotal(order: RestaurantOrder): number { return order.items.filter((item) => item.status === 'ACTIVE').reduce((total, item) => total + item.subtotal, 0); }
+  canEdit(order: RestaurantOrder): boolean { return order.status === 'CREATED' && this.effectiveTabStatus(order) === 'OPEN'; }
+  canCancel(order: RestaurantOrder): boolean { return order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && this.effectiveTabStatus(order) === 'OPEN'; }
+  canCancelItem(order: RestaurantOrder, item: OrderItem): boolean { return this.canCancel(order) && item.status !== 'CANCELED' && item.status !== 'DELIVERED'; }
+  orderStateMessage(order: RestaurantOrder): string | null { if (order.status === 'CREATED') return 'Aguardando confirmação'; if (order.status === 'DELIVERED') return 'Pedido entregue'; if (order.status === 'CANCELLED') return 'Pedido cancelado'; if (this.effectiveTabStatus(order) !== 'OPEN') return 'Comanda encerrada'; return null; }
+  effectiveTabStatus(order: RestaurantOrder): TabStatus { return order.tabStatus ?? 'OPEN'; }
+  orderTotal(order: RestaurantOrder): number { return order.items.filter((item) => item.status !== 'CANCELED').reduce((total, item) => total + item.subtotal, 0); }
   tabStatusLabel(status: TabStatus): string { return { OPEN: 'Aberta', CLOSED: 'Fechada', CANCELLED: 'Cancelada' }[status]; }
-  statusLabel(status: OrderStatus): string { return { CREATED: 'Criado', SENT_TO_KITCHEN: 'Recebido', PREPARING: 'Preparando', READY: 'Pronto', DELIVERED: 'Entregue', CANCELLED: 'Cancelado' }[status]; }
-  statusTone(status: OrderStatus): string { return { CREATED: 'info', SENT_TO_KITCHEN: 'info', PREPARING: 'warning', READY: 'success', DELIVERED: 'success', CANCELLED: 'danger' }[status]; }
+  statusLabel(status: OrderStatus): string { return { CREATED: 'Rascunho', SENT_TO_KITCHEN: 'Aguardando preparo', PREPARING: 'Em preparo', READY: 'Pronto', DELIVERED: 'Entregue', CANCELLED: 'Cancelado' }[status]; }
+  statusTone(status: OrderStatus): string { return { CREATED: 'neutral', SENT_TO_KITCHEN: 'info', PREPARING: 'warning', READY: 'success', DELIVERED: 'success', CANCELLED: 'danger' }[status]; }
+  itemStatusLabel(status: OrderItem['status']): string { return { DRAFT: 'Rascunho', WAITING_PREPARATION: 'Na fila', IN_PREPARATION: 'Em preparo', READY: 'Pronto', DELIVERED: 'Entregue', CANCELED: 'Cancelado' }[status]; }
+  itemStatusTone(status: OrderItem['status']): string { return { DRAFT: 'neutral', WAITING_PREPARATION: 'info', IN_PREPARATION: 'warning', READY: 'success', DELIVERED: 'success', CANCELED: 'danger' }[status]; }
   currency(value: number): string { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
-  private emptyItem(): OrderItemRequest { return { productId: 0, quantity: 1, notes: '' }; }
+  activeVariants(productId: number): ProductVariant[] { return sellableVariants(this.products().find((product) => product.id === productId)); }
+  selectedVariant(item: OrderItemRequest): ProductVariant | null { return this.activeVariants(item.productId).find((variant) => variant.id === item.variantId) ?? null; }
+  optionGroups(productId: number): ProductOptionGroup[] { return this.products().find((product) => product.id === productId)?.optionGroups.filter((group) => group.active) ?? []; }
+  activeOptions(group: ProductOptionGroup) { return group.options.filter((option) => option.active); }
+  onProductChange(item: OrderItemRequest, productId: number): void { item.productId = productId; item.optionIds = []; item.variantId = automaticVariantId(this.products().find((product) => product.id === productId)); }
+  toggleOption(item: OrderItemRequest, group: ProductOptionGroup, optionId: number): void { const groupOptionIds = new Set(group.options.map((option) => option.id)); const selectedInGroup = item.optionIds.filter((id) => groupOptionIds.has(id)); if (item.optionIds.includes(optionId)) { item.optionIds = item.optionIds.filter((id) => id !== optionId); return; } if (group.maximumSelections === 1) item.optionIds = item.optionIds.filter((id) => !groupOptionIds.has(id)); else if (selectedInGroup.length >= group.maximumSelections) { this.feedback.info(`Escolha no máximo ${group.maximumSelections} opção(ões) em ${group.name}.`); return; } item.optionIds.push(optionId); }
+  priceSummary(product: Product): string { return priceRangeSummary(product.minimumVariantPrice, product.maximumVariantPrice, (value) => this.currency(value), true); }
+  variantLabel(variant: ProductVariant): string { return operationalVariantLabel(variant.name); }
+  private validSelections(item: OrderItemRequest): boolean { return optionSelectionsAreValid(this.optionGroups(item.productId), item.optionIds); }
+  private emptyItem(): OrderItemRequest { return { productId: 0, variantId: 0, quantity: 1, notes: '', optionIds: [] }; }
 }

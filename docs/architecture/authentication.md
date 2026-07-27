@@ -68,7 +68,7 @@ As rotas e endpoints continuam filtrados por perfil:
 
 - `OWNER` e `ADMIN`: gestão, dashboard, cardápio, relatórios e usuários.
 - `WAITER`: mesas, comandas e pedidos.
-- `KITCHEN`: cozinha e consulta de pedidos permitida.
+- `KITCHEN`: somente fila dedicada de preparo e atualização do estado dos itens.
 - `CASHIER`: caixa e comandas.
 
 A interface oculta itens não permitidos, mas a autorização real fica no backend.

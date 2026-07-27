@@ -1,4 +1,5 @@
-export type InventoryMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT' | 'REVERSAL';
+export type InventoryMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT' | 'SALE' | 'REVERSAL';
+export type InventoryMovementOriginType = 'MANUAL' | 'ORDER_ITEM' | 'ORDER_CANCELLATION';
 
 export interface InventoryMovement {
   id: number;
@@ -9,6 +10,10 @@ export interface InventoryMovement {
   previousStock: number;
   resultingStock: number;
   reason: string | null;
+  originType: InventoryMovementOriginType | null;
+  orderId: number | null;
+  orderItemId: number | null;
+  originReference: string | null;
   userId: number;
   userName: string;
   createdAt: string;

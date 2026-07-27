@@ -1,7 +1,7 @@
 # Endpoints do HubOn MVP
 
-> O Estoque Inteligente possui a primeira etapa implementada: ingredientes,
-> movimentacoes manuais, historico auditavel e ficha tecnica de produtos.
+> O Estoque Inteligente possui controle híbrido: itens manuais, itens de baixa
+> automática, histórico auditável e vínculo simples por variação vendável.
 
 Base local: `http://localhost:8080/api`
 
@@ -63,12 +63,12 @@ deve entrar novamente.
 | Dashboard | `OWNER`, `ADMIN` |
 | Mesas | `OWNER`, `ADMIN`, `WAITER` |
 | Comandas | `OWNER`, `ADMIN`, `WAITER`, `CASHIER` |
-| Pedidos | `OWNER`, `ADMIN`, `WAITER` |
-| Cozinha | `OWNER`, `ADMIN`, `KITCHEN` |
+| Pedidos | `OWNER`, `ADMIN`, `WAITER`, `CASHIER` |
+| Cozinha | `OWNER`, `ADMIN`, `KITCHEN`; o perfil `KITCHEN` acessa apenas a fila de preparo. |
 | Caixa | `OWNER`, `ADMIN`, `CASHIER` |
 | Categorias | `OWNER`, `ADMIN` |
 | Produtos | `OWNER`, `ADMIN` |
-| Estoque | `OWNER`, `ADMIN` alteram; `CASHIER`, `WAITER` e `KITCHEN` consultam |
+| Estoque | `OWNER`, `ADMIN` alteram; `CASHIER` e `WAITER` consultam |
 | Usuários | `OWNER`, `ADMIN` |
 | Relatórios | `OWNER`, `ADMIN` |
 
@@ -89,10 +89,33 @@ deve entrar novamente.
 | --- | --- | --- |
 | GET | `/products` | Lista produtos. |
 | GET | `/products/{id}` | Busca um produto. |
-| POST | `/products` | Cria um produto. |
-| PUT | `/products/{id}` | Atualiza um produto. |
+| POST | `/products` | Cria um produto base sem preço; o resultado pode ficar incompleto. |
+| POST | `/products/registration` | Cadastra produto, variações, vínculos e escolhas em uma transação. |
+| PUT | `/products/{id}` | Atualiza produto base, categoria, status e fluxo de preparo. |
 | PATCH | `/products/{id}/activate` | Ativa um produto. |
 | PATCH | `/products/{id}/deactivate` | Desativa um produto. |
+| PATCH | `/products/{id}/available` | Disponibiliza temporariamente. |
+| PATCH | `/products/{id}/unavailable` | Indisponibiliza temporariamente. |
+| GET | `/products/{productId}/variants` | Lista variações do produto. |
+| POST | `/products/{productId}/variants` | Cria variação vendável com nome, SKU, preço e estados. |
+| GET | `/products/{productId}/variants/{variantId}` | Busca uma variação do produto. |
+| PUT | `/products/{productId}/variants/{variantId}` | Atualiza nome, SKU, preço e estados da variação. |
+| PATCH | `/products/{productId}/variants/{variantId}/activate` | Ativa uma variação. |
+| PATCH | `/products/{productId}/variants/{variantId}/deactivate` | Desativa uma variação. |
+| PATCH | `/products/{productId}/variants/{variantId}/available` | Disponibiliza uma variação. |
+| PATCH | `/products/{productId}/variants/{variantId}/unavailable` | Indisponibiliza uma variação. |
+| GET | `/products/{productId}/option-groups` | Lista grupos e opções. |
+| POST | `/products/{productId}/option-groups` | Cria grupo e opções iniciais. |
+| PUT | `/products/{productId}/option-groups/{groupId}` | Atualiza limites e estado do grupo. |
+| PATCH | `/products/{productId}/option-groups/{groupId}/activate` | Ativa o grupo. |
+| PATCH | `/products/{productId}/option-groups/{groupId}/deactivate` | Desativa o grupo. |
+| POST | `/products/{productId}/option-groups/{groupId}/options` | Cria opção. |
+| PUT | `/products/{productId}/option-groups/{groupId}/options/{optionId}` | Atualiza opção. |
+| PATCH | `/products/{productId}/option-groups/{groupId}/options/{optionId}/activate` | Ativa opção. |
+| PATCH | `/products/{productId}/option-groups/{groupId}/options/{optionId}/deactivate` | Desativa opção. |
+
+O preço existe somente em `ProductVariant`. `PreparationFlow` aceita
+`REQUIRES_PREPARATION` e `DIRECT_SERVICE`.
 
 ## Estoque - ingredientes
 
@@ -102,8 +125,8 @@ deve entrar novamente.
 | GET | `/ingredients/active` | Lista apenas ingredientes ativos. |
 | GET | `/ingredients/alerts` | Lista ingredientes ativos zerados ou abaixo/iguais ao estoque minimo. |
 | GET | `/ingredients/{id}` | Busca um ingrediente. |
-| POST | `/ingredients` | Cria ingrediente com saldo inicial `0`. |
-| PUT | `/ingredients/{id}` | Atualiza cadastro, unidade, minimo, ideal e status; nao aceita saldo atual. |
+| POST | `/ingredients` | Cria ingrediente com saldo inicial `0` e `controlMode` padrao `MANUAL`. |
+| PUT | `/ingredients/{id}` | Atualiza cadastro, unidade, modo, minimo, ideal e status; nao aceita saldo atual. |
 | PATCH | `/ingredients/{id}/activate` | Ativa um ingrediente. |
 | PATCH | `/ingredients/{id}/deactivate` | Desativa sem apagar historico. |
 
@@ -116,9 +139,9 @@ O status retornado e calculado:
 | `currentStock <= minimumStock` | `LOW_STOCK` |
 | `currentStock > minimumStock` | `NORMAL` |
 
-Regras principais: nome unico ignorando maiusculas/minusculas, quantidades nao
-negativas, estoque ideal maior ou igual ao minimo e alteracao de saldo apenas
-por movimentacoes.
+`controlMode` aceita `MANUAL` e `DIRECT_SALE`. Regras principais: nome unico
+ignorando maiusculas/minusculas, quantidades nao negativas, estoque ideal maior
+ou igual ao minimo e alteracao de saldo apenas por movimentacoes.
 
 ## Estoque - movimentacoes
 
@@ -131,29 +154,37 @@ por movimentacoes.
 | POST | `/inventory-movements/losses` | Registra perda com motivo. |
 | POST | `/inventory-movements/adjustments` | Ajusta o saldo fisico encontrado com motivo. |
 
-Tipos persistidos: `ENTRY`, `EXIT`, `LOSS`, `ADJUSTMENT` e `REVERSAL`. O fluxo
-automatico de estorno ainda nao esta implementado.
+Tipos persistidos: `ENTRY`, `EXIT`, `LOSS`, `ADJUSTMENT`, `SALE` e `REVERSAL`.
+Movimentos automaticos usam `originType` (`ORDER_ITEM` ou
+`ORDER_CANCELLATION`) e referenciam pedido e item do pedido.
 
 Toda movimentacao grava ingrediente, tipo, quantidade, saldo anterior, saldo
 resultante, motivo, usuario autenticado e data. Entradas somam; saidas e perdas
 subtraem; ajustes gravam o novo saldo fisico e a diferenca absoluta como
 quantidade movimentada. Nenhum movimento manual pode deixar saldo negativo.
 
-## Ficha tecnica
+## Vinculo variacao-estoque
 
-Base: `/products/{productId}/ingredients`
+Base: `/product-variants/{variantId}/stock-link`
 
 | Metodo | Endpoint | Descricao |
 | --- | --- | --- |
-| GET | `/products/{productId}/ingredients` | Retorna a ficha tecnica completa do produto. |
-| POST | `/products/{productId}/ingredients` | Adiciona ingrediente a ficha. |
-| PUT | `/products/{productId}/ingredients/{ingredientId}` | Atualiza a quantidade de um ingrediente da ficha. |
-| DELETE | `/products/{productId}/ingredients/{ingredientId}` | Remove ingrediente da ficha. |
-| PUT | `/products/{productId}/ingredients` | Substitui a ficha completa em uma transacao. |
+| GET | `/product-variants/{variantId}/stock-link` | Retorna o vinculo ativo. |
+| POST | `/product-variants/{variantId}/stock-link` | Cria vinculo ativo. |
+| PUT | `/product-variants/{variantId}/stock-link` | Atualiza o vinculo ativo. |
+| DELETE | `/product-variants/{variantId}/stock-link` | Desativa o vinculo ativo. |
 
-Produto e ingrediente devem estar ativos para alterar a ficha. Um ingrediente
-nao pode aparecer duas vezes no mesmo produto. A unidade consumida e a unidade
-do proprio ingrediente; nao ha conversao automatica nesta etapa.
+Payload:
+
+```json
+{
+  "stockItemId": 10,
+  "quantityPerSale": 1
+}
+```
+
+O item deve estar ativo e em `DIRECT_SALE`. A variacao, o produto base e a
+categoria devem estar ativos. Existe no maximo um vinculo ativo por variacao.
 
 ## Mesas
 
@@ -187,14 +218,23 @@ pendente.
 | Método | Endpoint | Descrição |
 | --- | --- | --- |
 | GET | `/orders` | Lista pedidos com seus itens. |
+| GET | `/orders/preparation-queue` | Lista somente itens que exigem preparo. |
 | GET | `/orders/{id}` | Busca um pedido. |
-| POST | `/orders` | Cria pedido com um ou mais itens. |
-| POST | `/orders/{id}/send-to-kitchen` | Avança `CREATED` para `SENT_TO_KITCHEN`. |
-| PATCH | `/orders/{id}/status` | Avança uma etapa válida da cozinha. |
-| POST | `/orders/{id}/cancel` | Cancela um pedido ainda não entregue. |
+| POST | `/orders` | Cria rascunho com variações e escolhas validadas. |
+| PUT | `/orders/{id}` | Substitui itens de um pedido ainda em rascunho. |
+| POST | `/orders/{id}/confirm` | Confirma, valida e movimenta estoque em uma transação. |
+| POST | `/orders/{id}/send-to-kitchen` | Alias temporário para confirmação. |
+| PATCH | `/orders/{orderId}/items/{itemId}/status` | Avança um item da fila de preparo. |
+| PATCH | `/orders/{id}/status` | Mantém transições globais compatíveis e entrega. |
+| POST | `/orders/{orderId}/items/{itemId}/cancel` | Cancela item com motivo e eventual estorno. |
+| POST | `/orders/{id}/cancel` | Cancela o pedido com motivo e estorna baixas. |
 
-`GET /orders` retorna os 100 pedidos mais recentes. Cancelamento é rejeitado
-quando o pedido foi entregue ou quando a comanda já possui pagamento.
+`GET /orders` retorna os 100 pedidos mais recentes. Na confirmação, itens
+`DIRECT_SERVICE` ficam `READY`; itens `REQUIRES_PREPARATION` ficam
+`WAITING_PREPARATION`. Somente estes aparecem na fila. Baixas automáticas são
+`SALE`, ocorrem uma vez na confirmação e são estornadas uma vez por
+cancelamento. Pedido entregue, comanda fechada e comanda com pagamento mantêm
+os bloqueios financeiros existentes.
 
 ## Pagamentos
 

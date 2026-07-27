@@ -78,15 +78,16 @@ Dependencias:
 
 ## v0.4 Estoque Inteligente
 
-Objetivo: criar controle de estoque por insumos, receitas e consumo real.
+Objetivo: criar controle de estoque por itens manuais, baixa automatica simples
+por venda e historico auditavel.
 
 Funcionalidades:
 
 - Cadastro de insumos.
 - Unidades base.
 - Movimentacoes de estoque em ledger.
-- Receitas/fichas tecnicas.
-- Baixa automatica por pedido.
+- Vínculo simples variação-estoque para itens `DIRECT_SALE`.
+- Baixa automática na confirmação do pedido.
 - Estorno em cancelamentos elegiveis.
 - Cache documentado de quantidade atual.
 

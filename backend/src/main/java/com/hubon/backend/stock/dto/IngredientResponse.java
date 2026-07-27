@@ -1,5 +1,6 @@
 package com.hubon.backend.stock.dto;
 
+import com.hubon.backend.stock.domain.StockControlMode;
 import com.hubon.backend.stock.domain.StockStatus;
 import com.hubon.backend.stock.domain.UnitOfMeasure;
 
@@ -11,6 +12,7 @@ public record IngredientResponse(
         String name,
         String description,
         UnitOfMeasure unit,
+        StockControlMode controlMode,
         BigDecimal currentStock,
         BigDecimal minimumStock,
         BigDecimal idealStock,

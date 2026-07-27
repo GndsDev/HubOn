@@ -18,10 +18,10 @@ public class TabAccountingService {
     private final PaymentRepository paymentRepository;
 
     public void refreshAmounts(Tab tab) {
-        BigDecimal total = orderItemRepository.sumActiveSubtotalByTabId(
+        BigDecimal total = orderItemRepository.sumBillableSubtotalByTabId(
                 tab.getId(),
                 OrderStatus.CANCELLED,
-                OrderItemStatus.ACTIVE
+                java.util.List.of(OrderItemStatus.DRAFT, OrderItemStatus.CANCELED)
         );
 
         BigDecimal serviceFee = valueOrZero(tab.getServiceFee());

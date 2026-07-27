@@ -60,11 +60,12 @@ Acesso por módulo:
 | Dashboard | `OWNER`, `ADMIN` |
 | Mesas | `OWNER`, `ADMIN`, `WAITER` |
 | Comandas | `OWNER`, `ADMIN`, `WAITER`, `CASHIER` |
-| Pedidos | `OWNER`, `ADMIN`, `WAITER` |
-| Cozinha | `OWNER`, `ADMIN`, `KITCHEN` |
+| Pedidos | `OWNER`, `ADMIN`, `WAITER`, `CASHIER` |
+| Cozinha | `OWNER`, `ADMIN`, `KITCHEN`; a cozinha acessa somente a fila dedicada |
 | Caixa | `OWNER`, `ADMIN`, `CASHIER` |
 | Categorias | `OWNER`, `ADMIN` |
 | Produtos | `OWNER`, `ADMIN` |
+| Estoque | `OWNER`, `ADMIN`; consulta por `WAITER` e `CASHIER` |
 | Usuários | `OWNER`, `ADMIN` |
 | Relatórios | `OWNER`, `ADMIN` |
 

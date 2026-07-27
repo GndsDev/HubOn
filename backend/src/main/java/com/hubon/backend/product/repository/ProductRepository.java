@@ -7,5 +7,9 @@ import java.util.List;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-    List<Product> findAllByOrderByNameAsc();
+    List<Product> findAllByOrderByDisplayOrderAscNameAsc();
+
+    boolean existsByCategoryIdAndNameIgnoreCase(Long categoryId, String name);
+
+    boolean existsByCategoryIdAndNameIgnoreCaseAndIdNot(Long categoryId, String name, Long id);
 }

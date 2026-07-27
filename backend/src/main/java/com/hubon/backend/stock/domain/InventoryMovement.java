@@ -1,5 +1,7 @@
 package com.hubon.backend.stock.domain;
 
+import com.hubon.backend.order.domain.OrderItem;
+import com.hubon.backend.order.domain.RestaurantOrder;
 import com.hubon.backend.user.domain.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -54,6 +56,21 @@ public class InventoryMovement {
 
     @Column(length = 500)
     private String reason;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "origin_type", length = 40)
+    private InventoryMovementOriginType originType;
+
+    @Column(name = "origin_reference", length = 120)
+    private String originReference;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    private RestaurantOrder order;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_item_id")
+    private OrderItem orderItem;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

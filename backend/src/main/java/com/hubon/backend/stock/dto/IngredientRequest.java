@@ -1,5 +1,6 @@
 package com.hubon.backend.stock.dto;
 
+import com.hubon.backend.stock.domain.StockControlMode;
 import com.hubon.backend.stock.domain.UnitOfMeasure;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -18,6 +19,8 @@ public record IngredientRequest(
 
         @NotNull
         UnitOfMeasure unit,
+
+        StockControlMode controlMode,
 
         @NotNull
         @DecimalMin(value = "0.000")

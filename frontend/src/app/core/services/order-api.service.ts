@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
+  OrderItemStatus,
   OrderStatus,
   RestaurantOrder,
   RestaurantOrderRequest,
@@ -17,12 +18,24 @@ export class OrderApiService {
     return this.http.get<RestaurantOrder[]>(this.baseUrl);
   }
 
+  getPreparationQueue(): Observable<RestaurantOrder[]> {
+    return this.http.get<RestaurantOrder[]>(`${this.baseUrl}/preparation-queue`);
+  }
+
   getById(id: number): Observable<RestaurantOrder> {
     return this.http.get<RestaurantOrder>(`${this.baseUrl}/${id}`);
   }
 
   create(request: RestaurantOrderRequest): Observable<RestaurantOrder> {
     return this.http.post<RestaurantOrder>(this.baseUrl, request);
+  }
+
+  updateDraft(id: number, request: RestaurantOrderRequest): Observable<RestaurantOrder> {
+    return this.http.put<RestaurantOrder>(`${this.baseUrl}/${id}`, request);
+  }
+
+  confirm(id: number): Observable<RestaurantOrder> {
+    return this.http.post<RestaurantOrder>(`${this.baseUrl}/${id}/confirm`, {});
   }
 
   sendToKitchen(id: number): Observable<RestaurantOrder> {
@@ -33,7 +46,15 @@ export class OrderApiService {
     return this.http.patch<RestaurantOrder>(`${this.baseUrl}/${id}/status`, { status });
   }
 
-  cancel(id: number): Observable<RestaurantOrder> {
-    return this.http.post<RestaurantOrder>(`${this.baseUrl}/${id}/cancel`, {});
+  updateItemStatus(orderId: number, itemId: number, status: OrderItemStatus): Observable<RestaurantOrder> {
+    return this.http.patch<RestaurantOrder>(`${this.baseUrl}/${orderId}/items/${itemId}/status`, { status });
+  }
+
+  cancel(id: number, reason: string): Observable<RestaurantOrder> {
+    return this.http.post<RestaurantOrder>(`${this.baseUrl}/${id}/cancel`, { reason });
+  }
+
+  cancelItem(orderId: number, itemId: number, reason: string): Observable<RestaurantOrder> {
+    return this.http.post<RestaurantOrder>(`${this.baseUrl}/${orderId}/items/${itemId}/cancel`, { reason });
   }
 }
