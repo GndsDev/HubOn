@@ -5,7 +5,7 @@ import { Component, Input } from '@angular/core';
   standalone: true,
   template: `
     <header class="page-header">
-      <div>
+      <div class="page-header-copy">
         <span class="page-kicker">{{ kicker }}</span>
         <h1>{{ title }}</h1>
         <p>{{ description }}</p>

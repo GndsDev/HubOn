@@ -1,6 +1,7 @@
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { Component, HostListener, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { finalize, forkJoin } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { FeedbackService } from '../../core/services/feedback.service';
@@ -20,18 +21,11 @@ import {
 } from '../../shared/models/ingredient.model';
 import { InventoryMovement, InventoryMovementType } from '../../shared/models/inventory-movement.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
+import { calculateOverlayPosition, OverlayPosition } from '../../shared/util/overlay-position';
 import { formatStockValue, unitLabel as formatUnitLabel } from '../../shared/util/unit-format';
 
 type StockFilter = 'ALL' | 'MANUAL' | 'DIRECT_SALE' | 'INACTIVE' | StockStatus;
 type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
-type ActionMenuPlacement = 'top' | 'bottom';
-
-interface ActionMenuPosition {
-  left: number;
-  top: number;
-  maxHeight: number;
-  placement: ActionMenuPlacement;
-}
 
 @Component({
   selector: 'app-stock-page',
@@ -59,7 +53,7 @@ interface ActionMenuPosition {
       }
     </app-page-header>
 
-    <section class="stats-grid">
+    <section class="stats-grid stock-stats-grid" aria-label="Indicadores de estoque">
       <article class="premium-card stat-card tone-blue">
         <div class="stat-icon"><i class="pi pi-list"></i></div>
         <div class="stat-copy"><span>Itens ativos</span><strong>{{ activeCount }}</strong><p>Cadastros disponiveis para uso.</p></div>
@@ -176,10 +170,6 @@ interface ActionMenuPosition {
         (click)="$event.stopPropagation()"
         (keydown)="onActionMenuKeydown($event)"
       >
-        <button type="button" role="menuitem" (click)="closeActionMenu(); openHistory(menuIngredient)">
-          <i class="pi pi-history"></i>
-          Historico
-        </button>
         @if (canManage()) {
           <button type="button" role="menuitem" (click)="closeActionMenu(); openMovement(menuIngredient, 'ENTRY')">
             <i class="pi pi-plus-circle"></i>
@@ -197,9 +187,17 @@ interface ActionMenuPosition {
             <i class="pi pi-sliders-h"></i>
             Ajuste
           </button>
+          <button type="button" role="menuitem" (click)="closeActionMenu(); openHistory(menuIngredient)">
+            <i class="pi pi-history"></i>
+            Ver historico
+          </button>
           <button type="button" role="menuitem" (click)="closeActionMenu(); openEdit(menuIngredient)">
             <i class="pi pi-pencil"></i>
             Editar
+          </button>
+          <button type="button" role="menuitem" (click)="manageLinks()">
+            <i class="pi pi-link"></i>
+            Gerenciar vinculos
           </button>
           <button
             type="button"
@@ -209,6 +207,11 @@ interface ActionMenuPosition {
           >
             <i [class]="menuIngredient.active ? 'pi pi-ban' : 'pi pi-check'"></i>
             {{ menuIngredient.active ? 'Desativar' : 'Ativar' }}
+          </button>
+        } @else {
+          <button type="button" role="menuitem" (click)="closeActionMenu(); openHistory(menuIngredient)">
+            <i class="pi pi-history"></i>
+            Ver historico
           </button>
         }
       </div>
@@ -332,9 +335,11 @@ interface ActionMenuPosition {
                 <input name="reason" list="stock-exit-reasons" [(ngModel)]="movementForm.reason" maxlength="500" />
               </label>
               <datalist id="stock-exit-reasons">
-                <option value="Uso interno"></option>
-                <option value="Transferencia operacional"></option>
-                <option value="Ajuste de balcão"></option>
+                <option value="Consumo do dia"></option>
+                <option value="Uso na producao"></option>
+                <option value="Quebra operacional"></option>
+                <option value="Correcao de fechamento"></option>
+                <option value="Outro"></option>
               </datalist>
             } @else {
               <label class="field full"><span>Motivo</span><textarea name="reason" [(ngModel)]="movementForm.reason" maxlength="500" [required]="movementType() === 'LOSS' || movementType() === 'ADJUSTMENT'"></textarea></label>
@@ -396,6 +401,7 @@ export class StockPageComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly feedback = inject(FeedbackService);
   private readonly document = inject(DOCUMENT);
+  private readonly router = inject(Router);
 
   readonly ingredients = signal<Ingredient[]>([]);
   readonly movements = signal<InventoryMovement[]>([]);
@@ -412,7 +418,7 @@ export class StockPageComponent implements OnInit {
   readonly historyMovements = signal<InventoryMovement[]>([]);
   readonly historyLoading = signal(false);
   readonly actionMenuOpen = signal<number | null>(null);
-  readonly actionMenuPosition = signal<ActionMenuPosition>({
+  readonly actionMenuPosition = signal<OverlayPosition>({
     left: 0,
     top: 0,
     maxHeight: 320,
@@ -446,6 +452,11 @@ export class StockPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
+  }
+
+  manageLinks(): void {
+    this.closeActionMenu();
+    void this.router.navigate(['/produtos']);
   }
 
   get activeCount(): number {
@@ -760,7 +771,7 @@ export class StockPageComponent implements OnInit {
 
   controlModeHelp(mode: StockControlMode): string {
     return mode === 'DIRECT_SALE'
-      ? 'Pedidos vinculados a produtos baixam este item ao enviar para cozinha.'
+      ? 'Variacoes vinculadas baixam este item uma vez ao confirmar o pedido.'
       : 'Pedidos nao movimentam este item; entradas e saidas continuam manuais.';
   }
 
@@ -779,6 +790,7 @@ export class StockPageComponent implements OnInit {
       EXIT: 'Saida',
       LOSS: 'Perda',
       ADJUSTMENT: 'Ajuste',
+      SALE: 'Venda',
       REVERSAL: 'Estorno',
     }[type];
   }
@@ -789,6 +801,7 @@ export class StockPageComponent implements OnInit {
       EXIT: 'info',
       LOSS: 'danger',
       ADJUSTMENT: 'warning',
+      SALE: 'info',
       REVERSAL: 'neutral',
     }[type];
   }
@@ -799,6 +812,7 @@ export class StockPageComponent implements OnInit {
       EXIT: 'pi pi-minus',
       LOSS: 'pi pi-exclamation-triangle',
       ADJUSTMENT: 'pi pi-sliders-h',
+      SALE: 'pi pi-shopping-cart',
       REVERSAL: 'pi pi-undo',
     }[type];
   }
@@ -858,34 +872,14 @@ export class StockPageComponent implements OnInit {
     const menu = this.document.querySelector<HTMLElement>(`[data-stock-menu-id="${ingredientId}"]`);
     if (!menu) return;
 
-    const triggerRect = trigger.getBoundingClientRect();
-    const menuRect = menu.getBoundingClientRect();
-    const viewportWidth = view.innerWidth;
-    const viewportHeight = view.innerHeight;
-    const margin = this.actionMenuViewportMargin;
-    const gap = this.actionMenuGap;
-    const menuWidth = Math.min(menuRect.width || 192, Math.max(160, viewportWidth - (margin * 2)));
-    const menuHeight = menuRect.height || 280;
-    const spaceBelow = Math.max(0, viewportHeight - triggerRect.bottom - gap - margin);
-    const spaceAbove = Math.max(0, triggerRect.top - gap - margin);
-    const shouldOpenAbove = spaceBelow < menuHeight && spaceAbove > spaceBelow;
-    const availableHeight = Math.max(144, shouldOpenAbove ? spaceAbove : spaceBelow);
-    const renderedHeight = Math.min(menuHeight, availableHeight);
-    const maxLeft = viewportWidth - margin - menuWidth;
-    let left = triggerRect.right - menuWidth;
-    left = Math.max(margin, Math.min(left, maxLeft));
-
-    let top = shouldOpenAbove
-      ? triggerRect.top - gap - renderedHeight
-      : triggerRect.bottom + gap;
-    top = Math.max(margin, Math.min(top, viewportHeight - margin - renderedHeight));
-
-    this.actionMenuPosition.set({
-      left: Math.round(left),
-      top: Math.round(top),
-      maxHeight: Math.floor(availableHeight),
-      placement: shouldOpenAbove ? 'top' : 'bottom',
-    });
+    this.actionMenuPosition.set(calculateOverlayPosition(
+      trigger.getBoundingClientRect(),
+      menu.getBoundingClientRect(),
+      view.innerWidth,
+      view.innerHeight,
+      this.actionMenuGap,
+      this.actionMenuViewportMargin,
+    ));
   }
 
   private focusFirstAction(ingredientId: number): void {

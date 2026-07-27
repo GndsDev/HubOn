@@ -102,4 +102,20 @@ describe('App', () => {
     expect(router.url).toBe('/minha-conta');
     expect(fixture.nativeElement.textContent).toContain('Minha Conta');
   });
+
+  it('should reflect the collapsed sidebar state in the application shell', async () => {
+    authenticated.set(true);
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/dashboard');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.hub-shell')?.classList.contains('sidebar-collapsed')).toBe(false);
+
+    fixture.componentInstance.toggleSidebar();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.hub-shell')?.classList.contains('sidebar-collapsed')).toBe(true);
+    expect(fixture.nativeElement.querySelector('.hub-sidebar')?.classList.contains('collapsed')).toBe(true);
+  });
 });
