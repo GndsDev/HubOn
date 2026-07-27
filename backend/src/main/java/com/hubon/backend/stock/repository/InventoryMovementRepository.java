@@ -33,4 +33,13 @@ public interface InventoryMovementRepository extends JpaRepository<InventoryMove
             InventoryMovementOriginType originType,
             InventoryMovementType type
     );
+
+    boolean existsByIngredientId(Long ingredientId);
+
+    @EntityGraph(attributePaths = {"ingredient", "user", "order", "orderItem"})
+    List<InventoryMovement> findAllByOrderItemIdAndOriginTypeAndTypeOrderByCreatedAtAsc(
+            Long orderItemId,
+            InventoryMovementOriginType originType,
+            InventoryMovementType type
+    );
 }

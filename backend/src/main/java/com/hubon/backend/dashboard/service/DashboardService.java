@@ -80,7 +80,7 @@ public class DashboardService {
 
     private List<DashboardSummaryResponse.BestSellingProduct> bestSellingProducts() {
         return orderItemRepository.findBestSellingProducts(
-                        OrderItemStatus.ACTIVE,
+                        List.of(OrderItemStatus.DRAFT, OrderItemStatus.CANCELED),
                         OrderStatus.CANCELLED,
                         PageRequest.of(0, 5)
                 )
@@ -118,7 +118,8 @@ public class DashboardService {
         Map<Long, BigDecimal> amountByOrder = orderItemRepository
                 .findAllByOrderIdIn(orders.stream().map(RestaurantOrder::getId).toList())
                 .stream()
-                .filter(item -> item.getStatus() == OrderItemStatus.ACTIVE)
+                .filter(item -> item.getStatus() != OrderItemStatus.DRAFT)
+                .filter(item -> item.getStatus() != OrderItemStatus.CANCELED)
                 .collect(Collectors.groupingBy(
                         item -> item.getOrder().getId(),
                         Collectors.reducing(

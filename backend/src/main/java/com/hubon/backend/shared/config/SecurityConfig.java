@@ -72,15 +72,17 @@ public class SecurityConfig {
                         auth.requestMatchers("/api/dashboard/**").hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers("/api/categories/**").hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers(HttpMethod.GET, "/api/ingredients/**")
-                                .hasAnyRole("OWNER", "ADMIN", "CASHIER", "WAITER", "KITCHEN");
+                                .hasAnyRole("OWNER", "ADMIN", "CASHIER", "WAITER");
                         auth.requestMatchers("/api/ingredients/**").hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers(HttpMethod.GET, "/api/inventory-movements/**")
-                                .hasAnyRole("OWNER", "ADMIN", "CASHIER", "WAITER", "KITCHEN");
+                                .hasAnyRole("OWNER", "ADMIN", "CASHIER", "WAITER");
                         auth.requestMatchers(HttpMethod.POST, "/api/inventory-movements/**")
                                 .hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers(HttpMethod.GET, "/api/product-variants/*/stock-link")
                                 .hasAnyRole("OWNER", "ADMIN", "CASHIER");
                         auth.requestMatchers("/api/product-variants/**").hasAnyRole("OWNER", "ADMIN");
+                        auth.requestMatchers(HttpMethod.GET, "/api/products/**")
+                                .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
                         auth.requestMatchers("/api/products/**").hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers("/api/users/**").hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers("/api/roles/**").hasAnyRole("OWNER", "ADMIN");
@@ -93,16 +95,26 @@ public class SecurityConfig {
                         auth.requestMatchers("/api/tabs/**")
                                 .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
 
+                        auth.requestMatchers(HttpMethod.GET, "/api/orders/preparation-queue")
+                                .hasAnyRole("OWNER", "ADMIN", "KITCHEN");
                         auth.requestMatchers(HttpMethod.GET, "/api/orders/**")
-                                .hasAnyRole("OWNER", "ADMIN", "WAITER", "KITCHEN");
+                                .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
+                        auth.requestMatchers(HttpMethod.PATCH, "/api/orders/*/items/*/status")
+                                .hasAnyRole("OWNER", "ADMIN", "KITCHEN");
                         auth.requestMatchers(HttpMethod.PATCH, "/api/orders/*/status")
                                 .hasAnyRole("OWNER", "ADMIN", "KITCHEN");
+                        auth.requestMatchers(HttpMethod.POST, "/api/orders/*/confirm")
+                                .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
                         auth.requestMatchers(HttpMethod.POST, "/api/orders/*/send-to-kitchen")
                                 .hasAnyRole("OWNER", "ADMIN", "WAITER");
+                        auth.requestMatchers(HttpMethod.POST, "/api/orders/*/items/*/cancel")
+                                .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
                         auth.requestMatchers(HttpMethod.POST, "/api/orders/*/cancel")
-                                .hasAnyRole("OWNER", "ADMIN", "WAITER");
+                                .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
+                        auth.requestMatchers(HttpMethod.PUT, "/api/orders/*")
+                                .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
                         auth.requestMatchers(HttpMethod.POST, "/api/orders")
-                                .hasAnyRole("OWNER", "ADMIN", "WAITER");
+                                .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
 
                         auth.requestMatchers("/api/payments/**").hasAnyRole("OWNER", "ADMIN", "CASHIER");
 

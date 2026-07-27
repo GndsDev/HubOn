@@ -1,6 +1,7 @@
 package com.hubon.backend.product.dto;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -19,6 +20,11 @@ public record ProductVariantRequest(
         @DecimalMin(value = "0.00")
         BigDecimal price,
 
-        Boolean active
+        Boolean active,
+
+        Boolean available,
+
+        @Min(0)
+        Integer displayOrder
 ) {
 }

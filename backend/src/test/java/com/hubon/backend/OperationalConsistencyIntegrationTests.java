@@ -1,11 +1,15 @@
 package com.hubon.backend;
 
+import com.hubon.backend.auth.service.AuthenticatedUser;
+import com.hubon.backend.user.domain.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -41,7 +45,12 @@ class OperationalConsistencyIntegrationTests {
 
     @AfterEach
     void cleanup() {
+        SecurityContextHolder.clearContext();
         if (tabId != null) {
+            jdbcTemplate.update(
+                    "delete from order_item_options where order_item_id in (select id from order_items where order_id in (select id from orders where tab_id = ?))",
+                    tabId
+            );
             jdbcTemplate.update(
                     "delete from order_items where order_id in (select id from orders where tab_id = ?)",
                     tabId
@@ -226,8 +235,8 @@ class OperationalConsistencyIntegrationTests {
                 "com.hubon.backend.order.dto.OrderItemRequest"
         );
         Object itemRequest = itemRequestClass
-                .getConstructor(Long.class, Long.class, Integer.class, String.class)
-                .newInstance(productId, productVariantId, 1, null);
+                .getConstructor(Long.class, Long.class, Integer.class, String.class, List.class)
+                .newInstance(productId, productVariantId, 1, null, List.of());
         Class<?> orderRequestClass = Class.forName(
                 "com.hubon.backend.order.dto.RestaurantOrderRequest"
         );
@@ -300,7 +309,7 @@ class OperationalConsistencyIntegrationTests {
 
     private Long insertUser() {
         String suffix = UUID.randomUUID().toString();
-        return jdbcTemplate.queryForObject(
+        Long insertedUserId = jdbcTemplate.queryForObject(
                 """
                 insert into users (name, email, password, active)
                 values (?, ?, ?, true)
@@ -311,6 +320,18 @@ class OperationalConsistencyIntegrationTests {
                 "operator-" + suffix + "@hubon.test",
                 "{noop}test"
         );
+        User authenticatedUser = User.builder()
+                .id(insertedUserId)
+                .name("Operador operacional")
+                .email("operator-" + suffix + "@hubon.test")
+                .password("{noop}test")
+                .active(true)
+                .build();
+        AuthenticatedUser principal = new AuthenticatedUser(authenticatedUser);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
+        );
+        return insertedUserId;
     }
 
     private Long insertTable(String status) {
@@ -365,8 +386,8 @@ class OperationalConsistencyIntegrationTests {
     private Long insertProduct() {
         Long insertedProductId = jdbcTemplate.queryForObject(
                 """
-                insert into products (category_id, name, price, active)
-                values (?, ?, 25.00, true)
+                insert into products (category_id, name, active)
+                values (?, ?, true)
                 returning id
                 """,
                 Long.class,

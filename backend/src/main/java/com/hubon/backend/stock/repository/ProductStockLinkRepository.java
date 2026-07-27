@@ -17,4 +17,6 @@ public interface ProductStockLinkRepository extends JpaRepository<ProductStockLi
     List<ProductStockLink> findAllByProductVariantIdInAndActiveTrue(Collection<Long> productVariantIds);
 
     boolean existsByProductVariantIdAndActiveTrue(Long productVariantId);
+
+    boolean existsByStockItemIdAndActiveTrue(Long stockItemId);
 }

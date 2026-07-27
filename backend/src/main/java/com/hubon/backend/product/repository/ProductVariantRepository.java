@@ -11,13 +11,13 @@ import java.util.Optional;
 public interface ProductVariantRepository extends JpaRepository<ProductVariant, Long> {
 
     @EntityGraph(attributePaths = {"product", "product.category"})
-    List<ProductVariant> findAllByProductIdOrderByNameAsc(Long productId);
+    List<ProductVariant> findAllByProductIdOrderByDisplayOrderAscNameAsc(Long productId);
 
     @EntityGraph(attributePaths = {"product", "product.category"})
-    List<ProductVariant> findAllByProductIdInOrderByNameAsc(Collection<Long> productIds);
+    List<ProductVariant> findAllByProductIdInOrderByDisplayOrderAscNameAsc(Collection<Long> productIds);
 
     @EntityGraph(attributePaths = {"product", "product.category"})
-    List<ProductVariant> findAllByProductIdAndActiveTrueOrderByNameAsc(Long productId);
+    List<ProductVariant> findAllByProductIdAndActiveTrueAndAvailableTrueOrderByDisplayOrderAscNameAsc(Long productId);
 
     @EntityGraph(attributePaths = {"product", "product.category"})
     Optional<ProductVariant> findByIdAndProductId(Long id, Long productId);

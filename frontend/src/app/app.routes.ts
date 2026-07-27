@@ -45,7 +45,7 @@ export const routes: Routes = [
       import('./features/orders/orders-page.component').then(
         (module) => module.OrdersPageComponent,
       ),
-    data: { label: 'Pedidos', roles: ['OWNER', 'ADMIN', 'WAITER'] },
+    data: { label: 'Pedidos', roles: ['OWNER', 'ADMIN', 'WAITER', 'CASHIER'] },
   },
   {
     path: 'cozinha',
@@ -90,7 +90,7 @@ export const routes: Routes = [
       import('./features/stock/stock-page.component').then(
         (module) => module.StockPageComponent,
       ),
-    data: { label: 'Estoque', roles: ['OWNER', 'ADMIN', 'CASHIER', 'WAITER', 'KITCHEN'] },
+    data: { label: 'Estoque', roles: ['OWNER', 'ADMIN', 'CASHIER', 'WAITER'] },
   },
   {
     path: 'relatorios',

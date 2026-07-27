@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+
 public record OrderItemRequest(
         Long productId,
 
@@ -14,6 +16,8 @@ public record OrderItemRequest(
         Integer quantity,
 
         @Size(max = 500)
-        String notes
+        String notes,
+
+        List<Long> optionIds
 ) {
 }

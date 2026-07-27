@@ -49,6 +49,12 @@ public class ProductVariant {
     @Column(nullable = false)
     private Boolean active;
 
+    @Column(nullable = false)
+    private Boolean available;
+
+    @Column(name = "display_order", nullable = false)
+    private Integer displayOrder;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -60,6 +66,12 @@ public class ProductVariant {
         LocalDateTime now = LocalDateTime.now();
         if (active == null) {
             active = true;
+        }
+        if (available == null) {
+            available = true;
+        }
+        if (displayOrder == null) {
+            displayOrder = 0;
         }
         if (createdAt == null) {
             createdAt = now;

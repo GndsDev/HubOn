@@ -18,6 +18,8 @@ public record RestaurantOrderResponse(
         Long createdByUserId,
         String createdByUserName,
         String notes,
+        LocalDateTime confirmedAt,
+        String cancellationReason,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         List<OrderItemResponse> items

@@ -1,6 +1,6 @@
 package com.hubon.backend.product.domain;
 
 public enum PreparationFlow {
-    KITCHEN,
+    REQUIRES_PREPARATION,
     DIRECT_SERVICE
 }

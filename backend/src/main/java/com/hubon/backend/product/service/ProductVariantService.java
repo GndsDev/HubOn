@@ -30,7 +30,7 @@ public class ProductVariantService {
     @Transactional(readOnly = true)
     public List<ProductVariantResponse> listByProduct(Long productId) {
         ensureProductExists(productId);
-        List<ProductVariant> variants = variantRepository.findAllByProductIdOrderByNameAsc(productId);
+        List<ProductVariant> variants = variantRepository.findAllByProductIdOrderByDisplayOrderAscNameAsc(productId);
         Map<Long, ProductStockLink> linksByVariantId = linksByVariantId(variants);
         return variants.stream()
                 .map(variant -> toResponse(variant, linksByVariantId.get(variant.getId())))
@@ -57,6 +57,8 @@ public class ProductVariantService {
                 .sku(normalizeOptional(request.sku()))
                 .price(request.price())
                 .active(request.active())
+                .available(request.available())
+                .displayOrder(valueOrZero(request.displayOrder()))
                 .build();
 
         return toResponse(variantRepository.save(variant), null);
@@ -73,6 +75,8 @@ public class ProductVariantService {
         variant.setSku(normalizeOptional(request.sku()));
         variant.setPrice(request.price());
         variant.setActive(request.active() == null ? variant.getActive() : request.active());
+        variant.setAvailable(request.available() == null ? variant.getAvailable() : request.available());
+        variant.setDisplayOrder(valueOrZero(request.displayOrder()));
 
         ProductStockLink link = productStockLinkRepository.findByProductVariantIdAndActiveTrue(variant.getId()).orElse(null);
         return toResponse(variant, link);
@@ -94,6 +98,14 @@ public class ProductVariantService {
         return toResponse(variant, link);
     }
 
+    @Transactional
+    public ProductVariantResponse setAvailable(Long productId, Long variantId, boolean available) {
+        ProductVariant variant = findByProduct(productId, variantId);
+        variant.setAvailable(available);
+        ProductStockLink link = productStockLinkRepository.findByProductVariantIdAndActiveTrue(variant.getId()).orElse(null);
+        return toResponse(variant, link);
+    }
+
     @Transactional(readOnly = true)
     public ProductVariant findSellableVariant(Long productId, Long variantId) {
         ProductVariant variant = resolveRequestedVariant(productId, variantId);
@@ -102,11 +114,17 @@ public class ProductVariantService {
         if (!Boolean.TRUE.equals(product.getActive())) {
             throw new BusinessException("Produto inativo nao pode ser vendido");
         }
+        if (!Boolean.TRUE.equals(product.getAvailable())) {
+            throw new BusinessException("Produto indisponivel nao pode ser vendido");
+        }
         if (!Boolean.TRUE.equals(product.getCategory().getActive())) {
             throw new BusinessException("Produto pertence a uma categoria inativa.");
         }
         if (!Boolean.TRUE.equals(variant.getActive())) {
             throw new BusinessException("Variacao inativa nao pode ser vendida");
+        }
+        if (!Boolean.TRUE.equals(variant.getAvailable())) {
+            throw new BusinessException("Variacao indisponivel nao pode ser vendida");
         }
         return variant;
     }
@@ -130,7 +148,8 @@ public class ProductVariantService {
             throw new BusinessException("Produto ou variacao e obrigatorio");
         }
 
-        List<ProductVariant> activeVariants = variantRepository.findAllByProductIdAndActiveTrueOrderByNameAsc(productId);
+        List<ProductVariant> activeVariants = variantRepository
+                .findAllByProductIdAndActiveTrueAndAvailableTrueOrderByDisplayOrderAscNameAsc(productId);
         if (activeVariants.isEmpty()) {
             throw new BusinessException("Produto precisa de pelo menos uma variacao ativa para ser vendido");
         }
@@ -190,6 +209,8 @@ public class ProductVariantService {
                 variant.getSku(),
                 variant.getPrice(),
                 variant.getActive(),
+                variant.getAvailable(),
+                variant.getDisplayOrder(),
                 stockLink != null && Boolean.TRUE.equals(stockLink.getActive()),
                 stockLink == null ? null : stockLink.getId(),
                 stockLink == null ? null : stockLink.getStockItem().getId(),
@@ -209,5 +230,9 @@ public class ProductVariantService {
             return null;
         }
         return value.trim();
+    }
+
+    private int valueOrZero(Integer value) {
+        return value == null ? 0 : value;
     }
 }

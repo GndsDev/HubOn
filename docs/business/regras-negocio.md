@@ -14,10 +14,10 @@ hibrido, baixa automatica simples, saldo negativo e estorno estao separadas em
 - Variacao exige nome e preco maior ou igual a zero.
 - O nome da variacao deve ser unico dentro do produto, ignorando maiusculas e
   minusculas.
-- Produto so pode ser vendido quando possui ao menos uma variacao ativa.
-- Produto inativo nao pode entrar em um novo pedido.
+- Produto so pode ser vendido quando possui ao menos uma variacao ativa e disponivel.
+- Produto inativo ou indisponivel nao pode entrar em um novo pedido.
 - Produto pertencente a uma categoria inativa nao pode entrar em um novo pedido.
-- Variacao inativa nao pode entrar em um novo pedido.
+- Variacao inativa ou indisponivel nao pode entrar em um novo pedido.
 - Alterar nome ou preco de produto/variacao nao muda itens antigos.
 - Cada item congela `productNameSnapshot`, `productVariantNameSnapshot` e
   `unitPriceSnapshot`.
@@ -56,12 +56,11 @@ hibrido, baixa automatica simples, saldo negativo e estorno estao separadas em
 
 ## Pedidos e cozinha
 
-- Pedido pertence a uma comanda aberta e comeca como `CREATED`.
-- Itens `KITCHEN` podem avancar de `CREATED` para `SENT_TO_KITCHEN`.
-- Itens `DIRECT_SERVICE` nao entram na cozinha e ficam prontos imediatamente.
-- Pedido composto somente por itens `DIRECT_SERVICE` pode ir direto para `READY`.
-- A cozinha segue somente esta sequencia:
-  `SENT_TO_KITCHEN` -> `PREPARING` -> `READY` -> `DELIVERED`.
+- Pedido pertence a uma comanda aberta, começa como `CREATED` e seus itens como `DRAFT`.
+- A confirmação envia itens `REQUIRES_PREPARATION` para `WAITING_PREPARATION`.
+- Itens `DIRECT_SERVICE` não entram na fila e ficam `READY` imediatamente.
+- Pedido composto somente por itens `DIRECT_SERVICE` fica `READY`.
+- A fila segue por item: `WAITING_PREPARATION` -> `IN_PREPARATION` -> `READY`.
 - Transicoes fora dessa sequencia sao rejeitadas.
 - Pedido entregue nao pode ser cancelado.
 - Pedido nao pode ser cancelado se sua comanda ja possui pagamento registrado.

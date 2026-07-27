@@ -15,11 +15,18 @@ public record ProductResponse(
         String description,
         PreparationFlow preparationFlow,
         Boolean active,
+        Boolean available,
+        Integer displayOrder,
         String imageUrl,
+        Integer variantCount,
         Integer activeVariantCount,
+        Integer sellableVariantCount,
         BigDecimal minimumVariantPrice,
+        BigDecimal maximumVariantPrice,
         Boolean hasAutomaticStockLink,
+        Boolean complete,
         List<ProductVariantResponse> variants,
+        List<ProductOptionGroupResponse> optionGroups,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

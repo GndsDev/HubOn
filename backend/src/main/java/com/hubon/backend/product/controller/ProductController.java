@@ -1,6 +1,7 @@
 package com.hubon.backend.product.controller;
 
 import com.hubon.backend.product.dto.ProductRequest;
+import com.hubon.backend.product.dto.ProductRegistrationRequest;
 import com.hubon.backend.product.dto.ProductResponse;
 import com.hubon.backend.product.service.ProductService;
 import jakarta.validation.Valid;
@@ -41,6 +42,12 @@ public class ProductController {
         return productService.create(request);
     }
 
+    @PostMapping("/registration")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ProductResponse register(@Valid @RequestBody ProductRegistrationRequest request) {
+        return productService.register(request);
+    }
+
     @PutMapping("/{id}")
     public ProductResponse update(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
         return productService.update(id, request);
@@ -54,5 +61,15 @@ public class ProductController {
     @PatchMapping("/{id}/deactivate")
     public ProductResponse deactivate(@PathVariable Long id) {
         return productService.deactivate(id);
+    }
+
+    @PatchMapping("/{id}/available")
+    public ProductResponse makeAvailable(@PathVariable Long id) {
+        return productService.setAvailable(id, true);
+    }
+
+    @PatchMapping("/{id}/unavailable")
+    public ProductResponse makeUnavailable(@PathVariable Long id) {
+        return productService.setAvailable(id, false);
     }
 }

@@ -1,4 +1,4 @@
-export type InventoryMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT' | 'REVERSAL';
+export type InventoryMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT' | 'SALE' | 'REVERSAL';
 export type InventoryMovementOriginType = 'MANUAL' | 'ORDER_ITEM' | 'ORDER_CANCELLATION';
 
 export interface InventoryMovement {

@@ -105,12 +105,24 @@ class SecurityAuthorizationIntegrationTests {
     }
 
     @Test
-    void shouldAllowKitchenToListOrdersButNotCreateOrders() throws Exception {
+    void shouldAllowKitchenToUseOnlyPreparationQueueAndItemStatus() throws Exception {
         String token = tokenFor(kitchenEmail);
+
+        mockMvc.perform(get("/api/orders/preparation-queue")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/orders")
                         .header("Authorization", bearer(token)))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/ingredients")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/inventory-movements")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isForbidden());
 
         mockMvc.perform(post("/api/orders")
                         .header("Authorization", bearer(token))

@@ -62,4 +62,14 @@ public class ProductVariantController {
     public ProductVariantResponse deactivate(@PathVariable Long productId, @PathVariable Long variantId) {
         return productVariantService.deactivate(productId, variantId);
     }
+
+    @PatchMapping("/{variantId}/available")
+    public ProductVariantResponse makeAvailable(@PathVariable Long productId, @PathVariable Long variantId) {
+        return productVariantService.setAvailable(productId, variantId, true);
+    }
+
+    @PatchMapping("/{variantId}/unavailable")
+    public ProductVariantResponse makeUnavailable(@PathVariable Long productId, @PathVariable Long variantId) {
+        return productVariantService.setAvailable(productId, variantId, false);
+    }
 }

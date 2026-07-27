@@ -21,8 +21,8 @@
 7. Em **Pedidos**, crie um pedido para a comanda.
 8. Adicione um ou mais produtos com quantidade maior que zero; se houver varias
    variacoes ativas, selecione a variacao desejada.
-9. Envie o pedido para a cozinha quando houver itens `KITCHEN`.
-10. Em **Cozinha**, avance para Preparando.
+9. Confirme o pedido; somente itens que requerem preparo devem entrar na fila.
+10. Em **Cozinha**, avance o item para Em preparo.
 11. Avance para Pronto.
 12. Marque como Entregue.
 13. Em **Caixa**, selecione a comanda.
@@ -62,7 +62,7 @@
 1. Crie um produto com fluxo `DIRECT_SERVICE` e uma variacao ativa.
 2. Crie um pedido somente com esse item.
 3. Resultado esperado: pedido fica pronto sem aparecer na Cozinha.
-4. Se houver vinculo de estoque, confirme baixa automatica na criacao do pedido.
+4. Se houver vinculo de estoque, confirme baixa automatica uma unica vez na confirmação.
 
 ### Pagamento invalido
 

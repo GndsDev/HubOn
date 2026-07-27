@@ -156,8 +156,10 @@ public class DataSeeder implements CommandLineRunner {
                 .category(category)
                 .name(name)
                 .description(description)
-                .preparationFlow(PreparationFlow.KITCHEN)
+                .preparationFlow(PreparationFlow.REQUIRES_PREPARATION)
                 .active(true)
+                .available(true)
+                .displayOrder(0)
                 .build());
 
         productVariantRepository.save(ProductVariant.builder()
@@ -165,6 +167,8 @@ public class DataSeeder implements CommandLineRunner {
                 .name("Padrão")
                 .price(price)
                 .active(true)
+                .available(true)
+                .displayOrder(0)
                 .build());
     }
 

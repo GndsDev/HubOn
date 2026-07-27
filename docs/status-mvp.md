@@ -42,8 +42,8 @@ Documentos centrais:
 - Toasts de erro anunciados como `alert`.
 - Regras financeiras protegem pagamento excedente, cancelamentos e concorrência.
 - Regras de criação de usuários protegem OWNER/ADMIN contra escalonamento indevido.
-- Estoque Inteligente com itens manuais, baixa automatica simples por venda,
-  vinculo produto-estoque, ledger e estorno por cancelamento.
+- Estoque Inteligente com itens manuais, baixa automática por variação,
+  ledger e estorno por cancelamento.
 - Build de produção do frontend configurado.
 
 ## Parcial
@@ -72,8 +72,8 @@ Documentos centrais:
 ## Próxima fase planejada
 
 O **Estoque Inteligente** ja possui o recorte hibrido implementado: itens
-manuais, itens `DIRECT_SALE`, vinculo simples com produtos, baixa ao enviar o
-pedido para cozinha e estorno idempotente em cancelamentos elegiveis.
+manuais, itens `DIRECT_SALE`, vínculo por variação, baixa na confirmação do
+pedido e estorno idempotente em cancelamentos elegíveis.
 
 Continuam fora do MVP: ficha tecnica, receita multi-ingrediente, producao,
 rendimento, conversao automatica de unidades, compras, fornecedores, lotes,

@@ -86,8 +86,8 @@ Funcionalidades:
 - Cadastro de insumos.
 - Unidades base.
 - Movimentacoes de estoque em ledger.
-- Vinculo simples produto-estoque para itens `DIRECT_SALE`.
-- Baixa automatica por pedido enviado para cozinha.
+- Vínculo simples variação-estoque para itens `DIRECT_SALE`.
+- Baixa automática na confirmação do pedido.
 - Estorno em cancelamentos elegiveis.
 - Cache documentado de quantidade atual.
 

@@ -11,6 +11,8 @@ public record ProductVariantResponse(
         String sku,
         BigDecimal price,
         Boolean active,
+        Boolean available,
+        Integer displayOrder,
         Boolean stockLinkActive,
         Long stockLinkId,
         Long stockItemId,

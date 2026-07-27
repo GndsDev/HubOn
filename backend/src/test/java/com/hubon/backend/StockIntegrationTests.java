@@ -87,6 +87,7 @@ class StockIntegrationTests {
     void cleanup() {
         for (Long orderId : orderIds) {
             jdbcTemplate.update("delete from inventory_movements where order_id = ?", orderId);
+            jdbcTemplate.update("delete from order_item_options where order_item_id in (select id from order_items where order_id = ?)", orderId);
             jdbcTemplate.update("delete from order_items where order_id = ?", orderId);
             jdbcTemplate.update("delete from orders where id = ?", orderId);
         }
@@ -407,7 +408,7 @@ class StockIntegrationTests {
                 .andExpect(jsonPath("$.status").value("SENT_TO_KITCHEN"));
 
         assertMoney("2.000", ingredientStock(ingredientId));
-        assertEquals(1, movementCountByOrigin(ingredientId, "ORDER_ITEM", "EXIT"));
+        assertEquals(1, movementCountByOrigin(ingredientId, "ORDER_ITEM", "SALE"));
     }
 
     @Test
@@ -429,13 +430,13 @@ class StockIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(
-                        "Estoque insuficiente para Stock Test Insuficiente " + suffix
+                        "Estoque insuficiente para Produto Estoque " + suffix
                                 + ". Disponivel: 2 UN. Necessario: 3 UN."
                 ));
 
         assertMoney("2.000", ingredientStock(ingredientId));
         assertEquals("CREATED", orderStatus(orderId));
-        assertEquals(0, movementCountByOrigin(ingredientId, "ORDER_ITEM", "EXIT"));
+        assertEquals(0, movementCountByOrigin(ingredientId, "ORDER_ITEM", "SALE"));
     }
 
     @Test
@@ -458,12 +459,14 @@ class StockIntegrationTests {
                 .andExpect(status().isOk());
         mockMvc.perform(post("/api/orders/{id}/cancel", orderId)
                         .header("Authorization", bearer(tokenFor(ownerEmail)))
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Cancelamento de teste\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
         mockMvc.perform(post("/api/orders/{id}/cancel", orderId)
                         .header("Authorization", bearer(tokenFor(ownerEmail)))
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Cancelamento repetido\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
 
@@ -485,7 +488,7 @@ class StockIntegrationTests {
                 .andExpect(jsonPath("$.status").value("SENT_TO_KITCHEN"));
 
         assertMoney("3.000", ingredientStock(ingredientId));
-        assertEquals(0, movementCountByOrigin(ingredientId, "ORDER_ITEM", "EXIT"));
+        assertEquals(0, movementCountByOrigin(ingredientId, "ORDER_ITEM", "SALE"));
     }
 
     @Test
@@ -639,8 +642,8 @@ class StockIntegrationTests {
 
         Long productId = jdbcTemplate.queryForObject(
                 """
-                insert into products (category_id, name, price, active)
-                values (?, ?, 25.00, ?)
+                insert into products (category_id, name, active)
+                values (?, ?, ?)
                 returning id
                 """,
                 Long.class,
@@ -721,7 +724,7 @@ class StockIntegrationTests {
                     status,
                     subtotal
                 )
-                values (?, ?, ?, ?, 'Padrão', 25.00, ?, 'ACTIVE', ?)
+                values (?, ?, ?, ?, 'Padrão', 25.00, ?, 'DRAFT', ?)
                 """,
                 orderId,
                 productId,

@@ -2,363 +2,147 @@
 
 ## Visão geral
 
-O HubOn usa PostgreSQL. O esquema é criado e versionado pelo Flyway, e os nomes
-de tabelas e campos permanecem em inglês.
-
-Fluxo central:
+O HubOn usa PostgreSQL, Flyway e `spring.jpa.hibernate.ddl-auto=validate`. O
+catálogo separa produto base, variação vendável, escolhas e vínculo opcional de
+estoque.
 
 ```text
-restaurant_tables → tabs → orders → order_items
-                         └────────────→ payments
+categories -> products -> product_variants -> product_stock_links -> ingredients
+                    |-> product_option_groups -> product_options
+
+restaurant_tables -> tabs -> orders -> order_items -> order_item_options
+                          |-> payments       |-> inventory_movements
 ```
 
-## Tabelas
-
-### `roles`
-
-Perfis conhecidos pelo sistema.
-
-Campos principais:
-
-- `id`
-- `name`, único
-- `description`
-
-Valores iniciais: `ADMIN`, `WAITER`, `KITCHEN` e `CASHIER`.
-
-### `users`
-
-Operadores cadastrados.
-
-Campos principais:
-
-- `id`
-- `name`
-- `email`, único
-- `password`
-- `active`
-- `created_at`
-- `updated_at`
-
-No MVP, usuários são consultados para autoria local. Não existe autenticação
-real.
-
-### `user_roles`
-
-Tabela associativa entre usuários e perfis.
-
-- chave primária composta por `user_id` e `role_id`;
-- relação muitos-para-muitos entre `users` e `roles`.
-
-### `restaurant_tables`
-
-Mesas físicas do restaurante.
-
-Campos principais:
-
-- `id`
-- `number`, único
-- `name`
-- `status`
-- `active`
-- `created_at`
-- `updated_at`
-
-Status: `AVAILABLE`, `OCCUPIED`, `RESERVED` e `DISABLED`.
-
-`status` representa a condição operacional. `active` representa se o cadastro
-pode ser usado. A aplicação sincroniza ambos:
-
-- `active=false` é tratado como `DISABLED`;
-- `DISABLED` grava `active=false`;
-- status diferente de `DISABLED` grava `active=true`;
-- `OCCUPIED` é alterado apenas pelo ciclo da comanda.
-
-### `categories`
-
-Agrupamentos do cardápio.
-
-Campos principais:
-
-- `id`
-- `name`
-- `description`
-- `active`
-- `display_order`
-- `created_at`
-- `updated_at`
-
-Uma categoria inativa preserva histórico, mas bloqueia novas vendas de seus
-produtos.
+## Catálogo
 
 ### `products`
 
-Produtos vendáveis.
+Produto comercial sem preço. Campos principais:
 
-Campos principais:
+- `category_id`, `name`, `description` e `image_url`;
+- `preparation_flow`: `REQUIRES_PREPARATION` ou `DIRECT_SERVICE`;
+- `active`: permanência no catálogo;
+- `available`: disponibilidade temporária para venda;
+- `display_order`, `created_at` e `updated_at`.
 
-- `id`
-- `category_id`
-- `name`
-- `description`
-- `price`
-- `active`
-- `image_url`
-- `created_at`
-- `updated_at`
+O nome é único por categoria sem diferenciar maiúsculas e minúsculas. Um
+produto só é vendável quando produto, categoria e uma variação estão ativos e
+disponíveis. Produto incompleto pode permanecer cadastrado.
 
-Cada produto pertence a uma categoria. O preço não pode ser negativo.
-`image_url` permanece no contrato, mas não é exibido pela interface atual.
+### `product_variants`
 
-### `tabs`
+Unidade vendável e única fonte do preço comercial:
 
-Comandas abertas para mesas.
+- `product_id`, `name`, `sku` e `price`;
+- `active`, `available` e `display_order`;
+- `created_at` e `updated_at`.
 
-Campos principais:
+O nome é único dentro do produto. `price` usa `NUMERIC(10,2)` e não pode ser
+negativo.
 
-- `id`
-- `restaurant_table_id`
-- `status`
-- `opened_by_user_id`
-- `opened_at`
-- `closed_at`
-- `total_amount`
-- `service_fee`
-- `discount_amount`
-- `final_amount`
-- `created_at`
-- `updated_at`
+### `product_option_groups` e `product_options`
 
-Status: `OPEN`, `CLOSED` e `CANCELLED`.
+Os grupos guardam `required`, `minimum_selections`, `maximum_selections`,
+`display_order` e `active`. As opções guardam nome, `additional_price`, ordem e
+estado. O preço adicional é somado ao preço unitário e congelado no pedido.
 
-O índice parcial `uq_tabs_one_open_per_table` garante no banco que uma mesa não
-possua duas comandas abertas.
+## Operação
+
+### `restaurant_tables`, `tabs` e `payments`
+
+Mesas usam `AVAILABLE`, `OCCUPIED`, `RESERVED` ou `DISABLED`. Comandas usam
+`OPEN`, `CLOSED` ou `CANCELLED`; o índice parcial
+`uq_tabs_one_open_per_table` impede duas comandas abertas por mesa. Pagamentos
+registram método, valor, data e usuário autenticado.
 
 ### `orders`
 
-Pedidos vinculados a uma comanda.
+O pedido pertence a uma comanda e registra tipo, autor, observação,
+`confirmed_at`, motivo e autor do cancelamento. Estados globais existentes:
 
-Campos principais:
+- `CREATED` para rascunho;
+- `SENT_TO_KITCHEN` e `PREPARING` quando há preparo pendente;
+- `READY`, `DELIVERED` e `CANCELLED`.
 
-- `id`
-- `tab_id`
-- `status`
-- `type`
-- `created_by_user_id`
-- `notes`
-- `created_at`
-- `updated_at`
-
-Status:
-
-- `CREATED`
-- `SENT_TO_KITCHEN`
-- `PREPARING`
-- `READY`
-- `DELIVERED`
-- `CANCELLED`
-
-Tipos previstos no banco: `TABLE`, `COUNTER` e `TAKEAWAY`. O fluxo entregue no
-MVP é o atendimento por mesa.
+O estado global é derivado dos itens; ele não substitui o estado operacional de
+cada item.
 
 ### `order_items`
 
-Itens que formam um pedido.
+Cada item referencia obrigatoriamente `product_variant_id` e preserva:
 
-Campos principais:
+- `product_name_snapshot` e `product_variant_name_snapshot`;
+- `category_name_snapshot` e `preparation_flow_snapshot`;
+- `unit_price_snapshot`, `quantity`, `notes` e `subtotal`;
+- `status`, motivo, instante e autor de cancelamento.
 
-- `id`
-- `order_id`
-- `product_id`
-- `product_name_snapshot`
-- `unit_price_snapshot`
-- `quantity`
-- `notes`
-- `status`
-- `subtotal`
-- `created_at`
-- `updated_at`
+Estados: `DRAFT`, `WAITING_PREPARATION`, `IN_PREPARATION`, `READY`,
+`DELIVERED` e `CANCELED`.
 
-Status: `ACTIVE` e `CANCELLED`. Cancelamento individual de item está reservado
-para uma versão futura.
+### `order_item_options`
 
-#### Snapshots
+Registra `product_option_id` quando ainda disponível e congela
+`group_name_snapshot`, `option_name_snapshot` e `additional_price_snapshot`.
+Alterações posteriores no catálogo não reescrevem pedidos antigos.
 
-`product_name_snapshot` e `unit_price_snapshot` congelam o nome e o preço no
-momento da venda. Dessa forma:
-
-- alteração posterior do produto não muda pedidos antigos;
-- relatórios financeiros mantêm o valor vendido;
-- o histórico continua legível mesmo após renomear um produto.
-
-`subtotal` é calculado como preço congelado multiplicado pela quantidade.
-
-### `payments`
-
-Pagamentos registrados para uma comanda.
-
-Campos principais:
-
-- `id`
-- `tab_id`
-- `method`
-- `amount`
-- `paid_at`
-- `received_by_user_id`
-- `created_at`
-- `updated_at`
-
-Métodos: `CASH`, `CREDIT_CARD`, `DEBIT_CARD`, `PIX` e `VOUCHER`.
-
-Uma comanda pode receber vários pagamentos. A soma não pode ultrapassar
-`tabs.final_amount`. O registro de pagamento bloqueia a comanda durante a
-transação para proteger operações concorrentes.
+## Estoque
 
 ### `ingredients`
 
-Insumos controlados pelo Estoque Inteligente.
-
-Campos principais:
-
-- `id`
-- `name`, unico por `lower(name)`
-- `description`
-- `unit`
-- `control_mode`
-- `current_stock`
-- `minimum_stock`
-- `ideal_stock`
-- `active`
-- `created_at`
-- `updated_at`
-
-Unidades: `KG`, `G`, `L`, `ML`, `UN`, `CX`, `PACKAGE` e `TRAY`.
-Modos: `MANUAL` e `DIRECT_SALE`; o padrao e `MANUAL`.
-`current_stock`, `minimum_stock` e `ideal_stock` usam `NUMERIC(15, 3)`.
-O banco impede quantidades negativas e garante `ideal_stock >= minimum_stock`.
-O saldo atual e cache operacional atualizado junto com o ledger de
-movimentacoes.
-
-### `inventory_movements`
-
-Ledger auditavel de alteracoes de estoque.
-
-Campos principais:
-
-- `id`
-- `ingredient_id`
-- `type`
-- `quantity`
-- `previous_stock`
-- `resulting_stock`
-- `reason`
-- `origin_type`
-- `origin_reference`
-- `order_id`
-- `order_item_id`
-- `user_id`
-- `created_at`
-
-Tipos: `ENTRY`, `EXIT`, `LOSS`, `ADJUSTMENT` e `REVERSAL`. Origens automaticas
-usam `ORDER_ITEM` para baixa por pedido e `ORDER_CANCELLATION` para estorno. O
-banco exige quantidade positiva e saldos anterior/resultante nao negativos.
-
-Indices principais:
-
-- `idx_inventory_movements_ingredient_created_at`
-- `idx_inventory_movements_type_created_at`
-- `idx_inventory_movements_user_created_at`
-- `idx_inventory_movements_created_at`
-- `idx_inventory_movements_order_created_at`
-- `idx_inventory_movements_order_item`
-- `uq_inventory_movements_order_item_exit`
-- `uq_inventory_movements_order_item_reversal`
+Item de estoque com unidade (`KG`, `G`, `L`, `ML`, `UN`, `CX`, `PACKAGE` ou
+`TRAY`), modo `MANUAL` ou `DIRECT_SALE`, saldo atual, mínimo, ideal e estado.
+Quantidades usam `NUMERIC(15,3)` e não podem ser negativas.
 
 ### `product_stock_links`
 
-Vinculo simples entre produtos vendidos e itens de estoque de baixa automatica.
+Vínculo opcional entre `product_variant_id` e `stock_item_id`, com
+`quantity_per_sale` e `active`. Um índice parcial permite no máximo um vínculo
+ativo por variação. O item vinculado deve ser `DIRECT_SALE`.
 
-Campos principais:
+### `inventory_movements`
 
-- `id`
-- `product_id`
-- `stock_item_id`
-- `quantity_per_sale`
-- `active`
-- `created_at`
-- `updated_at`
+Ledger imutável com item, tipo, quantidade, saldo anterior/resultante, motivo,
+usuário, origem, pedido, item do pedido e data. Tipos:
 
-O indice parcial `uq_product_stock_links_active_product` garante no maximo um
-vinculo ativo por produto. A quantidade por venda deve ser maior que zero. O
-item referenciado fica em `ingredients` e deve ser validado pela aplicacao como
-`DIRECT_SALE`.
+- `ENTRY`, `EXIT`, `LOSS` e `ADJUSTMENT` para operação manual;
+- `SALE` para baixa automática na confirmação;
+- `REVERSAL` para estorno de cancelamento.
 
-## Relacionamentos
+`uq_inventory_movements_order_item_sale` impede duas baixas `SALE` para o mesmo
+item do pedido e item de estoque. O índice de reversão já existente impede
+estorno duplicado.
 
-```text
-users N:N roles                 por user_roles
-restaurant_tables 1:N tabs
-users 1:N tabs                  opened_by_user_id
-tabs 1:N orders
-users 1:N orders                created_by_user_id
-orders 1:N order_items
-products 1:N order_items
-categories 1:N products
-tabs 1:N payments
-users 1:N payments              received_by_user_id
-products 1:N product_stock_links
-ingredients 1:N product_stock_links
-ingredients 1:N inventory_movements
-users 1:N inventory_movements   user_id
-orders 1:N inventory_movements  order_id
-order_items 1:N inventory_movements order_item_id
-```
+## Identidade e auditoria
 
-## DER textual
+`users`, `roles` e `user_roles` sustentam JWT e autorização. Perfis atuais:
+`OWNER`, `ADMIN`, `WAITER`, `KITCHEN` e `CASHIER`. Autores de pedidos,
+pagamentos, cancelamentos e movimentações são obtidos da autenticação; IDs
+enviados pelo cliente não são fonte de verdade.
+
+## Totais
 
 ```text
-[roles] N ← [user_roles] → N [users]
-                                │
-                                ├── abre ───────────────┐
-                                ├── cria pedidos ───┐   │
-                                └── recebe pagamentos│   │
-                                                   │   │
-[restaurant_tables] 1 ── N [tabs] 1 ── N [orders] 1 ── N [order_items]
-                            │                                  │
-                            └──────── 1 ── N [payments]         N
-                                                               │
-[categories] 1 ── N [products] 1 ──────────────────────────────┘
+item.unit_price_snapshot = variant.price + soma(option.additional_price)
+item.subtotal = item.unit_price_snapshot * quantity
+tab.total_amount = soma de itens que não sejam DRAFT ou CANCELED
+tab.final_amount = max(total_amount + service_fee - discount_amount, 0)
 ```
 
-## Totais financeiros
+## Migrations
 
-```text
-total_amount = soma dos itens ativos de pedidos não cancelados
-final_amount = max(total_amount + service_fee - discount_amount, 0)
-paid_amount = soma dos pagamentos da comanda
-remaining_amount = max(final_amount - paid_amount, 0)
-```
+- `V1`: operação inicial;
+- `V2`: primeira estrutura de estoque;
+- `V3`: controle híbrido, origem do ledger e vínculos;
+- `V4`: variações e migração inicial de preço/referências;
+- `V5`: correção consolidada de catálogo, opções, disponibilidade, estados por
+  item, `SALE`, cancelamentos e remoção segura do preço de `products`.
 
-`paid_amount` e `remaining_amount` são calculados pela aplicação; não existem
-como colunas próprias na tabela `tabs`.
+`V1` a `V4` já estavam versionadas e foram preservadas. A correção entrou em
+`V5`, sem editar migrations aplicadas. Mudanças futuras exigem nova versão.
 
-## Evolução do esquema
+## Fora do MVP
 
-- Não usar `ddl-auto=create` ou `ddl-auto=update`.
-- Manter `spring.jpa.hibernate.ddl-auto=validate`.
-- Criar uma nova migration para qualquer alteração futura.
-- Não editar uma migration que já tenha sido aplicada.
-
-## Evolucao planejada: Estoque Inteligente
-
-A primeira etapa do estoque foi criada na migration
-`V2__add_stock_module.sql`, com `ingredients`, `inventory_movements` e
-`product_ingredients`. A migration `V3__hybrid_stock_control.sql` adiciona
-`control_mode`, campos de origem no ledger, `product_stock_links` e remove a
-tabela `product_ingredients`.
-
-Ainda nao existem tabelas de compras, fornecedores, lotes, validade,
-financeiro, multiplos depositos, ficha tecnica, receita multi-ingrediente,
-producao, rendimento ou conversao automatica de unidades. Esses pontos devem
-entrar somente por novas migrations Flyway se forem retomados.
-
+Não há ficha técnica culinária, rendimento cru/cozido, produção, compras,
+fornecedores, lote, validade, múltiplos depósitos, custo médio, delivery ou
+integração fiscal.

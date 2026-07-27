@@ -95,6 +95,11 @@ Movimentacoes manuais de estoque tambem usam transacao e lock pessimista no
 ingrediente antes de alterar `currentStock`. A alteracao de saldo e o registro
 em `inventory_movements` ocorrem juntos, preservando o historico auditavel.
 
+Confirmação de pedido bloqueia o pedido e os itens `DIRECT_SALE` em ordem
+determinística. Catálogo, escolhas, snapshots, baixa `SALE`, estados por item e
+totais da comanda são tratados na mesma transação. Cancelamentos usam a mesma
+estratégia para estornos `REVERSAL` idempotentes.
+
 ### Persistência e migrations
 
 O esquema é controlado pelo Flyway em:
@@ -255,31 +260,34 @@ da tela.
 - Frontend de produção espera `/api` no mesmo proxy.
 - Sem exclusão física de registros operacionais importantes.
 
-## Estoque Inteligente
+## Catálogo, pedidos e estoque
 
-O modulo `stock` segue a estrutura padrao do backend:
+Os módulos `product`, `order` e `stock` preservam a estrutura
+`controller/dto/domain/repository/service`. Controllers apenas validam o
+contrato HTTP; services controlam transações, regras e conversão para DTO.
 
 ```text
-stock/
-├── controller/
-├── dto/
-├── domain/
-├── repository/
-└── service/
+Product -> ProductVariant -> ProductOptionGroup/ProductOption
+                              ↓
+RestaurantOrder -> OrderItem -> OrderItemOption snapshots
+                              ↓ confirmação
+ProductStockLink -> Ingredient -> InventoryMovement
 ```
 
-A implementacao atual usa controle hibrido: itens `MANUAL`, itens
-`DIRECT_SALE`, movimentacoes manuais, historico auditavel, alertas de saldo,
-vinculo simples produto-estoque e baixa automatica no envio do pedido para a
-cozinha. Controllers recebem e retornam DTOs, services concentram regras e
-conversoes, repositories usam Spring Data JPA e o esquema e evoluido por
-migrations Flyway.
+`Product` não tem preço. `ProductVariant` é a unidade vendável e pode ter um
+vínculo ativo com estoque. `OrderItem` congela nomes, categoria, fluxo, preço e
+escolhas. O endpoint de fila consulta somente itens de preparo no repositório;
+itens de entrega direta não são filtrados apenas no navegador.
 
-No frontend, `/stock` concentra a gestao operacional do estoque. A tela de
-Produtos possui uma acao de vinculo ao estoque para produtos que baixam um item
-unitario automaticamente.
+O estoque híbrido mantém itens `MANUAL` e `DIRECT_SALE`. A baixa automática
+acontece na confirmação, com lock pessimista, `SALE` e restrição única. O
+cancelamento gera `REVERSAL` sem apagar o movimento original.
 
-Nao ha ficha tecnica, receita multi-ingrediente, producao, rendimento, compras,
-fornecedores, lotes, validade, multiplos depositos, financeiro de compras ou
-conversao automatica de unidades neste escopo. As regras detalhadas ficam em
+No frontend, `/produtos` oferece cadastro em três etapas, `/pedidos` trabalha
+com rascunho e confirmação, `/cozinha` consome a fila específica e `/stock`
+concentra operação e auditoria. Menus flutuantes usam cálculo compartilhado de
+overlay para evitar clipping.
+
+Detalhes: [product-catalog.md](../business/product-catalog.md),
+[order-preparation-flow.md](../business/order-preparation-flow.md) e
 [stock-management.md](../business/stock-management.md).
