@@ -146,17 +146,41 @@ public class DataSeeder implements CommandLineRunner {
                 .active(true)
                 .build());
 
-        seedProduct(beverages, "Suco natural", "Suco natural da casa", new BigDecimal("9.90"));
-        seedProduct(beverages, "Refrigerante lata", "Lata 350ml", new BigDecimal("7.50"));
-        seedProduct(mains, "Executivo da casa", "Prato executivo com acompanhamento", new BigDecimal("32.90"));
+        seedProduct(
+                beverages,
+                "Suco natural",
+                "Suco natural da casa",
+                new BigDecimal("9.90"),
+                PreparationFlow.REQUIRES_PREPARATION
+        );
+        seedProduct(
+                beverages,
+                "Refrigerante lata",
+                "Lata 350ml",
+                new BigDecimal("7.50"),
+                PreparationFlow.DIRECT_SERVICE
+        );
+        seedProduct(
+                mains,
+                "Executivo da casa",
+                "Prato executivo com acompanhamento",
+                new BigDecimal("32.90"),
+                PreparationFlow.REQUIRES_PREPARATION
+        );
     }
 
-    private void seedProduct(Category category, String name, String description, BigDecimal price) {
+    private void seedProduct(
+            Category category,
+            String name,
+            String description,
+            BigDecimal price,
+            PreparationFlow preparationFlow
+    ) {
         Product product = productRepository.save(Product.builder()
                 .category(category)
                 .name(name)
                 .description(description)
-                .preparationFlow(PreparationFlow.REQUIRES_PREPARATION)
+                .preparationFlow(preparationFlow)
                 .active(true)
                 .available(true)
                 .displayOrder(0)

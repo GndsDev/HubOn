@@ -102,7 +102,7 @@ public class SecurityConfig {
                         auth.requestMatchers(HttpMethod.PATCH, "/api/orders/*/items/*/status")
                                 .hasAnyRole("OWNER", "ADMIN", "KITCHEN");
                         auth.requestMatchers(HttpMethod.PATCH, "/api/orders/*/status")
-                                .hasAnyRole("OWNER", "ADMIN", "KITCHEN");
+                                .hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers(HttpMethod.POST, "/api/orders/*/confirm")
                                 .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
                         auth.requestMatchers(HttpMethod.POST, "/api/orders/*/send-to-kitchen")

@@ -137,9 +137,11 @@ tab.final_amount = max(total_amount + service_fee - discount_amount, 0)
 - `V4`: variações e migração inicial de preço/referências;
 - `V5`: correção consolidada de catálogo, opções, disponibilidade, estados por
   item, `SALE`, cancelamentos e remoção segura do preço de `products`.
+- `V6`: correção de itens legados `DIRECT_SERVICE` indevidamente migrados para
+  estados de preparo e liberação conservadora de pedidos sem itens pendentes.
 
-`V1` a `V4` já estavam versionadas e foram preservadas. A correção entrou em
-`V5`, sem editar migrations aplicadas. Mudanças futuras exigem nova versão.
+`V1` a `V5` já estavam versionadas e foram preservadas. A estabilização entrou
+em `V6`, sem editar migrations aplicadas. Mudanças futuras exigem nova versão.
 
 ## Fora do MVP
 
