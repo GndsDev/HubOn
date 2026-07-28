@@ -146,10 +146,30 @@ ou configurar o CORS.
 
 Backend:
 
+Crie uma vez o banco exclusivo de testes:
+
+```sql
+CREATE DATABASE hubon_test OWNER hubon_user;
+```
+
+Configure as credenciais no terminal quando forem diferentes dos valores do
+perfil `test`:
+
+```powershell
+$env:TEST_DB_URL="jdbc:postgresql://localhost:5432/hubon_test"
+$env:TEST_DB_USERNAME="hubon_user"
+$env:TEST_DB_PASSWORD="change-me"
+$env:TEST_HUBON_JWT_SECRET="use-um-segredo-longo-exclusivo-para-testes"
+```
+
 ```powershell
 cd backend
-.\mvnw.cmd test
+.\mvnw.cmd clean verify
 ```
+
+As suítes Spring usam `application-test.properties` e interrompem a criação do
+contexto, antes do Flyway, se `current_database()` não identificar um banco
+terminado em `_test` ou `-test`.
 
 Frontend:
 

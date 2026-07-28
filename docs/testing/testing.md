@@ -8,18 +8,32 @@ O projeto combina três níveis de validação:
 2. Testes unitários e de componente no frontend.
 3. Build de produção e roteiro manual do fluxo operacional.
 
-Os testes do backend usam o perfil local e acessam PostgreSQL. Antes de
-executá-los, confirme que o banco local está disponível e que as credenciais
-estão corretas. Configure variáveis de ambiente ou crie
-`backend/src/main/resources/application-local.properties` a partir de
-`application-local.example.properties`.
+Os testes de integração do backend usam o perfil `test` e um PostgreSQL
+exclusivo. Eles não usam `application-local.properties` nem o banco de
+desenvolvimento.
 
 ## Backend
+
+Crie o banco uma vez com um usuário autorizado:
+
+```sql
+CREATE DATABASE hubon_test OWNER hubon_user;
+```
+
+Configure as variáveis quando as credenciais locais forem diferentes dos
+valores padrão de `application-test.properties`:
+
+```powershell
+$env:TEST_DB_URL="jdbc:postgresql://localhost:5432/hubon_test"
+$env:TEST_DB_USERNAME="hubon_user"
+$env:TEST_DB_PASSWORD="change-me"
+$env:TEST_HUBON_JWT_SECRET="use-um-segredo-longo-exclusivo-para-testes"
+```
 
 Na pasta `backend`:
 
 ```powershell
-.\mvnw.cmd test
+.\mvnw.cmd clean verify
 ```
 
 O comando compila a aplicação, inicializa o contexto Spring, valida a migration
@@ -58,7 +72,11 @@ Flyway e executa as suítes JUnit.
 
 - `401` para endpoint protegido sem token.
 - `403` para token válido com perfil inadequado.
-- Permissões de acesso por módulo para `WAITER` e `KITCHEN`.
+- `KITCHEN` acessa somente a fila e a transição do item de preparo.
+- `KITCHEN` recebe `403` ao listar pedidos, acessar estoque ou criar, confirmar,
+  cancelar e alterar globalmente um pedido.
+- Itens `DIRECT_SERVICE` não aceitam transições da cozinha.
+- `OWNER` e `ADMIN` preservam seus acessos administrativos.
 - Login inválido rejeitado.
 - Consulta de `/api/auth/me` exige autenticação e não expõe senha.
 - Alteração de senha exige autenticação.
@@ -77,12 +95,25 @@ Flyway e executa as suítes JUnit.
   `hubon.seed.admin.*`.
 - Senhas seedadas gravadas com BCrypt, nunca em texto puro.
 - Login funcionando com a senha configurada no ambiente de teste.
+- Fluxos explícitos para suco, refrigerante e prato executivo.
+- Variação Padrão e preço mantidos em `product_variants`.
+- Nova execução do seeder não duplica catálogo, usuários, variações ou mesas.
+
+`LegacyDirectServiceMigrationIntegrationTests`
+
+- Itens legados `DIRECT_SERVICE` presos em preparo são corrigidos para `READY`.
+- Pedido somente direto é liberado quando não restam itens pendentes.
+- Pedido misto continua em preparo enquanto houver item da cozinha pendente.
+- Itens e pedidos cancelados ou entregues permanecem inalterados.
+- Flyway registra a migration V6 como aplicada.
 
 ### Dependência do banco
 
-As suítes de integração criam dados próprios e os removem ao final, mas usam o
-banco configurado para o perfil local. Para maior isolamento, a próxima versão
-deve adotar um banco exclusivo de testes ou containers descartáveis.
+Todas as classes com `@SpringBootTest` ativam `@ActiveProfiles("test")`. O guard
+`IntegrationTestDatabaseGuard` consulta `select current_database()` durante a
+inicialização, antes do Flyway, e aceita somente nomes terminados em `_test` ou
+`-test`. Uma configuração apontando para `hubon_db`, produção ou qualquer outro
+banco encerra o contexto com uma mensagem indicando `TEST_DB_URL`.
 
 ## Frontend
 
@@ -181,7 +212,7 @@ diretas à API. Não salve `HUBON_PORTFOLIO_PASSWORD` em arquivo versionado.
 ## Como interpretar falhas
 
 - **Falha de conexão com PostgreSQL:** verifique serviço, banco, usuário, senha e
-  variáveis `DB_URL`, `DB_USERNAME` e `DB_PASSWORD`.
+  variáveis `TEST_DB_URL`, `TEST_DB_USERNAME` e `TEST_DB_PASSWORD`.
 - **Falha do Flyway:** confira se o banco não possui alteração manual conflitante
   com as migrations.
 - **Falha de regra de negócio:** leia o nome do teste e a mensagem esperada; não

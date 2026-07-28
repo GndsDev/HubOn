@@ -1,7 +1,11 @@
 # Relatório de consolidação e homologação de catálogo, pedidos e estoque
 
 Data da validação: 27/07/2026  
-Branch analisada: `feat/stock-intelligent`
+Branch analisada: `fix/stabilize-catalog-stock`
+
+A consolidação de catálogo, pedidos e estoque foi commitada em `5a87686` e
+mesclada na PR #4. Esta estabilização parte do merge `0c251fa`, já presente em
+`main`, e limita-se às correções descritas neste relatório.
 
 ## Diagnóstico inicial
 
@@ -51,8 +55,13 @@ Foi criada a migration
 - conclui a transferência de preço e vínculos para a variação;
 - remove `products.price` somente depois da migração dos dados.
 
-O banco local já está na versão 5 e o Flyway validou as cinco migrations. Novas
-alterações de esquema devem ser feitas em V6 ou posterior.
+Nesta estabilização foi criada, sem alterar a V5 já aplicada, a migration
+`V6__correct_legacy_direct_service_order_status.sql`. Ela move para `READY`
+somente itens legados `DIRECT_SERVICE` presos em `WAITING_PREPARATION` ou
+`IN_PREPARATION` e libera conservadoramente pedidos sem itens pendentes.
+
+O banco exclusivo `hubon_test` está na versão 6. O Flyway validou V1 a V6 e o
+Hibernate iniciou com `spring.jpa.hibernate.ddl-auto=validate`.
 
 ## Fluxos consolidados
 
@@ -96,15 +105,20 @@ Arroz com duas variações, itens indisponíveis e estoques manual e automático
 | Produto indisponível | Aprovado | produto continua no cadastro, mas a API bloqueia nova venda |
 | Variação indisponível | Aprovado | variação não pode ser selecionada nem confirmada |
 | Pagamento e fechamento | Aprovado | regressão financeira cobre pagamento exato, saldo e liberação da mesa |
-| Reinício da aplicação | Aprovado | múltiplos contextos Spring reiniciaram com `ddl-auto=validate` e Flyway V5 íntegro |
+| Seeder em banco novo | Aprovado | suco e prato executivo exigem preparo; refrigerante é entrega direta; todos recebem variação Padrão com preço |
+| Idempotência do seeder | Aprovado | novas execuções não duplicam catálogo, usuários, variações ou mesas |
+| Segurança da cozinha | Aprovado | `KITCHEN` usa fila e estado por item, mas recebe `403` em status global, criação, confirmação, cancelamento, listagem geral e estoque |
+| Correção de legado | Aprovado | itens diretos ficam prontos, pedido somente direto é liberado e pedido misto pendente continua em preparo |
+| Isolamento do banco | Aprovado | todas as suítes Spring usam perfil `test`; guard validou `current_database()` como `hubon_test` |
+| Reinício da aplicação | Aprovado | múltiplos contextos Spring reiniciaram com `ddl-auto=validate` e Flyway V6 íntegro |
 | Histórico de estoque | Aprovado | movimentos preservam saldos, usuário, origem, pedido, item, motivo e data |
 
 ## Auditoria visual
 
 O script `frontend/scripts/visual-audit.mjs` abriu o Microsoft Edge em modo
-headless e executou 56 verificações. Foram auditadas as telas Produtos, Pedidos,
-Cozinha e Estoque, além das três etapas do cadastro, variações, escolhas, criação
-do pedido, cancelamento, saída manual e menus do primeiro e do último item.
+headless e executou 118 verificações. Foram auditadas Dashboard, Mesas,
+Comandas, Produtos, Pedidos, Cozinha, Caixa, Categorias, Estoque, Relatórios e
+Usuários, além dos formulários e estados auxiliares de Produto e Estoque.
 
 Resoluções: `1366x768`, `1440x900` e `1920x1080`.  
 Temas: claro e escuro.  
@@ -116,33 +130,35 @@ combinações. Evidências em `frontend/dist/visual-audit`.
 
 | Comando | Resultado |
 | --- | --- |
-| `backend\\mvnw.cmd clean verify` | Aprovado: 63 testes, 0 falhas, 0 erros, JAR gerado |
-| `npm test` com `CI=true` | Aprovado: 8 arquivos, 26 testes |
+| `backend\\mvnw.cmd clean verify` | Aprovado: 66 testes, 0 falhas, 0 erros, JAR gerado |
+| `npm test` com `CI=true` | Aprovado: 8 arquivos, 28 testes |
 | `npm run build` | Aprovado: bundle de produção gerado |
-| auditoria visual | Aprovado: 56 verificações |
-| `git diff --check` | Executado ao final da entrega |
+| auditoria visual | Aprovado: 118 verificações |
+| `git diff --check` | Aprovado, sem erros de whitespace |
 
-## Arquivos criados
+## Estabilização aplicada
 
-- migration V5 do catálogo, pedido e estoque;
-- entidades, DTOs, repositories, service e controller de opções de produto;
-- DTOs de cadastro unificado, estado por item e cancelamento;
-- teste de integração `CatalogOrderIntegrationTests`;
-- utilitários de fluxo do catálogo, posicionamento de overlay e seus testes;
-- testes de formatter, tema e tela de estoque;
-- script e evidências da auditoria visual;
-- documentação funcional de catálogo e fluxo de pedido/preparo.
+- `DataSeeder` recebe o fluxo explicitamente em cada produto inicial;
+- refrigerante seedado usa `DIRECT_SERVICE`; suco e prato executivo usam
+  `REQUIRES_PREPARATION`;
+- `KITCHEN` foi removido da autorização de status global do pedido;
+- V6 corrige os estados legados sem tocar em rascunhos, cancelados, entregues ou
+  pedidos mistos ainda pendentes;
+- todas as suítes de integração usam `application-test.properties` e
+  `@ActiveProfiles("test")`;
+- `IntegrationTestDatabaseGuard` valida `current_database()` antes do Flyway e
+  impede testes em banco cujo nome não termine em `_test` ou `-test`;
+- testes adicionais cobrem seeder, autorização e comportamento da V6;
+- instruções locais e modelo de banco foram atualizados para o perfil `test` e
+  Flyway V6.
 
-## Arquivos alterados
+## Estado de publicação
 
-Foram alterados os módulos backend de `product`, `order`, `stock`, `dashboard`,
-`tab` e `shared/config`; os testes de estoque, segurança, consistência operacional
-e regras financeiras; os serviços, modelos e telas frontend de Produtos, Pedidos,
-Cozinha, Estoque, rotas, navegação e estilos; e a documentação de API, banco,
-arquitetura, regras, roadmap e testes manuais.
-
-Nenhum arquivo foi removido. Nenhuma operação de stage, commit, push, merge ou
-pull request foi executada.
+A implementação anterior está commitada e foi mesclada pela PR #4. As alterações
+desta estabilização permanecem apenas no working tree da branch
+`fix/stabilize-catalog-stock`; não foi feita nova publicação por solicitação do
+escopo. Nenhum workflow de CI/CD foi criado ou alterado, também por decisão de
+escopo.
 
 ## Limitações e pendências reais
 
@@ -153,4 +169,6 @@ pull request foi executada.
   do MVP;
 - a auditoria de interface usa dados determinísticos interceptados no navegador;
   as regras reais de persistência e transação foram validadas separadamente pelos
-  testes de integração com PostgreSQL.
+  testes de integração com PostgreSQL;
+- o banco `hubon_test` é local e persistente; Testcontainers e workflow de CI
+  permanecem fora desta estabilização.

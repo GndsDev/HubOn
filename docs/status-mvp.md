@@ -84,9 +84,9 @@ validade e multiplos depositos. A visao atual esta em
 
 - Frontend compilado com `npm run build`.
 - Backend validado com `.\mvnw.cmd test`.
-- Backend possui 37 testes passando em suítes de integração para regras financeiras, consistência operacional, seeder e autorização.
-- Frontend possui testes para app, AuthService e Minha Conta; o TypeScript dos specs foi validado com `npx tsc -p tsconfig.spec.json --noEmit`.
-- Flyway validou a migration existente.
+- Backend possui 66 testes passando, incluindo catálogo, pedidos, estoque, regras financeiras, consistência operacional, seeder, autorização e migration corretiva.
+- Frontend possui 28 testes passando em 8 arquivos de especificação.
+- Flyway validou V1 a V6 no banco exclusivo `hubon_test`.
 - Hibernate iniciou com `ddl-auto=validate`.
 - `spring.jpa.open-in-view=false` é aplicado explicitamente.
 
