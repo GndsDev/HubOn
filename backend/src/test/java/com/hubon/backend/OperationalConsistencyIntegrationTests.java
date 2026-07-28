@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -24,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 @SpringBootTest(properties = "spring.jpa.show-sql=false")
+@ActiveProfiles("test")
+@ContextConfiguration(initializers = IntegrationTestDatabaseGuard.class)
 class OperationalConsistencyIntegrationTests {
 
     private static final AtomicInteger TABLE_NUMBER = new AtomicInteger(30_000);

@@ -10,12 +10,16 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -28,9 +32,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "hubon.seed.enabled=false"
 })
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
+@ContextConfiguration(initializers = IntegrationTestDatabaseGuard.class)
 class SecurityAuthorizationIntegrationTests {
 
     private static final String PASSWORD = "secret123";
+    private static final AtomicInteger TABLE_NUMBER = new AtomicInteger(90_000);
 
     @Autowired
     private MockMvc mockMvc;
@@ -48,6 +55,11 @@ class SecurityAuthorizationIntegrationTests {
     private String adminEmail;
     private String waiterEmail;
     private String kitchenEmail;
+    private Long testCategoryId;
+    private Long testTableId;
+    private Long testTabId;
+    private Long testOrderId;
+    private final List<Long> testProductIds = new java.util.ArrayList<>();
 
     @BeforeEach
     void setup() {
@@ -65,6 +77,18 @@ class SecurityAuthorizationIntegrationTests {
 
     @AfterEach
     void cleanup() {
+        if (testOrderId != null) {
+            jdbcTemplate.update("delete from order_item_options where order_item_id in (select id from order_items where order_id = ?)", testOrderId);
+            jdbcTemplate.update("delete from order_items where order_id = ?", testOrderId);
+            jdbcTemplate.update("delete from orders where id = ?", testOrderId);
+        }
+        if (testTabId != null) jdbcTemplate.update("delete from tabs where id = ?", testTabId);
+        if (testTableId != null) jdbcTemplate.update("delete from restaurant_tables where id = ?", testTableId);
+        for (Long productId : testProductIds) {
+            jdbcTemplate.update("delete from product_variants where product_id = ?", productId);
+            jdbcTemplate.update("delete from products where id = ?", productId);
+        }
+        if (testCategoryId != null) jdbcTemplate.update("delete from categories where id = ?", testCategoryId);
         jdbcTemplate.update(
                 """
                 delete from user_roles
@@ -107,10 +131,35 @@ class SecurityAuthorizationIntegrationTests {
     @Test
     void shouldAllowKitchenToUseOnlyPreparationQueueAndItemStatus() throws Exception {
         String token = tokenFor(kitchenEmail);
+        OrderFixture order = insertMixedPreparationOrder();
 
         mockMvc.perform(get("/api/orders/preparation-queue")
                         .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].items[0].id").value(order.preparationItemId()));
+
+        mockMvc.perform(patch("/api/orders/{orderId}/items/{itemId}/status", order.orderId(), order.preparationItemId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"IN_PREPARATION\"}"))
                 .andExpect(status().isOk());
+        assertThat(jdbcTemplate.queryForObject(
+                "select status from order_items where id = ?",
+                String.class,
+                order.preparationItemId()
+        )).isEqualTo("IN_PREPARATION");
+
+        mockMvc.perform(patch("/api/orders/{orderId}/items/{itemId}/status", order.orderId(), order.directItemId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"IN_PREPARATION\"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(patch("/api/orders/{orderId}/status", order.orderId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"DELIVERED\"}"))
+                .andExpect(status().isForbidden());
 
         mockMvc.perform(get("/api/orders")
                         .header("Authorization", bearer(token)))
@@ -129,6 +178,31 @@ class SecurityAuthorizationIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/orders/{orderId}/confirm", order.orderId())
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/orders/{orderId}/cancel", order.orderId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Operacao nao permitida\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldKeepOwnerAndAdminAccessToAdministrativeEndpoints() throws Exception {
+        for (String email : List.of(ownerEmail, adminEmail)) {
+            String token = tokenFor(email);
+
+            mockMvc.perform(get("/api/categories")
+                            .header("Authorization", bearer(token)))
+                    .andExpect(status().isOk());
+
+            mockMvc.perform(get("/api/ingredients")
+                            .header("Authorization", bearer(token)))
+                    .andExpect(status().isOk());
+        }
     }
 
     @Test
@@ -316,6 +390,142 @@ class SecurityAuthorizationIntegrationTests {
                 .andExpect(jsonPath("$.token").isString());
     }
 
+    private OrderFixture insertMixedPreparationOrder() {
+        String suffix = UUID.randomUUID().toString();
+        testCategoryId = jdbcTemplate.queryForObject(
+                """
+                insert into categories (name, description, active, display_order)
+                values (?, 'Categoria para seguranca', true, 0)
+                returning id
+                """,
+                Long.class,
+                "Seguranca " + suffix
+        );
+        Long preparationProductId = insertProduct("Produto preparo " + suffix, "REQUIRES_PREPARATION");
+        Long directProductId = insertProduct("Produto direto " + suffix, "DIRECT_SERVICE");
+        Long preparationVariantId = insertVariant(preparationProductId);
+        Long directVariantId = insertVariant(directProductId);
+
+        testTableId = jdbcTemplate.queryForObject(
+                """
+                insert into restaurant_tables (number, name, status, active)
+                values (?, 'Mesa seguranca', 'OCCUPIED', true)
+                returning id
+                """,
+                Long.class,
+                TABLE_NUMBER.incrementAndGet()
+        );
+        Long ownerId = jdbcTemplate.queryForObject(
+                "select id from users where email = ?",
+                Long.class,
+                ownerEmail
+        );
+        testTabId = jdbcTemplate.queryForObject(
+                """
+                insert into tabs (
+                    restaurant_table_id, status, opened_by_user_id,
+                    total_amount, service_fee, discount_amount, final_amount
+                )
+                values (?, 'OPEN', ?, 15, 0, 0, 15)
+                returning id
+                """,
+                Long.class,
+                testTableId,
+                ownerId
+        );
+        testOrderId = jdbcTemplate.queryForObject(
+                """
+                insert into orders (tab_id, status, type, created_by_user_id, confirmed_at)
+                values (?, 'SENT_TO_KITCHEN', 'TABLE', ?, current_timestamp)
+                returning id
+                """,
+                Long.class,
+                testTabId,
+                ownerId
+        );
+        Long preparationItemId = insertOrderItem(
+                preparationProductId,
+                preparationVariantId,
+                "Produto preparo " + suffix,
+                "REQUIRES_PREPARATION",
+                "WAITING_PREPARATION",
+                "10.00"
+        );
+        Long directItemId = insertOrderItem(
+                directProductId,
+                directVariantId,
+                "Produto direto " + suffix,
+                "DIRECT_SERVICE",
+                "READY",
+                "5.00"
+        );
+        return new OrderFixture(testOrderId, preparationItemId, directItemId);
+    }
+
+    private Long insertProduct(String name, String preparationFlow) {
+        Long productId = jdbcTemplate.queryForObject(
+                """
+                insert into products (
+                    category_id, name, description, preparation_flow,
+                    active, available, display_order
+                )
+                values (?, ?, 'Produto para teste de seguranca', ?, true, true, 0)
+                returning id
+                """,
+                Long.class,
+                testCategoryId,
+                name,
+                preparationFlow
+        );
+        testProductIds.add(productId);
+        return productId;
+    }
+
+    private Long insertVariant(Long productId) {
+        return jdbcTemplate.queryForObject(
+                """
+                insert into product_variants (
+                    product_id, name, price, active, available, display_order
+                )
+                values (?, 'Padrao', 5, true, true, 0)
+                returning id
+                """,
+                Long.class,
+                productId
+        );
+    }
+
+    private Long insertOrderItem(
+            Long productId,
+            Long variantId,
+            String productName,
+            String preparationFlow,
+            String status,
+            String price
+    ) {
+        return jdbcTemplate.queryForObject(
+                """
+                insert into order_items (
+                    order_id, product_id, product_variant_id,
+                    product_name_snapshot, product_variant_name_snapshot,
+                    category_name_snapshot, preparation_flow_snapshot,
+                    unit_price_snapshot, quantity, status, subtotal
+                )
+                values (?, ?, ?, ?, 'Padrao', 'Seguranca', ?, cast(? as numeric), 1, ?, cast(? as numeric))
+                returning id
+                """,
+                Long.class,
+                testOrderId,
+                productId,
+                variantId,
+                productName,
+                preparationFlow,
+                price,
+                status,
+                price
+        );
+    }
+
     private Long seedRole(String name, String description) {
         return jdbcTemplate.queryForObject(
                 """
@@ -411,5 +621,8 @@ class SecurityAuthorizationIntegrationTests {
             String newPassword,
             String confirmPassword
     ) {
+    }
+
+    private record OrderFixture(Long orderId, Long preparationItemId, Long directItemId) {
     }
 }

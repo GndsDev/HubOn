@@ -1,5 +1,6 @@
 package com.hubon.backend;
 
+import com.hubon.backend.shared.config.DataSeeder;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -9,7 +10,12 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.math.BigDecimal;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -29,6 +35,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "hubon.seed.admin.password=configured-admin-pass-123"
 })
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
+@ContextConfiguration(initializers = IntegrationTestDatabaseGuard.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DataSeederIntegrationTests {
 
@@ -45,6 +53,9 @@ class DataSeederIntegrationTests {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private DataSeeder dataSeeder;
 
     @AfterAll
     void cleanup() {
@@ -88,11 +99,62 @@ class DataSeederIntegrationTests {
                 .andExpect(jsonPath("$.user.roles[0]").value("OWNER"));
     }
 
+    @Test
+    void shouldSeedExplicitProductFlowsDefaultVariantsAndRemainIdempotent() {
+        Map<String, Object> juice = seededProduct("Suco natural");
+        Map<String, Object> soda = seededProduct("Refrigerante lata");
+        Map<String, Object> executive = seededProduct("Executivo da casa");
+
+        assertThat(juice.get("preparation_flow")).isEqualTo("REQUIRES_PREPARATION");
+        assertThat(soda.get("preparation_flow")).isEqualTo("DIRECT_SERVICE");
+        assertThat(executive.get("preparation_flow")).isEqualTo("REQUIRES_PREPARATION");
+        assertThat(juice.get("variant_name")).isEqualTo("Padr\u00e3o");
+        assertThat(soda.get("variant_name")).isEqualTo("Padr\u00e3o");
+        assertThat(executive.get("variant_name")).isEqualTo("Padr\u00e3o");
+        assertThat((BigDecimal) juice.get("price")).isEqualByComparingTo("9.90");
+        assertThat((BigDecimal) soda.get("price")).isEqualByComparingTo("7.50");
+        assertThat((BigDecimal) executive.get("price")).isEqualByComparingTo("32.90");
+
+        Map<String, Integer> countsBefore = seedCounts();
+        dataSeeder.run();
+        dataSeeder.run();
+
+        assertThat(seedCounts()).isEqualTo(countsBefore);
+    }
+
     private String passwordHashFor(String email) {
         return jdbcTemplate.queryForObject(
                 "select password from users where email = ?",
                 String.class,
                 email
         );
+    }
+
+    private Map<String, Object> seededProduct(String name) {
+        return jdbcTemplate.queryForMap(
+                """
+                select product.preparation_flow,
+                       variant.name as variant_name,
+                       variant.price
+                from products product
+                join product_variants variant on variant.product_id = product.id
+                where product.name = ?
+                """,
+                name
+        );
+    }
+
+    private Map<String, Integer> seedCounts() {
+        return Map.of(
+                "categories", count("categories"),
+                "products", count("products"),
+                "variants", count("product_variants"),
+                "users", count("users"),
+                "tables", count("restaurant_tables")
+        );
+    }
+
+    private int count(String table) {
+        return jdbcTemplate.queryForObject("select count(*) from " + table, Integer.class);
     }
 }
