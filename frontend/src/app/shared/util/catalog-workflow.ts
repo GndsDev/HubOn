@@ -40,7 +40,7 @@ export function priceRangeSummary(
   currency: (value: number) => string,
   withPrefix = false,
 ): string {
-  if (minimum == null) return withPrefix ? 'sem preco' : 'Sem preco';
+  if (minimum == null) return withPrefix ? 'sem preço' : 'Sem preço';
   if (maximum == null || minimum === maximum) return currency(minimum);
   const range = `${currency(minimum)} a ${currency(maximum)}`;
   return withPrefix ? `de ${range}` : range;

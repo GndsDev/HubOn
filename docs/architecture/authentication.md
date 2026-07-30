@@ -80,3 +80,11 @@ A interface oculta itens não permitidos, mas a autorização real fica no backe
 - bloqueio por tentativas inválidas;
 - rotação administrativa de credenciais;
 - auditoria completa das ações sensíveis.
+
+## Permissoes de balcao e relatorio
+
+- `POST /api/tabs/counter`: `OWNER`, `ADMIN`, `CASHIER`.
+- confirmacao, pagamento, entrega, cancelamento permitido e fechamento do balcao: mesmos perfis operacionais, com auditoria pelo token.
+- fila e transicao de preparo por item: `OWNER`, `ADMIN`, `KITCHEN`.
+- `GET /api/reports/monthly`: somente `OWNER` e `ADMIN`.
+- `WAITER` nao recebe permissao de balcao silenciosamente; `KITCHEN` nao acessa pagamentos ou relatorios; `CASHIER` nao altera catalogo.

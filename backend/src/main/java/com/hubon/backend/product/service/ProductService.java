@@ -99,7 +99,7 @@ public class ProductService {
             boolean hasStockItem = variantRegistration.stockItemId() != null;
             boolean hasQuantity = variantRegistration.quantityPerSale() != null;
             if (hasStockItem != hasQuantity) {
-                throw new BusinessException("Informe o item e a quantidade do vinculo de estoque");
+                throw new BusinessException("Informe o item e a quantidade do vínculo de estoque");
             }
             if (hasStockItem) {
                 productStockLinkService.create(
@@ -160,7 +160,7 @@ public class ProductService {
     @Transactional(readOnly = true)
     public Product findEntityById(Long id) {
         return productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
     }
 
     private Product createEntity(ProductRequest request) {
@@ -184,14 +184,14 @@ public class ProductService {
 
     private Category findCategory(Long categoryId) {
         return categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Categoria nao encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada"));
     }
 
     private void validateUniqueName(Long categoryId, String name, Long currentProductId) {
         boolean exists = currentProductId == null
                 ? productRepository.existsByCategoryIdAndNameIgnoreCase(categoryId, name)
                 : productRepository.existsByCategoryIdAndNameIgnoreCaseAndIdNot(categoryId, name, currentProductId);
-        if (exists) throw new BusinessException("Ja existe um produto com este nome nesta categoria");
+        if (exists) throw new BusinessException("Já existe um produto com este nome nesta categoria");
     }
 
     private void validateRegistrationVariants(List<ProductVariantRegistrationRequest> variants) {
@@ -199,7 +199,7 @@ public class ProductService {
         for (ProductVariantRegistrationRequest registration : variants) {
             String name = normalizeName(registration.variant().name()).toLowerCase();
             if (!names.add(name)) {
-                throw new BusinessException("Nao repita variacoes no cadastro do produto");
+                throw new BusinessException("Não repita variações no cadastro do produto");
             }
         }
     }
@@ -289,7 +289,7 @@ public class ProductService {
     }
 
     private String normalizeName(String name) {
-        if (name == null || name.trim().isBlank()) throw new BusinessException("Nome do produto e obrigatorio");
+        if (name == null || name.trim().isBlank()) throw new BusinessException("Nome do produto é obrigatório");
         return name.trim();
     }
 

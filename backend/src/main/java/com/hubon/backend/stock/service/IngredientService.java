@@ -51,7 +51,7 @@ public class IngredientService {
         String name = normalizeName(request.name());
         validateStockLevels(request.minimumStock(), request.idealStock());
         if (ingredientRepository.existsByNameIgnoreCase(name)) {
-            throw new BusinessException("Ja existe um ingrediente com este nome");
+            throw new BusinessException("Já existe um ingrediente com este nome");
         }
 
         Ingredient ingredient = Ingredient.builder()
@@ -75,21 +75,21 @@ public class IngredientService {
         validateStockLevels(request.minimumStock(), request.idealStock());
         if (!ingredient.getName().equalsIgnoreCase(name)
                 && ingredientRepository.existsByNameIgnoreCaseAndIdNot(name, id)) {
-            throw new BusinessException("Ja existe um ingrediente com este nome");
+            throw new BusinessException("Já existe um ingrediente com este nome");
         }
 
         if (ingredient.getUnit() != request.unit() && inventoryMovementRepository.existsByIngredientId(id)) {
-            throw new BusinessException("Unidade nao pode ser alterada depois que o item possui movimentacoes");
+            throw new BusinessException("Unidade não pode ser alterada depois que o item possui movimentações");
         }
         StockControlMode nextControlMode = controlModeOrDefault(request.controlMode());
         boolean hasActiveLink = productStockLinkRepository.existsByStockItemIdAndActiveTrue(id);
         if (ingredient.getControlMode() == StockControlMode.DIRECT_SALE
                 && nextControlMode == StockControlMode.MANUAL
                 && hasActiveLink) {
-            throw new BusinessException("Remova os vinculos ativos antes de mudar para controle manual");
+            throw new BusinessException("Remova os vínculos ativos antes de mudar para controle manual");
         }
         if (Boolean.FALSE.equals(request.active()) && hasActiveLink) {
-            throw new BusinessException("Remova os vinculos ativos antes de desativar o item");
+            throw new BusinessException("Remova os vínculos ativos antes de desativar o item");
         }
 
         ingredient.setName(name);
@@ -114,7 +114,7 @@ public class IngredientService {
     public IngredientResponse deactivate(Long id) {
         Ingredient ingredient = findEntityById(id);
         if (productStockLinkRepository.existsByStockItemIdAndActiveTrue(id)) {
-            throw new BusinessException("Remova os vinculos ativos antes de desativar o item");
+            throw new BusinessException("Remova os vínculos ativos antes de desativar o item");
         }
         ingredient.setActive(false);
         return toResponse(ingredient);
@@ -131,7 +131,7 @@ public class IngredientService {
     @Transactional(readOnly = true)
     public Ingredient findEntityById(Long id) {
         return ingredientRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Ingrediente nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Ingrediente não encontrado"));
     }
 
     IngredientResponse toResponse(Ingredient ingredient) {
@@ -164,10 +164,10 @@ public class IngredientService {
     }
 
     private void validateStockLevels(BigDecimal minimumStock, BigDecimal idealStock) {
-        validateNonNegative(minimumStock, "Estoque minimo nao pode ser negativo");
-        validateNonNegative(idealStock, "Estoque ideal nao pode ser negativo");
+        validateNonNegative(minimumStock, "Estoque mínimo não pode ser negativo");
+        validateNonNegative(idealStock, "Estoque ideal não pode ser negativo");
         if (idealStock.compareTo(minimumStock) < 0) {
-            throw new BusinessException("Estoque ideal nao pode ser menor que o estoque minimo");
+            throw new BusinessException("Estoque ideal não pode ser menor que o estoque mínimo");
         }
     }
 
@@ -183,7 +183,7 @@ public class IngredientService {
 
     private String normalizeName(String name) {
         if (name == null || name.trim().isBlank()) {
-            throw new BusinessException("Nome do ingrediente e obrigatorio");
+            throw new BusinessException("Nome do ingrediente é obrigatório");
         }
         return name.trim();
     }

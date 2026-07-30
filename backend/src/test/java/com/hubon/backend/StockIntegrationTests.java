@@ -188,7 +188,7 @@ class StockIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(ingredientPayload("stock test queijo " + suffix, "UN", "1.000", "4.000")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Ja existe um ingrediente com este nome"));
+                .andExpect(jsonPath("$.message").value("Já existe um ingrediente com este nome"));
     }
 
     @Test
@@ -204,7 +204,7 @@ class StockIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(ingredientPayload("Stock Test Ideal Baixo " + suffix, "KG", "5.000", "4.000")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Estoque ideal nao pode ser menor que o estoque minimo"));
+                .andExpect(jsonPath("$.message").value("Estoque ideal não pode ser menor que o estoque mínimo"));
     }
 
     @Test
@@ -262,7 +262,7 @@ class StockIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(movementPayload(ingredientId, "3.000", "Saida acima do saldo")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Estoque nao pode ficar negativo"));
+                .andExpect(jsonPath("$.message").value("Estoque não pode ficar negativo"));
 
         assertMoney("2.000", ingredientStock(ingredientId));
     }
@@ -281,7 +281,7 @@ class StockIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(movementPayload(ingredientId, "2.000", "Ingrediente inativo")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Ingrediente inativo nao pode movimentar estoque"));
+                .andExpect(jsonPath("$.message").value("Ingrediente inativo não pode movimentar estoque"));
 
         assertMoney("0.000", ingredientStock(ingredientId));
         assertEquals(0, movementCount(ingredientId));
@@ -358,7 +358,7 @@ class StockIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(stockLinkPayload(manualId, "1.000")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Somente itens com baixa automatica podem ser vinculados a produtos"));
+                .andExpect(jsonPath("$.message").value("Somente itens com baixa automática podem ser vinculados a produtos"));
 
         mockMvc.perform(post("/api/product-variants/{variantId}/stock-link", variantId)
                         .header("Authorization", bearer(tokenFor(ownerEmail)))
@@ -375,7 +375,7 @@ class StockIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(stockLinkPayload(directSaleId, "2.000")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Variacao ja possui vinculo ativo de estoque"));
+                .andExpect(jsonPath("$.message").value("Variação já possui vínculo ativo de estoque"));
 
         mockMvc.perform(get("/api/products/{id}", productId)
                         .header("Authorization", bearer(tokenFor(ownerEmail))))
@@ -435,7 +435,7 @@ class StockIntegrationTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(
                         "Estoque insuficiente para Produto Estoque " + suffix
-                                + ". Disponivel: 2 UN. Necessario: 3 UN."
+                                + ". Disponível: 2 UN. Necessário: 3 UN."
                 ));
 
         assertMoney("2.000", ingredientStock(ingredientId));

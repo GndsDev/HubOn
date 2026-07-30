@@ -181,7 +181,7 @@ class CatalogOrderIntegrationTests {
                 List.of()
         );
         assertEquals(400, duplicate.getResponse().getStatus());
-        assertTrue(responseJson(duplicate).path("message").asText().contains("repita variacoes"));
+        assertTrue(responseJson(duplicate).path("message").asText().contains("repita variações"));
 
         MvcResult negative = registerProductRequest(
                 "Preco negativo",

@@ -8,7 +8,11 @@ import com.hubon.backend.order.repository.OrderItemRepository;
 import com.hubon.backend.order.repository.RestaurantOrderRepository;
 import com.hubon.backend.payment.repository.PaymentRepository;
 import com.hubon.backend.tab.domain.TabStatus;
+import com.hubon.backend.tab.domain.TabType;
+import com.hubon.backend.tab.dto.CounterSaleSummaryResponse;
 import com.hubon.backend.tab.repository.TabRepository;
+import com.hubon.backend.tab.service.CounterSaleService;
+import com.hubon.backend.tab.service.TabService;
 import com.hubon.backend.table.domain.TableStatus;
 import com.hubon.backend.table.repository.RestaurantTableRepository;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +38,8 @@ public class DashboardService {
     private final OrderItemRepository orderItemRepository;
     private final PaymentRepository paymentRepository;
     private final RestaurantTableRepository tableRepository;
+    private final CounterSaleService counterSaleService;
+    private final TabService tabService;
 
     @Transactional(readOnly = true)
     public DashboardSummaryResponse getSummary() {
@@ -58,6 +64,11 @@ public class DashboardService {
         long ordersInPreparation = orderRepository.countByStatusIn(
                 List.of(OrderStatus.SENT_TO_KITCHEN, OrderStatus.PREPARING)
         );
+        long readyOrders = orderRepository.countByStatusIn(List.of(OrderStatus.READY));
+        List<CounterSaleSummaryResponse> activeCounterSales = counterSaleService.listActive();
+        long pendingPayments = tabService.listOpen().stream()
+                .filter(tab -> tab.remainingAmount().signum() > 0)
+                .count();
         BigDecimal openAmount = tabRepository.sumFinalAmountByStatus(TabStatus.OPEN);
         BigDecimal receivedToday = paymentRepository.sumAmountBetween(start, end);
         BigDecimal cancelledAmount = orderItemRepository.sumCancelledSubtotalBetween(
@@ -69,7 +80,10 @@ public class DashboardService {
         return new DashboardSummaryResponse(
                 todaySales,
                 openTabs,
+                activeCounterSales.size(),
                 ordersInPreparation,
+                readyOrders,
+                pendingPayments,
                 averageTicket,
                 bestSellingProducts(),
                 tableSummary(),
@@ -132,7 +146,12 @@ public class DashboardService {
         return orders.stream()
                 .map(order -> new DashboardSummaryResponse.RecentOrder(
                         order.getId(),
-                        order.getTab().getRestaurantTable().getNumber(),
+                        order.getTab().getRestaurantTable() == null
+                                ? null
+                                : order.getTab().getRestaurantTable().getNumber(),
+                        order.getTab().getType() == TabType.COUNTER
+                                ? "Balcão #" + order.getTab().getId()
+                                : "Mesa " + order.getTab().getRestaurantTable().getNumber(),
                         order.getStatus().name(),
                         amountByOrder.getOrDefault(order.getId(), BigDecimal.ZERO),
                         order.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)

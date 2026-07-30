@@ -39,13 +39,24 @@
                 class="side-nav-item"
                 [routerLink]="item.path"
                 routerLinkActive="active"
-                [routerLinkActiveOptions]="{ exact: true }"
+                [routerLinkActiveOptions]="{ exact: item.path !== '/balcao' }"
                 ariaCurrentWhenActive="page"
+                [attr.aria-label]="item.path === '/balcao' && counterActivity.activeCount() > 0
+                  ? item.label + ': ' + counterActivity.activeCount() + ' atendimentos ativos, ' + counterActivity.readyCount() + (counterActivity.readyCount() === 1 ? ' pronto' : ' prontos')
+                  : item.label"
                 [attr.title]="sidebarCollapsed() ? item.label : null"
                 (click)="closeNav()"
               >
                 <i [class]="item.icon"></i>
                 <span>{{ item.label }}</span>
+                @if (item.path === '/balcao' && counterActivity.activeCount() > 0) {
+                  <span class="nav-counter-status">
+                    <b>{{ counterActivity.activeCount() }}</b>
+                    @if (counterActivity.readyCount() > 0) {
+                      <small><i class="pi pi-bell"></i>{{ counterActivity.readyCount() }} pronto{{ counterActivity.readyCount() === 1 ? '' : 's' }}</small>
+                    }
+                  </span>
+                }
               </a>
             }
           </section>
@@ -113,3 +124,4 @@
     <app-feedback-toast />
   </main>
 }
+<div id="hubon-overlay-root" class="hubon-overlay-root"></div>

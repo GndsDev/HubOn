@@ -2,9 +2,11 @@ import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
+import { vi } from 'vitest';
 import { App } from './app';
 import { routes } from './app.routes';
 import { AuthService } from './core/services/auth.service';
+import { CounterActivityService } from './core/services/counter-activity.service';
 import { DashboardApiService } from './core/services/dashboard-api.service';
 
 const dashboardSummary = {
@@ -38,6 +40,11 @@ describe('App', () => {
     me: () => of(currentUser()),
     changePassword: () => of({ message: 'Senha alterada com sucesso.' }),
   };
+  const counterActivityMock = {
+    activeCount: signal(2),
+    readyCount: signal(1),
+    refresh: vi.fn(),
+  };
 
   beforeEach(async () => {
     authenticated.set(false);
@@ -52,6 +59,10 @@ describe('App', () => {
         {
           provide: DashboardApiService,
           useValue: { getSummary: () => of(dashboardSummary) },
+        },
+        {
+          provide: CounterActivityService,
+          useValue: counterActivityMock,
         },
       ],
     }).compileComponents();
@@ -117,5 +128,22 @@ describe('App', () => {
 
     expect(fixture.nativeElement.querySelector('.hub-shell')?.classList.contains('sidebar-collapsed')).toBe(true);
     expect(fixture.nativeElement.querySelector('.hub-sidebar')?.classList.contains('collapsed')).toBe(true);
+  });
+
+  it('should expose active and ready counter sales in an accessible navigation indicator', async () => {
+    authenticated.set(true);
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/dashboard');
+    fixture.detectChanges();
+
+    const counterLink = fixture.nativeElement.querySelector('a[href="/balcao"]') as HTMLAnchorElement;
+    expect(counterLink.getAttribute('aria-label')).toContain('2 atendimentos ativos');
+    expect(counterLink.getAttribute('aria-label')).toContain('1 pronto');
+    expect(counterLink.querySelector('.nav-counter-status')?.textContent).toContain('1 pronto');
+
+    fixture.componentInstance.toggleSidebar();
+    fixture.detectChanges();
+    expect(counterLink.querySelector('.nav-counter-status')).toBeTruthy();
   });
 });

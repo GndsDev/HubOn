@@ -259,3 +259,9 @@ Valide também permissões por perfil:
   movimentações atômicas, venda com saldo negativo e alerta, capacidade de
   produção, concorrência de baixas e estornos idempotentes. O planejamento do
   módulo está em [stock-management.md](../business/stock-management.md).
+
+## Balcão, relatório e overlays
+
+`CounterSalesAndMonthlyReportsIntegrationTests` cobre comanda sem mesa, rascunho vazio ou com itens, retomada em nova requisição, venda direta, preparada e mista, estoque idempotente, pagamento parcial e total, pagamento antes do preparo, atualização da cozinha, entrega, finalização, histórico, cancelamento, estorno e agregações mensais. `SecurityAuthorizationIntegrationTests` cobre 401/403, acesso por URL direta e os perfis dos endpoints. Todo teste de integração mantém `IntegrationTestDatabaseGuard` e o perfil `test`, apontado exclusivamente para `hubon_test`.
+
+No frontend, as suítes de `counter-page`, `counter-activity`, `counter-workflow`, `monthly-report-csv`, `overlay-stack` e `accessible-dialog` cobrem criação persistente, retomada pela URL, edição do rascunho, pagamento parcial, preparo após pagamento, entrega e finalização separadas, histórico, indicador global, próxima ação contextual, exportação, raiz única de overlay, ESC, foco, Tab/Shift+Tab e restauração de foco. Os cenários de viewport e temas permanecem na auditoria visual automatizada.

@@ -10,8 +10,9 @@ O objetivo é facilitar evolução do produto, revisão de decisões e entrada d
 - [Roadmap](product/ROADMAP.md): fases planejadas do produto.
 - [Changelog](product/CHANGELOG.md): histórico de mudanças documentadas.
 - [Decisions](product/DECISIONS.md): guia narrativo para decisões relevantes e ADRs.
+- [Decisões de ações operacionais](product/operational-actions-decisions.md): consolidação de botões e ações contextuais.
 - [Status do MVP](status-mvp.md): o que está funcional, parcial, fora do MVP e planejado.
-- [Estoque Inteligente](business/stock-management.md): controle hibrido de estoque, baixas automaticas simples e limites do escopo.
+- [Estoque Inteligente](business/stock-management.md): controle híbrido de estoque, baixas automáticas simples e limites do escopo.
 - [Fluxo do sistema](architecture/fluxo-sistema.md): jornada principal entre mesa, comanda, pedido, cozinha e pagamento.
 
 ## Arquitetura
@@ -21,11 +22,14 @@ O objetivo é facilitar evolução do produto, revisão de decisões e entrada d
 - [Integração frontend/API](architecture/frontend-api-integration.md): padrão de comunicação entre Angular e API.
 - [Roteamento do frontend](architecture/frontend-routing.md): rotas, layout e comportamento esperado.
 - [Temas do frontend](architecture/frontend-theme.md): funcionamento dos temas dark e light.
+- [Estratégia de overlays](architecture/overlay-strategy.md): raiz global, foco, teclado e ordem de diálogos e menus.
 
 ## Negócio
 
 - [Regras de negócio](business/regras-negocio.md): regras operacionais do MVP.
-- [Estoque Inteligente](business/stock-management.md): regras de itens manuais, baixa automatica simples e estornos.
+- [Estoque Inteligente](business/stock-management.md): regras de itens manuais, baixa automática simples e estornos.
+- [Venda no balcão](business/counter-sales.md): atendimento independente sem mesa, pagamento, preparo e permissões.
+- [Relatório mensal](business/monthly-report.md): competência, indicadores, agrupamentos e exportações.
 - [Glossário](GLOSSARY.md): termos oficiais usados no produto e na documentação.
 
 ## Banco
@@ -51,6 +55,7 @@ O objetivo é facilitar evolução do produto, revisão de decisões e entrada d
 
 - [Testes](testing/testing.md): estratégia de testes, cobertura atual e recomendações.
 - [Fluxo de teste manual](testing/manual-test-flow.md): roteiro manual da operação principal.
+- [Homologação operacional e visual](testing/counter-operations-homologation.md): diagnóstico, implementação, validações e inventário da revisão do Balcão.
 
 ## Portfolio
 

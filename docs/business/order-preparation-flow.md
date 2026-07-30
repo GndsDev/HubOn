@@ -62,3 +62,7 @@ histórico.
 
 Não há impressão de produção, divisão por praça, tempos prometidos, WebSocket,
 delivery, expedição separada ou reabertura de pedido pago/fechado.
+
+## Canal de balcão
+
+Pedidos de balcão usam as mesmas transições por item. Itens `DIRECT_SERVICE` ficam `READY` na confirmação e não aparecem na Cozinha. Itens `REQUIRES_PREPARATION` seguem `WAITING_PREPARATION -> IN_PREPARATION -> READY`. Em pedidos mistos, cada item mantém seu estado; pagar a comanda não remove o pedido da fila nem da central do Balcão. O pedido inteiro só passa a `DELIVERED` por ação explícita e quando não restar item ativo pendente.

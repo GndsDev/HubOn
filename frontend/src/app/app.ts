@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, startWith } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
+import { CounterActivityService } from './core/services/counter-activity.service';
 import { ThemeService } from './core/services/theme.service';
 import { FeedbackToastComponent } from './shared/components/feedback-toast/feedback-toast.component';
 
@@ -32,6 +33,7 @@ interface NavGroup {
 export class App {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
+  readonly counterActivity = inject(CounterActivityService);
   private readonly themeService = inject(ThemeService);
   readonly navOpen = signal(false);
   readonly sidebarCollapsed = signal(false);
@@ -62,6 +64,7 @@ export class App {
       label: 'Operação',
       items: [
         { path: '/dashboard', label: 'Dashboard', icon: 'pi pi-chart-line', roles: ['OWNER', 'ADMIN'] },
+        { path: '/balcao', label: 'Balcão', icon: 'pi pi-shopping-bag', roles: ['OWNER', 'ADMIN', 'CASHIER'] },
         { path: '/mesas', label: 'Mesas', icon: 'pi pi-table', roles: ['OWNER', 'ADMIN', 'WAITER'] },
         { path: '/comandas', label: 'Comandas', icon: 'pi pi-receipt', roles: ['OWNER', 'ADMIN', 'WAITER', 'CASHIER'] },
         { path: '/pedidos', label: 'Pedidos', icon: 'pi pi-shopping-cart', roles: ['OWNER', 'ADMIN', 'WAITER', 'CASHIER'] },
@@ -106,9 +109,10 @@ export class App {
         this.currentPath.set(currentPath);
         const item = this.navGroups
           .flatMap((group) => group.items)
-          .find((navItem) => navItem.path === currentPath);
+          .find((navItem) => currentPath === navItem.path || currentPath.startsWith(`${navItem.path}/`));
         this.currentLabel.set(item?.label ?? (currentPath === '/minha-conta' ? 'Minha Conta' : 'Dashboard'));
         this.navOpen.set(false);
+        if (item?.path === '/balcao') this.counterActivity.refresh();
       });
   }
 

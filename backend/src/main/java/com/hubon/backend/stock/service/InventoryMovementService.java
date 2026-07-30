@@ -58,14 +58,14 @@ public class InventoryMovementService {
 
     @Transactional
     public InventoryMovementResponse registerLoss(StockLossRequest request) {
-        requireReason(request.reason(), "Motivo da perda e obrigatorio");
+        requireReason(request.reason(), "Motivo da perda é obrigatório");
         return registerMovement(request.ingredientId(), InventoryMovementType.LOSS, request.quantity(), request.reason());
     }
 
     @Transactional
     public InventoryMovementResponse registerAdjustment(StockAdjustmentRequest request) {
-        requireReason(request.reason(), "Motivo do ajuste e obrigatorio");
-        validateNonNegative(request.newStock(), "Novo saldo nao pode ser negativo");
+        requireReason(request.reason(), "Motivo do ajuste é obrigatório");
+        validateNonNegative(request.newStock(), "Novo saldo não pode ser negativo");
         Ingredient ingredient = findIngredientForUpdate(request.ingredientId());
         ensureActive(ingredient);
 
@@ -171,7 +171,7 @@ public class InventoryMovementService {
                             .quantity(pending.quantity())
                             .previousStock(previousStock)
                             .resultingStock(resultingStock)
-                            .reason("Baixa automatica na confirmacao do pedido #" + order.getId())
+                            .reason("Baixa automática na confirmação do pedido #" + order.getId())
                             .originType(InventoryMovementOriginType.ORDER_ITEM)
                             .originReference("ORDER-" + order.getId() + "/ITEM-" + pending.item().getId())
                             .order(order)
@@ -212,7 +212,7 @@ public class InventoryMovementService {
     @Transactional(readOnly = true)
     public List<InventoryMovementResponse> listByIngredient(Long ingredientId) {
         if (!ingredientRepository.existsById(ingredientId)) {
-            throw new ResourceNotFoundException("Ingrediente nao encontrado");
+            throw new ResourceNotFoundException("Ingrediente não encontrado");
         }
         return movementRepository
                 .findAllByIngredientIdOrderByCreatedAtDesc(ingredientId, PageRequest.of(0, RECENT_LIMIT))
@@ -270,9 +270,9 @@ public class InventoryMovementService {
         BigDecimal resultingStock = switch (type) {
             case ENTRY -> previousStock.add(quantity);
             case EXIT, LOSS -> previousStock.subtract(quantity);
-            case ADJUSTMENT, SALE, REVERSAL -> throw new BusinessException("Tipo de movimentacao nao suportado neste fluxo");
+            case ADJUSTMENT, SALE, REVERSAL -> throw new BusinessException("Tipo de movimentação não suportado neste fluxo");
         };
-        validateNonNegative(resultingStock, "Estoque nao pode ficar negativo");
+        validateNonNegative(resultingStock, "Estoque não pode ficar negativo");
         ingredient.setCurrentStock(resultingStock);
         InventoryMovement movement = InventoryMovement.builder()
                 .ingredient(ingredient)
@@ -289,24 +289,24 @@ public class InventoryMovementService {
 
     private Ingredient findIngredientForUpdate(Long ingredientId) {
         return ingredientRepository.findByIdForUpdate(ingredientId)
-                .orElseThrow(() -> new ResourceNotFoundException("Ingrediente nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Ingrediente não encontrado"));
     }
 
     private void ensureActive(Ingredient ingredient) {
         if (!Boolean.TRUE.equals(ingredient.getActive())) {
-            throw new BusinessException("Ingrediente inativo nao pode movimentar estoque");
+            throw new BusinessException("Ingrediente inativo não pode movimentar estoque");
         }
     }
 
     private void ensureDirectSale(Ingredient ingredient) {
         if (ingredient.getControlMode() != StockControlMode.DIRECT_SALE) {
-            throw new BusinessException("Item de estoque manual nao pode sofrer baixa automatica por pedido");
+            throw new BusinessException("Item de estoque manual não pode sofrer baixa automática por pedido");
         }
     }
 
     private User currentUser() {
         return authenticatedUserProvider.currentUser()
-                .orElseThrow(() -> new BusinessException("Usuario autenticado e obrigatorio para movimentar estoque"));
+                .orElseThrow(() -> new BusinessException("Usuário autenticado é obrigatório para movimentar estoque"));
     }
 
     private User orderActor(RestaurantOrder order) {
@@ -351,7 +351,7 @@ public class InventoryMovementService {
             BigDecimal available,
             BigDecimal required
     ) {
-        return "Estoque insuficiente para %s. Disponivel: %s %s. Necessario: %s %s."
+        return "Estoque insuficiente para %s. Disponível: %s %s. Necessário: %s %s."
                 .formatted(
                         productNames,
                         formatQuantity(available),

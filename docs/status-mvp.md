@@ -71,23 +71,24 @@ Documentos centrais:
 
 ## Próxima fase planejada
 
-O **Estoque Inteligente** ja possui o recorte hibrido implementado: itens
+O **Estoque Inteligente** já possui o recorte híbrido implementado: itens
 manuais, itens `DIRECT_SALE`, vínculo por variação, baixa na confirmação do
 pedido e estorno idempotente em cancelamentos elegíveis.
 
-Continuam fora do MVP: ficha tecnica, receita multi-ingrediente, producao,
-rendimento, conversao automatica de unidades, compras, fornecedores, lotes,
-validade e multiplos depositos. A visao atual esta em
+Continuam fora do MVP: ficha técnica, receita multi-ingrediente, produção,
+rendimento, conversão automática de unidades, compras, fornecedores, lotes,
+validade e múltiplos depósitos. A visão atual está em
 [stock-management.md](business/stock-management.md).
 
 ## Validação realizada
 
 - Frontend compilado com `npm run build`.
 - Backend validado com `.\mvnw.cmd test`.
-- Backend possui 66 testes passando, incluindo catálogo, pedidos, estoque, regras financeiras, consistência operacional, seeder, autorização e migration corretiva.
-- Frontend possui 28 testes passando em 8 arquivos de especificação.
-- Flyway validou V1 a V6 no banco exclusivo `hubon_test`.
+- Backend possui 83 testes passando, incluindo Balcão persistente, relatório mensal, catálogo, pedidos, estoque, regras financeiras, consistência operacional, seeder e autorização.
+- Frontend possui 59 testes passando em 16 arquivos de especificação.
+- Flyway validou V1 a V7 no banco exclusivo `hubon_test`.
 - Hibernate iniciou com `ddl-auto=validate`.
+- A auditoria no Microsoft Edge aprovou 184 verificações nos temas claro e escuro.
 - `spring.jpa.open-in-view=false` é aplicado explicitamente.
 
 O runner de testes Angular pode falhar dentro de ambientes com sandbox restrito
@@ -97,3 +98,7 @@ neste workspace.
 Os comandos, a cobertura e a interpretação de falhas estão documentados em
 [testing.md](testing/testing.md). O roteiro integrado está em
 [manual-test-flow.md](testing/manual-test-flow.md).
+- central de venda no balcão independente, persistente e sem mesa fictícia, com retomada pela URL, estados separados, pagamento, preparo, entrega e fechamento;
+- relatório mensal por data comercial de fechamento, canal, produtos, categorias, pagamentos, dias e cancelamentos;
+- exportação CSV e impressão amigável do relatório;
+- overlays globais com foco, teclado, scroll lock e menus ajustados a viewport;

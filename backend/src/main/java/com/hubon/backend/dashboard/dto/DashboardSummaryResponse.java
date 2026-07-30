@@ -6,7 +6,10 @@ import java.util.List;
 public record DashboardSummaryResponse(
         BigDecimal todaySales,
         long openTabs,
+        long activeCounterSales,
         long ordersInPreparation,
+        long readyOrders,
+        long pendingPayments,
         BigDecimal averageTicket,
         List<BestSellingProduct> bestSellingProducts,
         TableSummary tableSummary,
@@ -40,6 +43,7 @@ public record DashboardSummaryResponse(
     public record RecentOrder(
             Long id,
             Integer tableNumber,
+            String originLabel,
             String status,
             BigDecimal amount,
             String createdAt

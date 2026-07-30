@@ -6,6 +6,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 
 @Component
@@ -21,5 +22,12 @@ public class AuthenticatedUserProvider {
 
     public User currentUserOr(Long fallbackUserId, Function<Long, User> fallbackLoader) {
         return currentUser().orElseGet(() -> fallbackLoader.apply(fallbackUserId));
+    }
+
+    public boolean currentUserHasAnyRole(String... allowedRoles) {
+        Set<String> allowed = Set.of(allowedRoles);
+        return currentUser()
+                .map(user -> user.getRoles().stream().anyMatch(role -> allowed.contains(role.getName())))
+                .orElse(false);
     }
 }

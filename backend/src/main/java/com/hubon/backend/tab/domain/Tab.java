@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -22,8 +23,21 @@ public class Tab {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "restaurant_table_id", nullable = false)
+    @JoinColumn(name = "restaurant_table_id")
     private RestaurantTable restaurantTable;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TabType type;
+
+    @Column(name = "customer_name", length = 120)
+    private String customerName;
+
+    @Column(name = "customer_phone", length = 30)
+    private String customerPhone;
+
+    @Column(name = "identification_note", length = 160)
+    private String identificationNote;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -38,6 +52,9 @@ public class Tab {
 
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
+
+    @Column(name = "closed_business_date")
+    private LocalDate closedBusinessDate;
 
     @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal totalAmount;
@@ -62,6 +79,9 @@ public class Tab {
         LocalDateTime now = LocalDateTime.now();
         if (status == null) {
             status = TabStatus.OPEN;
+        }
+        if (type == null) {
+            type = TabType.TABLE;
         }
         if (openedAt == null) {
             openedAt = now;

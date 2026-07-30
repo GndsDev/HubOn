@@ -55,6 +55,7 @@ class SecurityAuthorizationIntegrationTests {
     private String adminEmail;
     private String waiterEmail;
     private String kitchenEmail;
+    private String cashierEmail;
     private Long testCategoryId;
     private Long testTableId;
     private Long testTabId;
@@ -73,6 +74,7 @@ class SecurityAuthorizationIntegrationTests {
         adminEmail = insertUser("Admin", "ADMIN");
         waiterEmail = insertUser("Waiter", "WAITER");
         kitchenEmail = insertUser("Kitchen", "KITCHEN");
+        cashierEmail = insertUser("Cashier", "CASHIER");
     }
 
     @AfterEach
@@ -105,6 +107,67 @@ class SecurityAuthorizationIntegrationTests {
         mockMvc.perform(get("/api/dashboard/summary"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401));
+    }
+
+    @Test
+    void counterSaleShouldRequireAuthenticationAndRejectWaiter() throws Exception {
+        String payload = "{\"customerName\":\"Cliente\",\"serviceFee\":0,\"discountAmount\":0}";
+        mockMvc.perform(post("/api/tabs/counter").contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/tabs/counter")
+                        .header("Authorization", bearer(tokenFor(waiterEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/tabs/counter/active")
+                        .header("Authorization", bearer(tokenFor(waiterEmail))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void cashierShouldCreateIndependentCounterSaleWithAuthenticatedIdentity() throws Exception {
+        String body = mockMvc.perform(post("/api/tabs/counter")
+                        .header("Authorization", bearer(tokenFor(cashierEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"customerName\":\"  Ana  \",\"customerPhone\":\" 62999990000 \",\"identificationNote\":\" Camiseta azul \"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.type").value("COUNTER"))
+                .andExpect(jsonPath("$.tableId").doesNotExist())
+                .andExpect(jsonPath("$.customerName").value("Ana"))
+                .andExpect(jsonPath("$.openedByUserName").value("Cashier"))
+                .andExpect(jsonPath("$.displayLabel", containsString("Balcão #")))
+                .andReturn().getResponse().getContentAsString();
+        testTabId = objectMapper.readTree(body).path("id").asLong();
+
+        mockMvc.perform(get("/api/tabs/counter/active")
+                        .header("Authorization", bearer(tokenFor(cashierEmail))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(testTabId));
+
+        mockMvc.perform(get("/api/tabs/counter/{id}", testTabId)
+                        .header("Authorization", bearer(tokenFor(cashierEmail))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.id").value(testTabId));
+
+        mockMvc.perform(get("/api/tabs/{id}", testTabId)
+                        .header("Authorization", bearer(tokenFor(waiterEmail))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void monthlyReportShouldAllowOwnerAndAdminButRejectOperationalRoles() throws Exception {
+        for (String email : List.of(ownerEmail, adminEmail)) {
+            mockMvc.perform(get("/api/reports/monthly?year=2026&month=7")
+                            .header("Authorization", bearer(tokenFor(email))))
+                    .andExpect(status().isOk());
+        }
+        for (String email : List.of(waiterEmail, kitchenEmail, cashierEmail)) {
+            mockMvc.perform(get("/api/reports/monthly?year=2026&month=7")
+                            .header("Authorization", bearer(tokenFor(email))))
+                    .andExpect(status().isForbidden());
+        }
     }
 
     @Test

@@ -112,19 +112,19 @@ public class ProductVariantService {
         Product product = variant.getProduct();
 
         if (!Boolean.TRUE.equals(product.getActive())) {
-            throw new BusinessException("Produto inativo nao pode ser vendido");
+            throw new BusinessException("Produto inativo não pode ser vendido");
         }
         if (!Boolean.TRUE.equals(product.getAvailable())) {
-            throw new BusinessException("Produto indisponivel nao pode ser vendido");
+            throw new BusinessException("Produto indisponível não pode ser vendido");
         }
         if (!Boolean.TRUE.equals(product.getCategory().getActive())) {
             throw new BusinessException("Produto pertence a uma categoria inativa.");
         }
         if (!Boolean.TRUE.equals(variant.getActive())) {
-            throw new BusinessException("Variacao inativa nao pode ser vendida");
+            throw new BusinessException("Variação inativa não pode ser vendida");
         }
         if (!Boolean.TRUE.equals(variant.getAvailable())) {
-            throw new BusinessException("Variacao indisponivel nao pode ser vendida");
+            throw new BusinessException("Variação indisponível não pode ser vendida");
         }
         return variant;
     }
@@ -132,46 +132,46 @@ public class ProductVariantService {
     @Transactional(readOnly = true)
     public ProductVariant findEntityById(Long variantId) {
         return variantRepository.findById(variantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Variacao de produto nao encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Variação de produto não encontrada"));
     }
 
     private ProductVariant resolveRequestedVariant(Long productId, Long variantId) {
         if (variantId != null) {
             ProductVariant variant = findEntityById(variantId);
             if (productId != null && !variant.getProduct().getId().equals(productId)) {
-                throw new BusinessException("Variacao nao pertence ao produto informado");
+                throw new BusinessException("Variação não pertence ao produto informado");
             }
             return variant;
         }
 
         if (productId == null) {
-            throw new BusinessException("Produto ou variacao e obrigatorio");
+            throw new BusinessException("Produto ou variação é obrigatório");
         }
 
         List<ProductVariant> activeVariants = variantRepository
                 .findAllByProductIdAndActiveTrueAndAvailableTrueOrderByDisplayOrderAscNameAsc(productId);
         if (activeVariants.isEmpty()) {
-            throw new BusinessException("Produto precisa de pelo menos uma variacao ativa para ser vendido");
+            throw new BusinessException("Produto precisa de pelo menos uma variação ativa para ser vendido");
         }
         if (activeVariants.size() > 1) {
-            throw new BusinessException("Escolha a variacao do produto");
+            throw new BusinessException("Escolha a variação do produto");
         }
         return activeVariants.get(0);
     }
 
     private ProductVariant findByProduct(Long productId, Long variantId) {
         return variantRepository.findByIdAndProductId(variantId, productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Variacao de produto nao encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Variação de produto não encontrada"));
     }
 
     private Product findProduct(Long productId) {
         return productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Produto nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
     }
 
     private void ensureProductExists(Long productId) {
         if (!productRepository.existsById(productId)) {
-            throw new ResourceNotFoundException("Produto nao encontrado");
+            throw new ResourceNotFoundException("Produto não encontrado");
         }
     }
 
@@ -180,13 +180,13 @@ public class ProductVariantService {
                 ? variantRepository.existsByProductIdAndNameIgnoreCase(productId, name)
                 : variantRepository.existsByProductIdAndNameIgnoreCaseAndIdNot(productId, name, currentVariantId);
         if (exists) {
-            throw new BusinessException("Ja existe uma variacao com este nome para o produto");
+            throw new BusinessException("Já existe uma variação com este nome para o produto");
         }
     }
 
     private void validatePrice(BigDecimal price) {
         if (price == null || price.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BusinessException("Preco da variacao nao pode ser negativo");
+            throw new BusinessException("Preço da variação não pode ser negativo");
         }
     }
 

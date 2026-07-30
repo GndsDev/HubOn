@@ -2,8 +2,10 @@ package com.hubon.backend.tab.repository;
 
 import com.hubon.backend.tab.domain.Tab;
 import com.hubon.backend.tab.domain.TabStatus;
+import com.hubon.backend.tab.domain.TabType;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.QueryHint;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -17,7 +19,14 @@ import java.time.LocalDateTime;
 
 public interface TabRepository extends JpaRepository<Tab, Long> {
 
+    @EntityGraph(attributePaths = {"restaurantTable", "openedByUser", "openedByUser.roles"})
     List<Tab> findAllByStatusOrderByOpenedAtDesc(TabStatus status);
+
+    @EntityGraph(attributePaths = {"restaurantTable", "openedByUser", "openedByUser.roles"})
+    List<Tab> findAllByTypeAndStatusOrderByOpenedAtDesc(TabType type, TabStatus status);
+
+    @EntityGraph(attributePaths = {"restaurantTable", "openedByUser", "openedByUser.roles"})
+    List<Tab> findAllByTypeOrderByOpenedAtDesc(TabType type);
 
     boolean existsByRestaurantTableIdAndStatus(Long restaurantTableId, TabStatus status);
 

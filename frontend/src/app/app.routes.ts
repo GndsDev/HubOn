@@ -21,6 +21,24 @@ export const routes: Routes = [
     data: { label: 'Dashboard', roles: ['OWNER', 'ADMIN'] },
   },
   {
+    path: 'balcao',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/counter/counter-page.component').then(
+        (module) => module.CounterPageComponent,
+      ),
+    data: { label: 'Balcão', roles: ['OWNER', 'ADMIN', 'CASHIER'] },
+  },
+  {
+    path: 'balcao/:counterTabId',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/counter/counter-page.component').then(
+        (module) => module.CounterPageComponent,
+      ),
+    data: { label: 'Balcão', roles: ['OWNER', 'ADMIN', 'CASHIER'] },
+  },
+  {
     path: 'mesas',
     canActivate: [authGuard],
     loadComponent: () =>

@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
 import { catchError, EMPTY, exhaustMap, finalize, interval, map, merge, of, Subject } from 'rxjs';
 import { DashboardApiService } from '../../core/services/dashboard-api.service';
 import { FeedbackService } from '../../core/services/feedback.service';
@@ -14,7 +15,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 @Component({
   selector: 'app-dashboard-page',
   standalone: true,
-  imports: [CommonModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent],
+  imports: [CommonModule, RouterLink, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent],
   template: `
     <app-page-header kicker="Visão do turno" title="Operação em tempo real" description="Vendas, ocupação, produção e caixa do turno atual.">
       <button type="button" class="ghost-button" (click)="load()"><i class="pi pi-refresh"></i>Atualizar dados</button>
@@ -29,11 +30,11 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
     } @else if (summary(); as data) {
       <section class="stats-grid">
         @for (metric of metrics(data); track metric.label) {
-          <article class="premium-card stat-card" [class]="'tone-' + metric.tone">
+          <a class="premium-card stat-card dashboard-stat-link" [class]="'tone-' + metric.tone" [routerLink]="metric.route">
             <div class="stat-icon"><i [class]="metric.icon"></i></div>
             <div class="stat-copy"><span>{{ metric.label }}</span><strong>{{ metric.value }}</strong><p>{{ metric.detail }}</p></div>
-            <small>{{ metric.trend }}</small>
-          </article>
+            <small>{{ metric.trend }} <i class="pi pi-arrow-right"></i></small>
+          </a>
         }
       </section>
 
@@ -44,7 +45,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
               <article class="activity-row">
                 <div class="activity-order">
                   <strong>Pedido #{{ order.id }}</strong>
-                  <span>Mesa {{ order.tableNumber }}</span>
+                  <span>{{ order.originLabel }}</span>
                 </div>
                 <span class="activity-time">{{ dateTime(order.createdAt) }}</span>
                 <app-status-badge [label]="orderStatus(order.status)" [tone]="orderTone(order.status)" />
@@ -141,10 +142,10 @@ export class DashboardPageComponent implements OnInit {
   }
   metrics(data: DashboardSummary) {
     return [
-      { label: 'Vendas hoje', value: this.currency(data.todaySales), detail: 'Comandas fechadas no dia', icon: 'pi pi-wallet', tone: 'blue', trend: 'dados reais' },
-      { label: 'Comandas abertas', value: `${data.openTabs}`, detail: 'Atendimentos em andamento', icon: 'pi pi-receipt', tone: 'purple', trend: `${data.tableSummary.occupied} mesas ocupadas` },
-      { label: 'Pedidos em preparo', value: `${data.ordersInPreparation}`, detail: 'Recebidos ou preparando', icon: 'pi pi-send', tone: 'amber', trend: 'cozinha ao vivo' },
-      { label: 'Ticket médio', value: this.currency(data.averageTicket), detail: 'Média das comandas fechadas', icon: 'pi pi-chart-line', tone: 'emerald', trend: 'hoje' },
+      { label: 'Vendas hoje', value: this.currency(data.todaySales), detail: `Ticket médio de ${this.currency(data.averageTicket)}`, icon: 'pi pi-chart-line', tone: 'blue', trend: 'Abrir relatório', route: '/relatorios' },
+      { label: 'Balcão ativo', value: `${data.activeCounterSales}`, detail: 'Vendas abertas e retomáveis', icon: 'pi pi-shopping-bag', tone: 'purple', trend: 'Abrir atendimentos', route: '/balcao' },
+      { label: 'Cozinha', value: `${data.ordersInPreparation}`, detail: `${data.readyOrders} pedidos prontos`, icon: 'pi pi-send', tone: 'amber', trend: 'Acompanhar preparo', route: '/cozinha' },
+      { label: 'Pagamentos pendentes', value: `${data.pendingPayments}`, detail: `${data.openTabs} comandas abertas`, icon: 'pi pi-wallet', tone: 'emerald', trend: 'Abrir caixa', route: '/caixa' },
     ];
   }
   tableStatuses(data: DashboardSummary) {
@@ -155,7 +156,7 @@ export class DashboardPageComponent implements OnInit {
       { label: 'Desativadas', value: data.tableSummary.disabled, tone: 'disabled' },
     ];
   }
-  orderStatus(status: string): string { return { CREATED: 'Criado', SENT_TO_KITCHEN: 'Recebido', PREPARING: 'Preparando', READY: 'Pronto', DELIVERED: 'Entregue', CANCELLED: 'Cancelado' }[status] || status; }
+  orderStatus(status: string): string { return { CREATED: 'Criado', SENT_TO_KITCHEN: 'Recebido', PREPARING: 'Em preparo', READY: 'Pronto', DELIVERED: 'Entregue', CANCELLED: 'Cancelado' }[status] || status; }
   orderTone(status: string): string { return status === 'READY' || status === 'DELIVERED' ? 'success' : status === 'PREPARING' ? 'warning' : status === 'CANCELLED' ? 'danger' : 'info'; }
   currency(value: number): string { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
   dateTime(value: string): string { return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }

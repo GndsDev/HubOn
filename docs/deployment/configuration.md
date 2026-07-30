@@ -143,3 +143,7 @@ docker compose up -d
 
 Isso remove o volume `hubon_postgres_data`. Use apenas quando quiser recriar o
 banco local do zero.
+
+## Fuso comercial
+
+`HUBON_BUSINESS_ZONE_ID` define o fuso usado para a data comercial de fechamento e para o relatorio mensal. O padrao e `America/Sao_Paulo`. Configure um identificador IANA valido e mantenha o mesmo valor entre instancias do estabelecimento.

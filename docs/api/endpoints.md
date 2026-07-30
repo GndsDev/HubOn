@@ -64,6 +64,7 @@ deve entrar novamente.
 | Mesas | `OWNER`, `ADMIN`, `WAITER` |
 | Comandas | `OWNER`, `ADMIN`, `WAITER`, `CASHIER` |
 | Pedidos | `OWNER`, `ADMIN`, `WAITER`, `CASHIER` |
+| Balcão | `OWNER`, `ADMIN`, `CASHIER` |
 | Cozinha | `OWNER`, `ADMIN`, `KITCHEN`; o perfil `KITCHEN` acessa apenas a fila de preparo. |
 | Caixa | `OWNER`, `ADMIN`, `CASHIER` |
 | Categorias | `OWNER`, `ADMIN` |
@@ -119,60 +120,60 @@ O preço existe somente em `ProductVariant`. `PreparationFlow` aceita
 
 ## Estoque - ingredientes
 
-| Metodo | Endpoint | Descricao |
+| Método | Endpoint | Descrição |
 | --- | --- | --- |
 | GET | `/ingredients` | Lista ingredientes por nome. |
 | GET | `/ingredients/active` | Lista apenas ingredientes ativos. |
-| GET | `/ingredients/alerts` | Lista ingredientes ativos zerados ou abaixo/iguais ao estoque minimo. |
+| GET | `/ingredients/alerts` | Lista ingredientes ativos zerados ou abaixo/iguais ao estoque mínimo. |
 | GET | `/ingredients/{id}` | Busca um ingrediente. |
-| POST | `/ingredients` | Cria ingrediente com saldo inicial `0` e `controlMode` padrao `MANUAL`. |
-| PUT | `/ingredients/{id}` | Atualiza cadastro, unidade, modo, minimo, ideal e status; nao aceita saldo atual. |
+| POST | `/ingredients` | Cria ingrediente com saldo inicial `0` e `controlMode` padrão `MANUAL`. |
+| PUT | `/ingredients/{id}` | Atualiza cadastro, unidade, modo, mínimo, ideal e status; não aceita saldo atual. |
 | PATCH | `/ingredients/{id}/activate` | Ativa um ingrediente. |
-| PATCH | `/ingredients/{id}/deactivate` | Desativa sem apagar historico. |
+| PATCH | `/ingredients/{id}/deactivate` | Desativa sem apagar histórico. |
 
 Unidades aceitas: `KG`, `G`, `L`, `ML`, `UN`, `CX`, `PACKAGE` e `TRAY`.
-O status retornado e calculado:
+O status retornado é calculado:
 
-| Condicao | `stockStatus` |
+| Condição | `stockStatus` |
 | --- | --- |
 | `currentStock == 0` | `OUT_OF_STOCK` |
 | `currentStock <= minimumStock` | `LOW_STOCK` |
 | `currentStock > minimumStock` | `NORMAL` |
 
-`controlMode` aceita `MANUAL` e `DIRECT_SALE`. Regras principais: nome unico
-ignorando maiusculas/minusculas, quantidades nao negativas, estoque ideal maior
-ou igual ao minimo e alteracao de saldo apenas por movimentacoes.
+`controlMode` aceita `MANUAL` e `DIRECT_SALE`. Regras principais: nome único
+ignorando maiúsculas/minúsculas, quantidades não negativas, estoque ideal maior
+ou igual ao mínimo e alteração de saldo apenas por movimentações.
 
-## Estoque - movimentacoes
+## Estoque - movimentações
 
-| Metodo | Endpoint | Descricao |
+| Método | Endpoint | Descrição |
 | --- | --- | --- |
-| GET | `/inventory-movements` | Lista as 100 movimentacoes mais recentes. |
-| GET | `/inventory-movements/ingredient/{ingredientId}` | Lista o historico recente de um ingrediente. |
+| GET | `/inventory-movements` | Lista as 100 movimentações mais recentes. |
+| GET | `/inventory-movements/ingredient/{ingredientId}` | Lista o histórico recente de um ingrediente. |
 | POST | `/inventory-movements/entries` | Registra entrada manual. |
-| POST | `/inventory-movements/exits` | Registra saida manual. |
+| POST | `/inventory-movements/exits` | Registra saída manual. |
 | POST | `/inventory-movements/losses` | Registra perda com motivo. |
-| POST | `/inventory-movements/adjustments` | Ajusta o saldo fisico encontrado com motivo. |
+| POST | `/inventory-movements/adjustments` | Ajusta o saldo físico encontrado com motivo. |
 
 Tipos persistidos: `ENTRY`, `EXIT`, `LOSS`, `ADJUSTMENT`, `SALE` e `REVERSAL`.
-Movimentos automaticos usam `originType` (`ORDER_ITEM` ou
+Movimentos automáticos usam `originType` (`ORDER_ITEM` ou
 `ORDER_CANCELLATION`) e referenciam pedido e item do pedido.
 
-Toda movimentacao grava ingrediente, tipo, quantidade, saldo anterior, saldo
-resultante, motivo, usuario autenticado e data. Entradas somam; saidas e perdas
-subtraem; ajustes gravam o novo saldo fisico e a diferenca absoluta como
+Toda movimentação grava ingrediente, tipo, quantidade, saldo anterior, saldo
+resultante, motivo, usuário autenticado e data. Entradas somam; saídas e perdas
+subtraem; ajustes gravam o novo saldo físico e a diferença absoluta como
 quantidade movimentada. Nenhum movimento manual pode deixar saldo negativo.
 
-## Vinculo variacao-estoque
+## Vínculo variação-estoque
 
 Base: `/product-variants/{variantId}/stock-link`
 
-| Metodo | Endpoint | Descricao |
+| Método | Endpoint | Descrição |
 | --- | --- | --- |
-| GET | `/product-variants/{variantId}/stock-link` | Retorna o vinculo ativo. |
-| POST | `/product-variants/{variantId}/stock-link` | Cria vinculo ativo. |
-| PUT | `/product-variants/{variantId}/stock-link` | Atualiza o vinculo ativo. |
-| DELETE | `/product-variants/{variantId}/stock-link` | Desativa o vinculo ativo. |
+| GET | `/product-variants/{variantId}/stock-link` | Retorna o vínculo ativo. |
+| POST | `/product-variants/{variantId}/stock-link` | Cria vínculo ativo. |
+| PUT | `/product-variants/{variantId}/stock-link` | Atualiza o vínculo ativo. |
+| DELETE | `/product-variants/{variantId}/stock-link` | Desativa o vínculo ativo. |
 
 Payload:
 
@@ -183,8 +184,8 @@ Payload:
 }
 ```
 
-O item deve estar ativo e em `DIRECT_SALE`. A variacao, o produto base e a
-categoria devem estar ativos. Existe no maximo um vinculo ativo por variacao.
+O item deve estar ativo e em `DIRECT_SALE`. A variação, o produto base e a
+categoria devem estar ativos. Existe no máximo um vínculo ativo por variação.
 
 ## Mesas
 
@@ -272,3 +273,25 @@ Status mais comuns:
 - `404`: recurso não encontrado.
 - `409`: violação de integridade ou conflito de atualização concorrente.
 - `500`: erro não tratado, sem exposição de detalhes internos.
+
+## Balcão
+
+| Método | Endpoint | Perfis | Descrição |
+| --- | --- | --- | --- |
+| GET | `/tabs/counter/active` | `OWNER`, `ADMIN`, `CASHIER` | Lista vendas abertas com valores, contagens, três estados e próxima ação derivados. |
+| GET | `/tabs/counter/finished-today` | `OWNER`, `ADMIN`, `CASHIER` | Lista vendas fechadas na data comercial atual. |
+| GET | `/tabs/counter/history` | `OWNER`, `ADMIN`, `CASHIER` | Pesquisa vendas antigas por período, número, cliente, status e operador. |
+| GET | `/tabs/counter/{id}` | `OWNER`, `ADMIN`, `CASHIER` | Retorna o resumo, os dados opcionais do cliente e todos os pedidos da venda. |
+| POST | `/tabs/counter` | `OWNER`, `ADMIN`, `CASHIER` | Cria uma comanda `COUNTER` nova, independente e sem mesa. |
+| PATCH | `/tabs/counter/{id}` | `OWNER`, `ADMIN`, `CASHIER` | Atualiza nome, telefone e referência opcional do cliente. |
+| POST | `/tabs/counter/{id}/finish` | `OWNER`, `ADMIN`, `CASHIER` | Fecha somente uma venda entregue e integralmente paga. |
+
+Os filtros de histórico são opcionais: `from`, `to`, `number`, `customer`, `status` e `operator`. O usuário responsável sempre vem do token. O backend deriva o canal do pedido a partir da comanda e calcula estados importantes com dados persistidos; a interface não é a fonte de verdade.
+
+## Relatório mensal
+
+| Método | Endpoint | Perfis | Descrição |
+| --- | --- | --- | --- |
+| GET | `/reports/monthly?year=2026&month=7&channel=ALL` | `OWNER`, `ADMIN` | Consolida vendas válidas pela data comercial de fechamento. |
+
+`channel` aceita `ALL`, `TABLE` e `COUNTER`. Mês deve estar entre 1 e 12 e ano entre 2000 e 2100. A resposta é um DTO agregado com resumo, comparação, produtos/variações, categorias, pagamentos, canais, dias e cancelamentos.

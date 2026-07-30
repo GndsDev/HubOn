@@ -39,7 +39,7 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
             <button type="button" class="collection-card clickable collection-card-button" (click)="showDetails(tab)">
               <div class="collection-icon"><i class="pi pi-receipt"></i></div>
               <div class="collection-main">
-                <strong>Comanda #{{ tab.id }} · Mesa {{ tab.tableNumber }}</strong>
+                <strong>Comanda #{{ tab.id }} · {{ tab.displayLabel }}</strong>
                 <span>{{ tab.openedByUserName }}</span>
                 <small>Aberta {{ relativeTime(tab.openedAt) }}</small>
               </div>
@@ -101,7 +101,7 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
           (click)="$event.stopPropagation()"
         >
           <div class="modal-header">
-            <div><span>Detalhes</span><h2 id="tab-details-dialog-title">Comanda #{{ tab.id }} · Mesa {{ tab.tableNumber }}</h2></div>
+            <div><span>Detalhes</span><h2 id="tab-details-dialog-title">Comanda #{{ tab.id }} · {{ tab.displayLabel }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="selected.set(null)"><i class="pi pi-times"></i></button>
           </div>
           <div class="detail-grid">
@@ -113,9 +113,23 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
             <div><span>Restante</span><strong>{{ currency(tab.remainingAmount) }}</strong></div>
           </div>
           <div class="modal-actions split-actions">
-            <button type="button" class="danger-button" (click)="cancel(tab)"><i class="pi pi-times-circle"></i>Cancelar comanda</button>
-            <button type="button" class="primary-button" [disabled]="tab.remainingAmount > 0" (click)="close(tab)"><i class="pi pi-check-circle"></i>Fechar comanda</button>
+            @if (tab.paidAmount === 0) {
+              <button type="button" class="danger-button" (click)="pendingCancel.set(tab)"><i class="pi pi-times-circle"></i>Cancelar comanda</button>
+            }
+            @if (tab.remainingAmount === 0) {
+              <button type="button" class="primary-button" (click)="close(tab)"><i class="pi pi-check-circle"></i>Fechar comanda</button>
+            }
           </div>
+        </section>
+      </div>
+    }
+
+    @if (pendingCancel(); as tab) {
+      <div class="modal-backdrop" (click)="pendingCancel.set(null)">
+        <section class="modal-panel compact" appAccessibleDialog role="alertdialog" aria-modal="true" aria-labelledby="tab-cancel-title" (dialogClose)="pendingCancel.set(null)" (click)="$event.stopPropagation()">
+          <div class="modal-header"><div><span>Confirmação</span><h2 id="tab-cancel-title">Cancelar a comanda #{{ tab.id }}?</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="pendingCancel.set(null)"><i class="pi pi-times"></i></button></div>
+          <p>Esta ação encerra a comanda sem registrar venda e só será aceita quando não houver pagamentos ou pedidos pendentes.</p>
+          <div class="modal-actions"><button type="button" class="ghost-button" (click)="pendingCancel.set(null)">Voltar</button><button type="button" class="danger-button" (click)="cancel(tab)"><i class="pi pi-times-circle"></i>Confirmar cancelamento</button></div>
         </section>
       </div>
     }
@@ -134,6 +148,7 @@ export class TabsPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly formOpen = signal(false);
   readonly selected = signal<Tab | null>(null);
+  readonly pendingCancel = signal<Tab | null>(null);
   form = { tableId: 0, serviceFee: 0, discountAmount: 0 };
 
   ngOnInit(): void { this.load(); }
@@ -186,7 +201,7 @@ export class TabsPageComponent implements OnInit {
 
   cancel(tab: Tab): void {
     this.api.cancel(tab.id).subscribe({
-      next: () => { this.feedback.success('Comanda cancelada com sucesso.'); this.selected.set(null); this.load(); },
+      next: () => { this.feedback.success('Comanda cancelada com sucesso.'); this.pendingCancel.set(null); this.selected.set(null); this.load(); },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
   }

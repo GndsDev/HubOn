@@ -8,8 +8,11 @@ import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.shared.exception.ResourceNotFoundException;
 import com.hubon.backend.tab.domain.Tab;
 import com.hubon.backend.tab.domain.TabStatus;
+import com.hubon.backend.tab.domain.TabType;
+import com.hubon.backend.tab.dto.OpenCounterTabRequest;
 import com.hubon.backend.tab.dto.OpenTabRequest;
 import com.hubon.backend.tab.dto.TabResponse;
+import com.hubon.backend.tab.dto.UpdateCounterTabRequest;
 import com.hubon.backend.tab.repository.TabRepository;
 import com.hubon.backend.table.domain.RestaurantTable;
 import com.hubon.backend.table.domain.TableStatus;
@@ -18,9 +21,12 @@ import com.hubon.backend.user.domain.User;
 import com.hubon.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -35,11 +41,13 @@ public class TabService {
     private final PaymentRepository paymentRepository;
     private final TabAccountingService accountingService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final Clock businessClock;
 
     @Transactional(readOnly = true)
     public List<TabResponse> listOpen() {
         return tabRepository.findAllByStatusOrderByOpenedAtDesc(TabStatus.OPEN)
                 .stream()
+                .filter(this::canCurrentUserAccess)
                 .map(this::toResponse)
                 .toList();
     }
@@ -47,6 +55,7 @@ public class TabService {
     @Transactional(readOnly = true)
     public TabResponse getById(Long id) {
         Tab tab = findEntityById(id);
+        ensureCurrentUserCanAccess(tab);
         accountingService.refreshAmounts(tab);
         return toResponse(tab);
     }
@@ -84,9 +93,10 @@ public class TabService {
 
         Tab tab = Tab.builder()
                 .restaurantTable(table)
+                .type(TabType.TABLE)
                 .openedByUser(openedByUser)
                 .status(TabStatus.OPEN)
-                .openedAt(LocalDateTime.now())
+                .openedAt(LocalDateTime.now(businessClock))
                 .serviceFee(valueOrZero(request.serviceFee()))
                 .discountAmount(valueOrZero(request.discountAmount()))
                 .totalAmount(BigDecimal.ZERO)
@@ -102,8 +112,46 @@ public class TabService {
     }
 
     @Transactional
+    public TabResponse openCounter(OpenCounterTabRequest request) {
+        User openedByUser = authenticatedUserProvider.currentUser()
+                .orElseThrow(() -> new BusinessException("Usuário autenticado é obrigatório"));
+
+        Tab tab = Tab.builder()
+                .type(TabType.COUNTER)
+                .openedByUser(openedByUser)
+                .status(TabStatus.OPEN)
+                .openedAt(LocalDateTime.now(businessClock))
+                .customerName(normalizeOptional(request.customerName()))
+                .customerPhone(normalizeOptional(request.customerPhone()))
+                .identificationNote(normalizeOptional(request.identificationNote()))
+                .serviceFee(valueOrZero(request.serviceFee()))
+                .discountAmount(valueOrZero(request.discountAmount()))
+                .totalAmount(BigDecimal.ZERO)
+                .finalAmount(BigDecimal.ZERO)
+                .build();
+
+        Tab savedTab = tabRepository.save(tab);
+        accountingService.refreshAmounts(savedTab);
+        return toResponse(savedTab);
+    }
+
+    @Transactional
+    public TabResponse updateCounter(Long id, UpdateCounterTabRequest request) {
+        Tab tab = findEntityByIdForUpdate(id);
+        ensureCurrentUserCanAccess(tab);
+        ensureCounter(tab);
+        ensureOpen(tab);
+        tab.setCustomerName(normalizeOptional(request.customerName()));
+        tab.setCustomerPhone(normalizeOptional(request.customerPhone()));
+        tab.setIdentificationNote(normalizeOptional(request.identificationNote()));
+        accountingService.refreshAmounts(tab);
+        return toResponse(tab);
+    }
+
+    @Transactional
     public TabResponse close(Long id) {
         Tab tab = findEntityByIdForUpdate(id);
+        ensureCurrentUserCanAccess(tab);
         ensureOpen(tab);
         ensureNoPendingOrders(tab);
         accountingService.refreshAmounts(tab);
@@ -118,8 +166,9 @@ public class TabService {
         }
 
         tab.setStatus(TabStatus.CLOSED);
-        tab.setClosedAt(LocalDateTime.now());
-        tab.getRestaurantTable().setStatus(TableStatus.AVAILABLE);
+        tab.setClosedAt(LocalDateTime.now(businessClock));
+        tab.setClosedBusinessDate(LocalDate.now(businessClock));
+        releaseTable(tab);
 
         return toResponse(tab);
     }
@@ -127,14 +176,16 @@ public class TabService {
     @Transactional
     public TabResponse cancel(Long id) {
         Tab tab = findEntityByIdForUpdate(id);
+        ensureCurrentUserCanAccess(tab);
         ensureOpen(tab);
         ensureNoPayments(tab);
         ensureNoDeliveredOrders(tab);
         ensureNoPendingOrders(tab);
 
         tab.setStatus(TabStatus.CANCELLED);
-        tab.setClosedAt(LocalDateTime.now());
-        tab.getRestaurantTable().setStatus(TableStatus.AVAILABLE);
+        tab.setClosedAt(LocalDateTime.now(businessClock));
+        tab.setClosedBusinessDate(LocalDate.now(businessClock));
+        releaseTable(tab);
 
         return toResponse(tab);
     }
@@ -153,12 +204,18 @@ public class TabService {
     public TabResponse toResponse(Tab tab) {
         BigDecimal paidAmount = accountingService.paidAmount(tab.getId());
         BigDecimal remainingAmount = valueOrZero(tab.getFinalAmount()).subtract(paidAmount).max(BigDecimal.ZERO);
+        RestaurantTable table = tab.getRestaurantTable();
 
         return new TabResponse(
                 tab.getId(),
-                tab.getRestaurantTable().getId(),
-                tab.getRestaurantTable().getNumber(),
-                tab.getRestaurantTable().getName(),
+                tab.getType(),
+                table == null ? null : table.getId(),
+                table == null ? null : table.getNumber(),
+                table == null ? null : table.getName(),
+                tab.getCustomerName(),
+                tab.getCustomerPhone(),
+                tab.getIdentificationNote(),
+                displayLabel(tab),
                 tab.getStatus(),
                 tab.getOpenedByUser().getId(),
                 tab.getOpenedByUser().getName(),
@@ -173,9 +230,44 @@ public class TabService {
         );
     }
 
+    private String displayLabel(Tab tab) {
+        if (tab.getType() == TabType.COUNTER) {
+            String customer = normalizeOptional(tab.getCustomerName());
+            return customer == null ? "Balcão #" + tab.getId() : "Balcão #" + tab.getId() + " - " + customer;
+        }
+        RestaurantTable table = tab.getRestaurantTable();
+        return table.getName() == null || table.getName().isBlank()
+                ? "Mesa " + table.getNumber()
+                : "Mesa " + table.getNumber() + " - " + table.getName();
+    }
+
+    private void releaseTable(Tab tab) {
+        if (tab.getRestaurantTable() != null) {
+            tab.getRestaurantTable().setStatus(TableStatus.AVAILABLE);
+        }
+    }
+
     private void ensureOpen(Tab tab) {
         if (tab.getStatus() != TabStatus.OPEN) {
             throw new BusinessException("Comanda fechada ou cancelada não pode ser alterada");
+        }
+    }
+
+    private void ensureCounter(Tab tab) {
+        if (tab.getType() != TabType.COUNTER) {
+            throw new BusinessException("A comanda informada não é um atendimento de balcão");
+        }
+    }
+
+    private boolean canCurrentUserAccess(Tab tab) {
+        return tab.getType() != TabType.COUNTER
+                || authenticatedUserProvider.currentUser().isEmpty()
+                || authenticatedUserProvider.currentUserHasAnyRole("OWNER", "ADMIN", "CASHIER");
+    }
+
+    private void ensureCurrentUserCanAccess(Tab tab) {
+        if (!canCurrentUserAccess(tab)) {
+            throw new AccessDeniedException("Acesso ao atendimento de balcão não permitido");
         }
     }
 
@@ -203,6 +295,10 @@ public class TabService {
 
     private BigDecimal valueOrZero(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private String normalizeOptional(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private User findRequestedUser(Long userId) {

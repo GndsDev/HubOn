@@ -15,12 +15,16 @@ O HubOn usa Angular Router como navegação principal. A configuração está em
 | `/mesas` | Mesas |
 | `/comandas` | Comandas |
 | `/pedidos` | Pedidos |
+| `/balcao` | Central de atendimentos do Balcão |
+| `/balcao/:counterTabId` | Venda de balcão persistida |
 | `/cozinha` | Cozinha |
 | `/caixa` | Caixa |
 | `/categorias` | Categorias |
 | `/produtos` | Produtos |
 | `/relatorios` | Relatórios |
 | `/usuarios` | Usuários |
+| `/minha-conta` | Minha Conta |
+| `/login` | Login |
 
 A rota vazia e qualquer rota desconhecida redirecionam para `/dashboard`.
 
@@ -43,5 +47,7 @@ carregadas sob demanda com `loadComponent`, reduzindo o bundle inicial.
 - Atualizar o navegador preserva a tela atual.
 - URLs podem ser abertas diretamente.
 - O item ativo continua destacado com a sidebar recolhida.
+- A rota detalhada mantém o item Balcão destacado e o contador ativo visível.
+- Recarregar `/balcao/:counterTabId` recupera a venda real no backend.
 - No mobile, navegar fecha o drawer.
 - A sidebar não altera a URL por estado interno.

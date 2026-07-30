@@ -7,7 +7,8 @@ export interface DashboardBestSellingProduct {
 
 export interface DashboardRecentOrder {
   id: number;
-  tableNumber: number;
+  tableNumber: number | null;
+  originLabel: string;
   status: string;
   amount: number;
   createdAt: string;
@@ -16,7 +17,10 @@ export interface DashboardRecentOrder {
 export interface DashboardSummary {
   todaySales: number;
   openTabs: number;
+  activeCounterSales: number;
   ordersInPreparation: number;
+  readyOrders: number;
+  pendingPayments: number;
   averageTicket: number;
   bestSellingProducts: DashboardBestSellingProduct[];
   tableSummary: {

@@ -89,11 +89,17 @@ public class SecurityConfig {
 
                         auth.requestMatchers("/api/tables/*/current-tab")
                                 .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
+                        auth.requestMatchers(HttpMethod.GET, "/api/tables/**")
+                                .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
                         auth.requestMatchers("/api/tables/**")
                                 .hasAnyRole("OWNER", "ADMIN", "WAITER");
 
+                        auth.requestMatchers("/api/tabs/counter", "/api/tabs/counter/**")
+                                .hasAnyRole("OWNER", "ADMIN", "CASHIER");
                         auth.requestMatchers("/api/tabs/**")
                                 .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
+
+                        auth.requestMatchers("/api/reports/**").hasAnyRole("OWNER", "ADMIN");
 
                         auth.requestMatchers(HttpMethod.GET, "/api/orders/preparation-queue")
                                 .hasAnyRole("OWNER", "ADMIN", "KITCHEN");
@@ -102,7 +108,7 @@ public class SecurityConfig {
                         auth.requestMatchers(HttpMethod.PATCH, "/api/orders/*/items/*/status")
                                 .hasAnyRole("OWNER", "ADMIN", "KITCHEN");
                         auth.requestMatchers(HttpMethod.PATCH, "/api/orders/*/status")
-                                .hasAnyRole("OWNER", "ADMIN");
+                                .hasAnyRole("OWNER", "ADMIN", "CASHIER");
                         auth.requestMatchers(HttpMethod.POST, "/api/orders/*/confirm")
                                 .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
                         auth.requestMatchers(HttpMethod.POST, "/api/orders/*/send-to-kitchen")

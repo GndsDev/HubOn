@@ -1,13 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { finalize } from 'rxjs';
+import { RouterLink } from '@angular/router';
+import { finalize, forkJoin, Observable } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { PaymentApiService } from '../../core/services/payment-api.service';
+import { OrderApiService } from '../../core/services/order-api.service';
 import { TabApiService } from '../../core/services/tab-api.service';
 import { PaymentMethod, PaymentSummary } from '../../shared/models/payment.model';
-import { Tab } from '../../shared/models/tab.model';
+import { RestaurantOrder } from '../../shared/models/order.model';
+import { CounterSaleSummary, Tab } from '../../shared/models/tab.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -16,18 +19,9 @@ import { SectionCardComponent } from '../../shared/components/section-card/secti
 @Component({
   selector: 'app-cashier-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent],
+  imports: [CommonModule, FormsModule, RouterLink, EmptyStateComponent, PageHeaderComponent, SectionCardComponent],
   template: `
-    <app-page-header kicker="Financeiro" title="Caixa" description="Registre pagamentos reais e feche comandas quando o saldo estiver quitado.">
-      <button
-        type="button"
-        class="ghost-button future-action"
-        disabled
-        title="Impressão parcial fica disponível após o MVP"
-      >
-        <i class="pi pi-print"></i>Impressão · em breve
-      </button>
-    </app-page-header>
+    <app-page-header kicker="Financeiro" title="Caixa" description="Separe o pagamento do preparo, da entrega e do fechamento da venda." />
 
     @if (loading()) {
       <div class="cashier-layout"><div class="premium-card loading-card"></div><div class="premium-card loading-card"></div></div>
@@ -41,14 +35,21 @@ import { SectionCardComponent } from '../../shared/components/section-card/secti
       <div class="cashier-selector">
         <label class="field"><span>Comanda aberta</span>
           <select [(ngModel)]="selectedTabId" (ngModelChange)="selectTab($event)">
-            @for (tab of tabs(); track tab.id) { <option [ngValue]="tab.id">#{{ tab.id }} · Mesa {{ tab.tableNumber }} · {{ currency(tab.finalAmount) }}</option> }
+            @for (tab of tabs(); track tab.id) { <option [ngValue]="tab.id">#{{ tab.id }} · {{ tab.displayLabel }} · {{ cashierStateLabel(tab) }} · {{ currency(tab.finalAmount) }}</option> }
           </select>
         </label>
       </div>
 
       @if (selectedTab(); as tab) {
         <section class="cashier-layout">
-          <app-section-card eyebrow="Comanda selecionada" [title]="'#' + tab.id + ' · Mesa ' + tab.tableNumber">
+          <app-section-card eyebrow="Comanda selecionada" [title]="'#' + tab.id + ' · ' + tab.displayLabel">
+            @if (counterSummary(tab); as sale) {
+              <div class="cashier-operational-state">
+                <span><small>Preparo</small><strong>{{ preparationLabel(sale) }}</strong></span>
+                <span><small>Atendimento</small><strong>{{ attendanceLabel(sale) }}</strong></span>
+                <a class="ghost-button" [routerLink]="['/balcao', tab.id]"><i class="pi pi-arrow-right"></i>Abrir atendimento no Balcão</a>
+              </div>
+            }
             <div class="cashier-summary">
               <div><span>Responsável</span><strong>{{ tab.openedByUserName }}</strong></div>
               <div><span>Itens</span><strong>{{ currency(tab.totalAmount) }}</strong></div>
@@ -69,37 +70,51 @@ import { SectionCardComponent } from '../../shared/components/section-card/secti
               <div><span>Pago</span><strong>{{ currency(summary()?.paidAmount ?? 0) }}</strong></div>
               <div class="remaining"><span>Restante</span><strong>{{ currency(summary()?.remainingAmount ?? tab.remainingAmount) }}</strong></div>
             </div>
-            <form class="payment-form" (ngSubmit)="pay()">
-              <label class="field"><span>Forma de pagamento</span>
-                <select name="method" [(ngModel)]="paymentForm.method">
-                  @for (method of methods; track method.value) { <option [value]="method.value">{{ method.label }}</option> }
-                </select>
-              </label>
-              <label class="field"><span>Valor</span><input name="amount" type="number" min="0.01" step="0.01" [(ngModel)]="paymentForm.amount" /></label>
-              <button
-                type="submit"
-                class="primary-button finish-payment"
-                [disabled]="saving() || paymentForm.amount <= 0 || paymentForm.amount > remainingAmount(tab)"
-              >
-                <i class="pi pi-wallet"></i>{{ saving() ? 'Registrando...' : 'Registrar pagamento' }}
+            @if (remainingAmount(tab) > 0) {
+              <form class="payment-form" (ngSubmit)="pay()">
+                <label class="field"><span>Forma de pagamento</span>
+                  <select name="method" [(ngModel)]="paymentForm.method">
+                    @for (method of methods; track method.value) { <option [value]="method.value">{{ method.label }}</option> }
+                  </select>
+                </label>
+                <label class="field"><span>Valor</span><input name="amount" type="number" min="0.01" step="0.01" [(ngModel)]="paymentForm.amount" /></label>
+                <button
+                  type="submit"
+                  class="primary-button finish-payment"
+                  [disabled]="saving() || paymentForm.amount <= 0 || paymentForm.amount > remainingAmount(tab)"
+                >
+                  <i class="pi pi-wallet"></i>{{ saving() ? 'Registrando...' : 'Registrar pagamento' }}
+                </button>
+              </form>
+            } @else if (canClose(tab)) {
+              <button type="button" class="primary-button finish-payment" (click)="closeTab(tab)" [disabled]="saving()">
+                <i class="pi pi-check-circle"></i>{{ tab.type === 'COUNTER' ? 'Finalizar venda' : 'Fechar comanda' }}
               </button>
-            </form>
-            <button type="button" class="ghost-button finish-payment" [disabled]="remainingAmount(tab) > 0" (click)="closeTab(tab)">
-              <i class="pi pi-check-circle"></i>Fechar comanda
-            </button>
+            } @else {
+              <div class="info-panel compact-info"><i class="pi pi-clock"></i><div><strong>Pagamento concluído</strong><p>{{ closeBlockReason(tab) }}</p></div></div>
+              <div class="cashier-context-links">
+                @if (tab.type === 'COUNTER') { <a class="primary-button" [routerLink]="['/balcao', tab.id]"><i class="pi pi-arrow-right"></i>Continuar no Balcão</a> }
+                <a class="ghost-button" routerLink="/pedidos"><i class="pi pi-receipt"></i>Ver pedido</a>
+              </div>
+            }
           </app-section-card>
         </section>
       }
+      @if (finishedCounterToday().length > 0) { <p class="cashier-finished-note"><i class="pi pi-check-circle"></i>{{ finishedCounterToday().length }} venda{{ finishedCounterToday().length === 1 ? '' : 's' }} de balcão finalizada{{ finishedCounterToday().length === 1 ? '' : 's' }} hoje.</p> }
     }
   `,
 })
 export class CashierPageComponent implements OnInit {
   private readonly tabApi = inject(TabApiService);
   private readonly paymentApi = inject(PaymentApiService);
+  private readonly orderApi = inject(OrderApiService);
   private readonly auth = inject(AuthService);
   readonly feedback = inject(FeedbackService);
 
   readonly tabs = signal<Tab[]>([]);
+  readonly orders = signal<RestaurantOrder[]>([]);
+  readonly counterSales = signal<CounterSaleSummary[]>([]);
+  readonly finishedCounterToday = signal<CounterSaleSummary[]>([]);
   readonly selectedTab = signal<Tab | null>(null);
   readonly summary = signal<PaymentSummary | null>(null);
   readonly loading = signal(true);
@@ -117,9 +132,17 @@ export class CashierPageComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.tabApi.getOpen().pipe(finalize(() => this.loading.set(false))).subscribe({
-      next: (tabs) => {
+    forkJoin({
+      tabs: this.tabApi.getOpen(),
+      orders: this.orderApi.getAll(),
+      counterSales: this.tabApi.getActiveCounterSales(),
+      finishedCounterToday: this.tabApi.getCounterSalesFinishedToday(),
+    }).pipe(finalize(() => this.loading.set(false))).subscribe({
+      next: ({ tabs, orders, counterSales, finishedCounterToday }) => {
         this.tabs.set(tabs);
+        this.orders.set(orders);
+        this.counterSales.set(counterSales);
+        this.finishedCounterToday.set(finishedCounterToday);
         if (tabs.length) this.selectTab(tabs.some((tab) => tab.id === this.selectedTabId) ? this.selectedTabId : tabs[0].id);
       },
       error: (error) => this.error.set(apiErrorMessage(error)),
@@ -127,6 +150,7 @@ export class CashierPageComponent implements OnInit {
   }
   selectTab(id: number): void {
     this.selectedTabId = id;
+    this.summary.set(null);
     const tab = this.tabs().find((item) => item.id === id) || null;
     this.selectedTab.set(tab);
     if (tab) this.loadSummary(tab.id);
@@ -157,12 +181,42 @@ export class CashierPageComponent implements OnInit {
       });
   }
   closeTab(tab: Tab): void {
-    this.tabApi.close(tab.id).subscribe({
+    if (!this.canClose(tab) || this.saving()) return;
+    this.saving.set(true);
+    const operation: Observable<unknown> = tab.type === 'COUNTER'
+      ? this.tabApi.finishCounterSale(tab.id)
+      : this.tabApi.close(tab.id);
+    operation.pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => { this.feedback.success('Comanda fechada com sucesso.'); this.summary.set(null); this.selectedTab.set(null); this.load(); },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
   }
-  remainingAmount(tab: Tab): number { return this.summary()?.remainingAmount ?? tab.remainingAmount; }
+  remainingAmount(tab: Tab): number { const current = this.summary(); return current?.tabId === tab.id ? current.remainingAmount : tab.remainingAmount; }
+  counterSummary(tab: Tab): CounterSaleSummary | null { return tab.type === 'COUNTER' ? this.counterSales().find((sale) => sale.id === tab.id) ?? null : null; }
+  tabOrders(tab: Tab): RestaurantOrder[] { return this.orders().filter((order) => order.tabId === tab.id && order.status !== 'CANCELLED'); }
+  canClose(tab: Tab): boolean {
+    if (this.remainingAmount(tab) > 0) return false;
+    const sale = this.counterSummary(tab);
+    if (sale) return sale.nextAction === 'FINALIZE';
+    return this.tabOrders(tab).every((order) => order.status === 'DELIVERED');
+  }
+  cashierStateLabel(tab: Tab): string {
+    if (tab.paidAmount === 0) return 'Pagamento pendente';
+    if (tab.remainingAmount > 0) return 'Pagamento parcial';
+    if (this.canClose(tab)) return 'Pronta para fechamento';
+    const sale = this.counterSummary(tab);
+    if (sale?.preparationState === 'WAITING') return 'Paga, aguardando preparo';
+    if (sale && ['IN_PREPARATION', 'PARTIALLY_READY'].includes(sale.preparationState)) return 'Paga, em preparo';
+    return 'Paga, aguardando entrega';
+  }
+  closeBlockReason(tab: Tab): string {
+    const sale = this.counterSummary(tab);
+    if (sale?.nextAction === 'FOLLOW_PREPARATION') return 'O preparo continua. A venda permanece ativa no Balcão.';
+    if (sale?.nextAction === 'DELIVER') return 'Marque o pedido como entregue no atendimento antes de finalizar.';
+    return 'Existem pedidos que ainda precisam ser entregues.';
+  }
+  preparationLabel(sale: CounterSaleSummary): string { return ({ NOT_APPLICABLE: 'Sem preparo', WAITING: 'Aguardando preparo', IN_PREPARATION: 'Em preparo', PARTIALLY_READY: 'Parcialmente pronto', READY: 'Pronto', DELIVERED: 'Entregue' })[sale.preparationState]; }
+  attendanceLabel(sale: CounterSaleSummary): string { return ({ ASSEMBLING: 'Em montagem', CONFIRMED: 'Confirmado', IN_PROGRESS: 'Em andamento', READY_TO_FINISH: 'Pronto para finalizar', FINISHED: 'Finalizado', CANCELLED: 'Cancelado' })[sale.attendanceState]; }
   methodLabel(method: PaymentMethod): string { return this.methods.find((item) => item.value === method)?.label || method; }
   currency(value: number): string { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
 }

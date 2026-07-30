@@ -12,6 +12,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
+import { BodyPortalDirective } from '../../shared/directives/body-portal.directive';
 import { Category } from '../../shared/models/category.model';
 import { Ingredient } from '../../shared/models/ingredient.model';
 import {
@@ -43,6 +44,7 @@ import { formatStockValue } from '../../shared/util/unit-format';
     SectionCardComponent,
     StatusBadgeComponent,
     AccessibleDialogDirective,
+    BodyPortalDirective,
   ],
   template: `
     <app-page-header kicker="Cardápio" title="Produtos" description="Cadastre o item, suas variações e as escolhas da venda em um único fluxo.">
@@ -102,6 +104,7 @@ import { formatStockValue } from '../../shared/util/unit-format';
 
     @if (actionMenuProduct(); as product) {
       <div
+        appBodyPortal
         class="action-menu action-menu-overlay product-action-menu"
         role="menu"
         [attr.data-product-menu-id]="product.id"
@@ -112,10 +115,7 @@ import { formatStockValue } from '../../shared/util/unit-format';
         (click)="$event.stopPropagation()"
         (keydown)="onActionMenuKeydown($event)"
       >
-        <button type="button" role="menuitem" (click)="openEdit(product)"><i class="pi pi-pencil"></i>Editar produto</button>
-        <button type="button" role="menuitem" (click)="openVariants(product)"><i class="pi pi-list"></i>Gerenciar variações</button>
-        <button type="button" role="menuitem" (click)="openChoices(product)"><i class="pi pi-check-square"></i>Gerenciar escolhas</button>
-        <button type="button" role="menuitem" (click)="openVariants(product)"><i class="pi pi-link"></i>Gerenciar estoque</button>
+        <button type="button" role="menuitem" (click)="openEdit(product)"><i class="pi pi-pencil"></i>Gerenciar produto</button>
         <button type="button" role="menuitem" (click)="toggleAvailable(product)"><i [class]="product.available ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>{{ product.available ? 'Indisponibilizar' : 'Disponibilizar' }}</button>
         <button type="button" role="menuitem" [class.danger-menu-item]="product.active" (click)="toggleActive(product)"><i [class]="product.active ? 'pi pi-ban' : 'pi pi-check'"></i>{{ product.active ? 'Desativar' : 'Ativar' }}</button>
       </div>
@@ -207,6 +207,7 @@ import { formatStockValue } from '../../shared/util/unit-format';
       <div class="modal-backdrop" (click)="editOpen.set(false)">
         <form class="modal-panel" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="edit-product-title" [dialogCloseDisabled]="saving()" (dialogClose)="editOpen.set(false)" (click)="$event.stopPropagation()" (ngSubmit)="saveEdit()">
           <div class="modal-header"><div><span>Produto base</span><h2 id="edit-product-title">Editar produto</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="editOpen.set(false)"><i class="pi pi-times"></i></button></div>
+          <div class="segmented-control product-manager-tabs"><button type="button" class="active">Informações</button><button type="button" (click)="openVariants(editingProduct()!)">Variações e estoque</button><button type="button" (click)="openChoices(editingProduct()!)">Escolhas</button></div>
           <div class="form-grid">
             <label class="field"><span>Nome</span><input name="editName" [(ngModel)]="editForm.name" required autofocus /></label>
             <label class="field"><span>Categoria</span><select name="editCategory" [(ngModel)]="editForm.categoryId">@for (category of categories(); track category.id) { <option [ngValue]="category.id">{{ category.name }}</option> }</select></label>
@@ -225,6 +226,7 @@ import { formatStockValue } from '../../shared/util/unit-format';
       <div class="modal-backdrop" (click)="closeVariants()">
         <section class="modal-panel wide" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="variants-title" (dialogClose)="closeVariants()" (click)="$event.stopPropagation()">
           <div class="modal-header"><div><span>{{ product.name }}</span><h2 id="variants-title">Variações e preços</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="closeVariants()"><i class="pi pi-times"></i></button></div>
+          <div class="segmented-control product-manager-tabs"><button type="button" (click)="openEdit(product)">Informações</button><button type="button" class="active">Variações e estoque</button><button type="button" (click)="openChoices(product)">Escolhas</button></div>
           <div class="variant-manager-layout">
             <div class="variant-manager-list">
               @for (variant of product.variants; track variant.id) {
@@ -248,6 +250,7 @@ import { formatStockValue } from '../../shared/util/unit-format';
       <div class="modal-backdrop" (click)="closeChoices()">
         <section class="modal-panel wide" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="choices-title" (dialogClose)="closeChoices()" (click)="$event.stopPropagation()">
           <div class="modal-header"><div><span>{{ product.name }}</span><h2 id="choices-title">Grupos de escolhas</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="closeChoices()"><i class="pi pi-times"></i></button></div>
+          <div class="segmented-control product-manager-tabs"><button type="button" (click)="openEdit(product)">Informações</button><button type="button" (click)="openVariants(product)">Variações e estoque</button><button type="button" class="active">Escolhas</button></div>
           <div class="choice-manager-layout">
             <div class="choice-manager-list">
               @for (group of product.optionGroups; track group.id) {
@@ -312,6 +315,7 @@ export class ProductsPageComponent implements OnInit {
   readonly stockVariant = signal<ProductVariant | null>(null);
   readonly actionMenuOpen = signal<number | null>(null);
   readonly actionMenuPosition = signal<OverlayPosition>({ left: 0, top: 0, maxHeight: 320, placement: 'bottom' });
+  private restoreVariantsAfterStock = false;
 
   private actionMenuTrigger: HTMLElement | null = null;
   searchTerm = '';
@@ -375,6 +379,9 @@ export class ProductsPageComponent implements OnInit {
 
   openEdit(product: Product): void {
     this.closeActionMenu();
+    this.variantsOpen.set(false);
+    this.choicesOpen.set(false);
+    this.selectedProduct.set(product);
     this.editingProduct.set(product);
     this.editForm = { categoryId: product.categoryId, name: product.name, description: product.description, preparationFlow: product.preparationFlow, active: product.active, available: product.available, displayOrder: product.displayOrder, imageUrl: product.imageUrl };
     this.editOpen.set(true);
@@ -386,7 +393,7 @@ export class ProductsPageComponent implements OnInit {
     this.api.update(product.id, { ...this.editForm, name: this.editForm.name.trim(), description: this.editForm.description?.trim() || null }).pipe(finalize(() => this.saving.set(false))).subscribe({ next: () => { this.feedback.success('Produto atualizado.'); this.editOpen.set(false); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) });
   }
 
-  openVariants(product: Product): void { this.closeActionMenu(); this.selectedProduct.set(product); this.resetVariantForm(); this.variantsOpen.set(true); }
+  openVariants(product: Product): void { this.closeActionMenu(); this.editOpen.set(false); this.choicesOpen.set(false); this.selectedProduct.set(product); this.resetVariantForm(); this.variantsOpen.set(true); }
   closeVariants(): void { if (!this.stockLinkOpen()) this.variantsOpen.set(false); }
   editVariant(variant: ProductVariant): void { this.variantEditing.set(variant); this.variantForm = { name: variant.name, sku: variant.sku, price: variant.price, active: variant.active, available: variant.available, displayOrder: variant.displayOrder }; }
   resetVariantForm(): void { this.variantEditing.set(null); this.variantForm = this.emptyVariant(''); }
@@ -402,7 +409,7 @@ export class ProductsPageComponent implements OnInit {
   toggleVariantActive(variant: ProductVariant): void { const product = this.selectedProduct(); if (!product) return; (variant.active ? this.api.deactivateVariant(product.id, variant.id) : this.api.activateVariant(product.id, variant.id)).subscribe({ next: () => this.reloadProduct(product.id), error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
   toggleVariantAvailable(variant: ProductVariant): void { const product = this.selectedProduct(); if (!product) return; this.api.setVariantAvailable(product.id, variant.id, !variant.available).subscribe({ next: () => this.reloadProduct(product.id), error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
 
-  openChoices(product: Product): void { this.closeActionMenu(); this.selectedProduct.set(product); this.resetChoiceEditor(); this.choicesOpen.set(true); }
+  openChoices(product: Product): void { this.closeActionMenu(); this.editOpen.set(false); this.variantsOpen.set(false); this.selectedProduct.set(product); this.resetChoiceEditor(); this.choicesOpen.set(true); }
   closeChoices(): void { this.choicesOpen.set(false); }
   editChoiceGroup(group: ProductOptionGroup): void { this.optionEditorGroup.set(null); this.choiceGroupEditing.set(group); this.choiceGroupForm = { name: group.name, required: group.required, minimumSelections: group.minimumSelections, maximumSelections: group.maximumSelections, displayOrder: group.displayOrder, active: group.active, options: [] }; }
   newChoiceOption(group: ProductOptionGroup): void { this.optionEditorGroup.set(group); this.choiceOptionEditing.set(null); this.choiceOptionForm = this.emptyOption(); }
@@ -420,10 +427,16 @@ export class ProductsPageComponent implements OnInit {
   toggleChoiceGroup(group: ProductOptionGroup): void { const product = this.selectedProduct(); if (!product) return; this.api.setOptionGroupActive(product.id, group.id, !group.active).subscribe({ next: () => this.reloadProduct(product.id), error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
   toggleChoiceOption(group: ProductOptionGroup, option: ProductOption): void { const product = this.selectedProduct(); if (!product) return; this.api.setOptionActive(product.id, group.id, option.id, !option.active).subscribe({ next: () => this.reloadProduct(product.id), error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
 
-  openStockLink(variant: ProductVariant): void { this.stockVariant.set(variant); this.stockLinkForm = { stockItemId: variant.stockItemId ?? 0, quantityPerSale: variant.quantityPerSale ?? 1 }; this.stockLinkOpen.set(true); }
-  closeStockLink(): void { if (!this.saving()) this.stockLinkOpen.set(false); }
-  saveStockLink(): void { const variant = this.stockVariant(); if (!variant || !this.stockLinkForm.stockItemId || this.stockLinkForm.quantityPerSale <= 0) { this.feedback.error('Selecione o item e informe a quantidade.'); return; } this.saving.set(true); const operation = variant.stockLinkActive ? this.stockLinkApi.update(variant.id, this.stockLinkForm) : this.stockLinkApi.create(variant.id, this.stockLinkForm); operation.pipe(finalize(() => this.saving.set(false))).subscribe({ next: () => { this.feedback.success('Vínculo salvo.'); this.stockLinkOpen.set(false); this.reloadProduct(variant.productId); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
-  removeStockLink(): void { const variant = this.stockVariant(); if (!variant) return; this.stockLinkApi.deactivate(variant.id).subscribe({ next: () => { this.feedback.success('Vínculo removido.'); this.stockLinkOpen.set(false); this.reloadProduct(variant.productId); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
+  openStockLink(variant: ProductVariant): void { this.restoreVariantsAfterStock = this.variantsOpen(); this.variantsOpen.set(false); this.stockVariant.set(variant); this.stockLinkForm = { stockItemId: variant.stockItemId ?? 0, quantityPerSale: variant.quantityPerSale ?? 1 }; this.stockLinkOpen.set(true); }
+  closeStockLink(): void { if (!this.saving()) this.finishStockLink(); }
+  saveStockLink(): void { const variant = this.stockVariant(); if (!variant || !this.stockLinkForm.stockItemId || this.stockLinkForm.quantityPerSale <= 0) { this.feedback.error('Selecione o item e informe a quantidade.'); return; } this.saving.set(true); const operation = variant.stockLinkActive ? this.stockLinkApi.update(variant.id, this.stockLinkForm) : this.stockLinkApi.create(variant.id, this.stockLinkForm); operation.pipe(finalize(() => this.saving.set(false))).subscribe({ next: () => { this.feedback.success('Vínculo salvo.'); this.finishStockLink(); this.reloadProduct(variant.productId); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
+  removeStockLink(): void { const variant = this.stockVariant(); if (!variant) return; this.stockLinkApi.deactivate(variant.id).subscribe({ next: () => { this.feedback.success('Vínculo removido.'); this.finishStockLink(); this.reloadProduct(variant.productId); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
+
+  private finishStockLink(): void {
+    this.stockLinkOpen.set(false);
+    if (this.restoreVariantsAfterStock) this.variantsOpen.set(true);
+    this.restoreVariantsAfterStock = false;
+  }
 
   toggleAvailable(product: Product): void { this.closeActionMenu(); this.api.setAvailable(product.id, !product.available).subscribe({ next: () => { this.feedback.success(product.available ? 'Produto indisponibilizado.' : 'Produto disponibilizado.'); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
   toggleActive(product: Product): void { this.closeActionMenu(); (product.active ? this.api.deactivate(product.id) : this.api.activate(product.id)).subscribe({ next: () => { this.feedback.success(product.active ? 'Produto desativado.' : 'Produto ativado.'); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }

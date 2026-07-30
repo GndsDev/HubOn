@@ -12,6 +12,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
+import { BodyPortalDirective } from '../../shared/directives/body-portal.directive';
 import {
   Ingredient,
   IngredientRequest,
@@ -38,12 +39,13 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
     SectionCardComponent,
     StatusBadgeComponent,
     AccessibleDialogDirective,
+    BodyPortalDirective,
   ],
   template: `
     <app-page-header
       kicker="Estoque"
       title="Estoque"
-      description="Controle itens manuais, baixas automaticas, alertas e movimentacoes auditaveis."
+      description="Controle itens manuais, baixas automáticas, alertas e movimentações auditáveis."
     >
       @if (canManage()) {
         <button type="button" class="primary-button" (click)="openCreate()">
@@ -60,7 +62,7 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
       </article>
       <article class="premium-card stat-card tone-amber">
         <div class="stat-icon"><i class="pi pi-exclamation-triangle"></i></div>
-        <div class="stat-copy"><span>Estoque baixo</span><strong>{{ lowCount }}</strong><p>Itens abaixo ou iguais ao minimo.</p></div>
+        <div class="stat-copy"><span>Estoque baixo</span><strong>{{ lowCount }}</strong><p>Itens abaixo ou iguais ao mínimo.</p></div>
       </article>
       <article class="premium-card stat-card tone-purple">
         <div class="stat-icon"><i class="pi pi-ban"></i></div>
@@ -72,11 +74,11 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
       </article>
       <article class="premium-card stat-card tone-emerald">
         <div class="stat-icon"><i class="pi pi-bolt"></i></div>
-        <div class="stat-copy"><span>Baixa automatica</span><strong>{{ directSaleCount }}</strong><p>Itens vinculaveis a produtos.</p></div>
+        <div class="stat-copy"><span>Baixa automática</span><strong>{{ directSaleCount }}</strong><p>Itens vinculáveis a produtos.</p></div>
       </article>
       <article class="premium-card stat-card tone-emerald">
         <div class="stat-icon"><i class="pi pi-history"></i></div>
-        <div class="stat-copy"><span>Movimentos recentes</span><strong>{{ movements().length }}</strong><p>Ultimos registros auditaveis.</p></div>
+        <div class="stat-copy"><span>Movimentos recentes</span><strong>{{ movements().length }}</strong><p>Últimos registros auditáveis.</p></div>
       </article>
     </section>
 
@@ -94,7 +96,7 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
         <div class="segmented-control stock-filter" aria-label="Filtro de estoque">
           <button type="button" [class.active]="stockFilter === 'ALL'" (click)="stockFilter = 'ALL'">Todos<span>{{ ingredients().length }}</span></button>
           <button type="button" [class.active]="stockFilter === 'MANUAL'" (click)="stockFilter = 'MANUAL'">Controle manual<span>{{ manualCount }}</span></button>
-          <button type="button" [class.active]="stockFilter === 'DIRECT_SALE'" (click)="stockFilter = 'DIRECT_SALE'">Baixa automatica<span>{{ directSaleCount }}</span></button>
+          <button type="button" [class.active]="stockFilter === 'DIRECT_SALE'" (click)="stockFilter = 'DIRECT_SALE'">Baixa automática<span>{{ directSaleCount }}</span></button>
           <button type="button" [class.active]="stockFilter === 'OUT_OF_STOCK'" (click)="stockFilter = 'OUT_OF_STOCK'">Zerados<span>{{ outCount }}</span></button>
           <button type="button" [class.active]="stockFilter === 'LOW_STOCK'" (click)="stockFilter = 'LOW_STOCK'">Estoque baixo<span>{{ lowCount }}</span></button>
           <button type="button" [class.active]="stockFilter === 'INACTIVE'" (click)="stockFilter = 'INACTIVE'">Inativos<span>{{ inactiveCount }}</span></button>
@@ -106,7 +108,7 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
       } @else if (error()) {
         <div class="error-panel" role="alert">
           <i class="pi pi-exclamation-triangle"></i>
-          <div><strong>Nao foi possivel carregar</strong><p>{{ error() }}</p></div>
+          <div><strong>Não foi possível carregar</strong><p>{{ error() }}</p></div>
           <button type="button" class="ghost-button" (click)="load()"><i class="pi pi-refresh"></i>Tentar novamente</button>
         </div>
       } @else if (filteredIngredients.length === 0) {
@@ -118,13 +120,13 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
       } @else {
         <div class="stock-table">
           <div class="stock-table-head">
-            <span>Item</span><span>Controle</span><span>Saldo</span><span>Minimo</span><span>Ideal</span><span>Status</span><span>Acoes</span>
+            <span>Item</span><span>Controle</span><span>Saldo</span><span>Mínimo</span><span>Ideal</span><span>Status</span><span>Ações</span>
           </div>
           @for (ingredient of filteredIngredients; track ingredient.id) {
             <article class="stock-row">
               <div class="stock-name">
                 <strong>{{ ingredient.name }}</strong>
-                <small>{{ ingredient.description || 'Sem descricao cadastrada' }}</small>
+                <small>{{ ingredient.description || 'Sem descrição cadastrada' }}</small>
               </div>
               <app-status-badge
                 [label]="controlModeLabel(ingredient.controlMode)"
@@ -141,11 +143,11 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
                 <button
                   type="button"
                   class="icon-action-button actions-trigger"
-                  title="Acoes"
+                  title="Ações"
                   aria-haspopup="menu"
                   [attr.aria-expanded]="actionMenuOpen() === ingredient.id"
                   [attr.aria-controls]="'stock-actions-' + ingredient.id"
-                  [attr.aria-label]="'Abrir acoes de ' + ingredient.name"
+                  [attr.aria-label]="'Abrir ações de ' + ingredient.name"
                   (click)="toggleActionMenu(ingredient.id, $event)"
                 >
                   <i class="pi pi-ellipsis-v"></i>
@@ -159,6 +161,7 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
 
     @if (actionMenuIngredient(); as menuIngredient) {
       <div
+        appBodyPortal
         class="action-menu action-menu-overlay stock-action-menu"
         role="menu"
         [id]="'stock-actions-' + menuIngredient.id"
@@ -177,7 +180,7 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
           </button>
           <button type="button" role="menuitem" (click)="closeActionMenu(); openMovement(menuIngredient, 'EXIT')">
             <i class="pi pi-minus-circle"></i>
-            Saida
+            Saída
           </button>
           <button type="button" role="menuitem" class="danger-menu-item" (click)="closeActionMenu(); openMovement(menuIngredient, 'LOSS')">
             <i class="pi pi-exclamation-triangle"></i>
@@ -189,13 +192,13 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
           </button>
           <button type="button" role="menuitem" (click)="closeActionMenu(); openHistory(menuIngredient)">
             <i class="pi pi-history"></i>
-            Ver historico
+            Ver histórico
           </button>
           <button type="button" role="menuitem" (click)="closeActionMenu(); openEdit(menuIngredient)">
             <i class="pi pi-pencil"></i>
-            Editar
+            Gerenciar item
           </button>
-          <button type="button" role="menuitem" (click)="manageLinks()">
+          <button type="button" role="menuitem" (click)="closeActionMenu(); manageLinks()">
             <i class="pi pi-link"></i>
             Gerenciar vinculos
           </button>
@@ -211,15 +214,15 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
         } @else {
           <button type="button" role="menuitem" (click)="closeActionMenu(); openHistory(menuIngredient)">
             <i class="pi pi-history"></i>
-            Ver historico
+            Ver histórico
           </button>
         }
       </div>
     }
 
-    <app-section-card eyebrow="Auditoria" title="Movimentacoes recentes">
+    <app-section-card eyebrow="Auditoria" title="Movimentações recentes">
       @if (movements().length === 0) {
-        <app-empty-state icon="pi pi-history" title="Nenhuma movimentacao registrada" description="As entradas, saidas, perdas e ajustes aparecerao aqui." />
+        <app-empty-state icon="pi pi-history" title="Nenhuma movimentação registrada" description="As entradas, saídas, perdas e ajustes aparecerão aqui." />
       } @else {
         <div class="movement-list">
           @for (movement of movements(); track movement.id) {
@@ -262,7 +265,7 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
           </div>
           <div class="form-grid">
             <label class="field full"><span>Nome</span><input name="name" [(ngModel)]="form.name" maxlength="120" required autofocus /></label>
-            <label class="field full"><span>Descricao</span><textarea name="description" [(ngModel)]="form.description" maxlength="255"></textarea></label>
+            <label class="field full"><span>Descrição</span><textarea name="description" [(ngModel)]="form.description" maxlength="255"></textarea></label>
             <label class="field">
               <span>Unidade</span>
               <select name="unit" [(ngModel)]="form.unit" required>
@@ -278,7 +281,7 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
               </select>
               <small class="field-help">{{ controlModeHelp(form.controlMode) }}</small>
             </label>
-            <label class="field"><span>Estoque minimo</span><input name="minimumStock" type="number" min="0" step="0.001" [(ngModel)]="form.minimumStock" required /></label>
+            <label class="field"><span>Estoque mínimo</span><input name="minimumStock" type="number" min="0" step="0.001" [(ngModel)]="form.minimumStock" required /></label>
             <label class="field"><span>Estoque ideal</span><input name="idealStock" type="number" min="0" step="0.001" [(ngModel)]="form.idealStock" required /></label>
             <label class="toggle-field"><input name="active" type="checkbox" [(ngModel)]="form.active" /><span>Item ativo</span></label>
           </div>
@@ -315,7 +318,7 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
                   <strong>{{ stockValue(movementIngredient()?.currentStock ?? 0, movementIngredient()?.unit) }}</strong>
                 </div>
                 <div>
-                  <span>Saida</span>
+                  <span>Saída</span>
                   <strong>{{ stockValue(movementForm.quantity || 0, movementIngredient()?.unit) }}</strong>
                 </div>
                 <div>
@@ -365,13 +368,13 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
           (click)="$event.stopPropagation()"
         >
           <div class="modal-header">
-            <div><span>Historico</span><h2 id="history-dialog-title">{{ historyIngredient()?.name }}</h2></div>
+            <div><span>Histórico</span><h2 id="history-dialog-title">{{ historyIngredient()?.name }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeHistory()"><i class="pi pi-times"></i></button>
           </div>
           @if (historyLoading()) {
             <div class="loading-grid"><div class="loading-row"></div><div class="loading-row"></div></div>
           } @else if (historyMovements().length === 0) {
-            <app-empty-state icon="pi pi-history" title="Sem historico" description="Este ingrediente ainda nao possui movimentacoes." />
+            <app-empty-state icon="pi pi-history" title="Sem histórico" description="Este ingrediente ainda não possui movimentações." />
           } @else {
             <div class="movement-list">
               @for (movement of historyMovements(); track movement.id) {
@@ -442,7 +445,7 @@ export class StockPageComponent implements OnInit {
 
   readonly controlModeOptions: Array<{ value: StockControlMode; label: string }> = [
     { value: 'MANUAL', label: 'Controle manual' },
-    { value: 'DIRECT_SALE', label: 'Baixa automatica' },
+    { value: 'DIRECT_SALE', label: 'Baixa automática' },
   ];
 
   searchTerm = '';
@@ -622,7 +625,7 @@ export class StockPageComponent implements OnInit {
 
   saveIngredient(): void {
     if (!this.form.name.trim() || this.form.minimumStock < 0 || this.form.idealStock < this.form.minimumStock) {
-      this.feedback.error('Preencha nome, minimo e ideal validos.');
+      this.feedback.error('Preencha nome, mínimo e ideal válidos.');
       return;
     }
 
@@ -657,7 +660,7 @@ export class StockPageComponent implements OnInit {
 
   openMovement(ingredient: Ingredient, type: ManualMovementType): void {
     if (!ingredient.active) {
-      this.feedback.error('Item inativo nao pode movimentar estoque.');
+      this.feedback.error('Item inativo não pode movimentar estoque.');
       return;
     }
     this.movementIngredient.set(ingredient);
@@ -677,11 +680,11 @@ export class StockPageComponent implements OnInit {
     const type = this.movementType();
     const reason = this.movementForm.reason.trim();
     if ((type === 'LOSS' || type === 'ADJUSTMENT') && !reason) {
-      this.feedback.error('Informe o motivo da movimentacao.');
+      this.feedback.error('Informe o motivo da movimentação.');
       return;
     }
     if (type === 'ADJUSTMENT' && this.movementForm.newStock < 0) {
-      this.feedback.error('Informe um novo saldo valido.');
+      this.feedback.error('Informe um novo saldo válido.');
       return;
     }
     if (type !== 'ADJUSTMENT' && this.movementForm.quantity <= 0) {
@@ -704,7 +707,7 @@ export class StockPageComponent implements OnInit {
 
     operation.pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
-        this.feedback.success('Movimentacao registrada com sucesso.');
+        this.feedback.success('Movimentação registrada com sucesso.');
         this.closeMovement();
         this.load();
         if (this.historyOpen() && this.historyIngredient()?.id === ingredient.id) {
@@ -758,7 +761,7 @@ export class StockPageComponent implements OnInit {
   controlModeLabel(mode: StockControlMode): string {
     return {
       MANUAL: 'Controle manual',
-      DIRECT_SALE: 'Baixa automatica',
+      DIRECT_SALE: 'Baixa automática',
     }[mode];
   }
 
@@ -771,8 +774,8 @@ export class StockPageComponent implements OnInit {
 
   controlModeHelp(mode: StockControlMode): string {
     return mode === 'DIRECT_SALE'
-      ? 'Variacoes vinculadas baixam este item uma vez ao confirmar o pedido.'
-      : 'Pedidos nao movimentam este item; entradas e saidas continuam manuais.';
+      ? 'Variações vinculadas baixam este item uma vez ao confirmar o pedido.'
+      : 'Pedidos não movimentam este item; entradas e saídas continuam manuais.';
   }
 
   movementTitle(): string {
@@ -787,7 +790,7 @@ export class StockPageComponent implements OnInit {
   movementLabel(type: InventoryMovementType): string {
     return {
       ENTRY: 'Entrada',
-      EXIT: 'Saida',
+      EXIT: 'Saída',
       LOSS: 'Perda',
       ADJUSTMENT: 'Ajuste',
       SALE: 'Venda',

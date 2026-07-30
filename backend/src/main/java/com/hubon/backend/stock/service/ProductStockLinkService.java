@@ -30,7 +30,7 @@ public class ProductStockLinkService {
     public ProductStockLinkResponse getByVariant(Long variantId) {
         return linkRepository.findByProductVariantIdAndActiveTrue(variantId)
                 .map(this::toResponse)
-                .orElseThrow(() -> new ResourceNotFoundException("Vinculo de estoque nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Vínculo de estoque não encontrado"));
     }
 
     @Transactional
@@ -41,7 +41,7 @@ public class ProductStockLinkService {
         ensureStockItemCanLink(stockItem);
         validateQuantity(request.quantityPerSale());
         if (linkRepository.existsByProductVariantIdAndActiveTrue(variantId)) {
-            throw new BusinessException("Variacao ja possui vinculo ativo de estoque");
+            throw new BusinessException("Variação já possui vínculo ativo de estoque");
         }
 
         ProductStockLink link = ProductStockLink.builder()
@@ -79,26 +79,26 @@ public class ProductStockLinkService {
 
     private ProductStockLink findActiveLink(Long variantId) {
         return linkRepository.findByProductVariantIdAndActiveTrue(variantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vinculo de estoque nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Vínculo de estoque não encontrado"));
     }
 
     private ProductVariant findVariant(Long variantId) {
         return productVariantRepository.findById(variantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Variacao de produto nao encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Variação de produto não encontrada"));
     }
 
     private Ingredient findStockItem(Long stockItemId) {
         return ingredientRepository.findById(stockItemId)
-                .orElseThrow(() -> new ResourceNotFoundException("Item de estoque nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Item de estoque não encontrado"));
     }
 
     private void ensureVariantCanLink(ProductVariant variant) {
         Product product = variant.getProduct();
         if (!Boolean.TRUE.equals(variant.getActive())) {
-            throw new BusinessException("Variacao inativa nao pode ser vinculada ao estoque");
+            throw new BusinessException("Variação inativa não pode ser vinculada ao estoque");
         }
         if (!Boolean.TRUE.equals(product.getActive())) {
-            throw new BusinessException("Produto inativo nao pode ser vinculado ao estoque");
+            throw new BusinessException("Produto inativo não pode ser vinculado ao estoque");
         }
         if (!Boolean.TRUE.equals(product.getCategory().getActive())) {
             throw new BusinessException("Produto pertence a uma categoria inativa.");
@@ -107,10 +107,10 @@ public class ProductStockLinkService {
 
     private void ensureStockItemCanLink(Ingredient stockItem) {
         if (!Boolean.TRUE.equals(stockItem.getActive())) {
-            throw new BusinessException("Item de estoque inativo nao pode ser vinculado");
+            throw new BusinessException("Item de estoque inativo não pode ser vinculado");
         }
         if (stockItem.getControlMode() != StockControlMode.DIRECT_SALE) {
-            throw new BusinessException("Somente itens com baixa automatica podem ser vinculados a produtos");
+            throw new BusinessException("Somente itens com baixa automática podem ser vinculados a produtos");
         }
     }
 

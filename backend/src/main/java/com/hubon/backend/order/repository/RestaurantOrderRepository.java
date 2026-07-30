@@ -21,6 +21,9 @@ public interface RestaurantOrderRepository extends JpaRepository<RestaurantOrder
     @EntityGraph(attributePaths = {"tab", "tab.restaurantTable", "createdByUser"})
     List<RestaurantOrder> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
+    @EntityGraph(attributePaths = {"tab", "tab.restaurantTable", "tab.openedByUser", "createdByUser"})
+    List<RestaurantOrder> findAllByTabIdOrderByCreatedAtAsc(Long tabId);
+
     boolean existsByTabIdAndStatusNotIn(Long tabId, Collection<OrderStatus> statuses);
 
     boolean existsByTabIdAndStatus(Long tabId, OrderStatus status);

@@ -1,6 +1,7 @@
-import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, HostListener, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { finalize, forkJoin } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { FeedbackService } from '../../core/services/feedback.service';
@@ -12,10 +13,12 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
+import { BodyPortalDirective } from '../../shared/directives/body-portal.directive';
 import { OrderItem, OrderItemRequest, OrderStatus, RestaurantOrder } from '../../shared/models/order.model';
 import { Product, ProductOptionGroup, ProductVariant } from '../../shared/models/product.model';
-import { Tab, TabStatus } from '../../shared/models/tab.model';
+import { CounterSaleSummary, Tab, TabStatus } from '../../shared/models/tab.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
+import { calculateOverlayPosition, OverlayPosition } from '../../shared/util/overlay-position';
 import {
   automaticVariantId,
   isCatalogProductSellable,
@@ -28,10 +31,10 @@ import {
 @Component({
   selector: 'app-orders-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent, AccessibleDialogDirective],
+  imports: [CommonModule, FormsModule, RouterLink, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent, AccessibleDialogDirective, BodyPortalDirective],
   template: `
-    <app-page-header kicker="Pedidos" title="Pedidos" description="Monte o pedido, revise as escolhas e confirme a operação.">
-      <button type="button" class="primary-button" (click)="openCreate()"><i class="pi pi-shopping-cart"></i>Novo pedido</button>
+    <app-page-header kicker="Operação" title="Pedidos" description="Consulte a origem, o andamento e a próxima ação de cada pedido.">
+      <button type="button" class="primary-button" (click)="openCreate()"><i class="pi pi-shopping-cart"></i>Novo pedido de mesa</button>
     </app-page-header>
 
     <app-section-card eyebrow="Fluxo de venda" title="Pedidos do turno">
@@ -45,7 +48,7 @@ import {
         <div class="order-list">
           @for (order of orders(); track order.id) {
             <article class="order-card">
-              <div class="order-card-head"><div><span>Pedido #{{ order.id }}</span><strong>Mesa {{ order.tableNumber }}</strong><small>Comanda #{{ order.tabId }} · {{ tabStatusLabel(effectiveTabStatus(order)) }}</small></div><app-status-badge [label]="statusLabel(order.status)" [tone]="statusTone(order.status)" /></div>
+              <div class="order-card-head"><div><span>Pedido #{{ order.id }} · {{ order.tabType === 'COUNTER' ? 'Balcão' : 'Mesa' }}</span><strong>{{ order.tabDisplayLabel }}</strong><small>Comanda #{{ order.tabId }} · {{ tabStatusLabel(effectiveTabStatus(order)) }}</small>@if (counterSummary(order); as sale) { <small>Financeiro: {{ financialLabel(sale) }} · Restante {{ currency(sale.remainingAmount) }}</small> }</div><app-status-badge [label]="statusLabel(order.status)" [tone]="statusTone(order.status)" /></div>
               <div class="order-item-list detailed-order-items">
                 @for (item of order.items; track item.id) {
                   <div class="detailed-order-item" [class.cancelled]="item.status === 'CANCELED'">
@@ -56,10 +59,11 @@ import {
               </div>
               @if (order.notes) { <p class="order-notes">{{ order.notes }}</p> }
               <div class="order-card-footer"><strong>{{ currency(orderTotal(order)) }}</strong><div class="action-cluster">
-                @if (canEdit(order)) { <button type="button" class="ghost-button compact-button" (click)="openEdit(order)"><i class="pi pi-pencil"></i>Editar</button><button type="button" class="primary-button compact-button" (click)="confirm(order)"><i class="pi pi-check"></i>Confirmar pedido</button> }
-                @if (order.status === 'READY' && effectiveTabStatus(order) === 'OPEN') { <button type="button" class="primary-button compact-button" (click)="deliver(order)"><i class="pi pi-check-circle"></i>Marcar entregue</button> }
-                @if (canCancel(order)) { <button type="button" class="danger-button compact-button" (click)="openCancelOrder(order)"><i class="pi pi-times"></i>Cancelar pedido</button> }
+                @if (order.tabType === 'COUNTER' && effectiveTabStatus(order) === 'OPEN') { <a class="primary-button compact-button" [routerLink]="['/balcao', order.tabId]"><i class="pi pi-arrow-right"></i>Abrir atendimento</a> }
+                @if (canEdit(order)) { <button type="button" class="primary-button compact-button" (click)="confirm(order)"><i class="pi pi-check"></i>Confirmar pedido</button> }
+                @if (order.tabType !== 'COUNTER' && order.status === 'READY' && effectiveTabStatus(order) === 'OPEN') { <button type="button" class="primary-button compact-button" (click)="deliver(order)"><i class="pi pi-check-circle"></i>Marcar como entregue</button> }
                 @if (orderStateMessage(order); as message) { <span class="order-state-note" [class.blocked]="effectiveTabStatus(order) !== 'OPEN'"><i class="pi pi-info-circle"></i>{{ message }}</span> }
+                @if (canEdit(order) || canCancel(order)) { <button type="button" class="icon-action-button actions-trigger" aria-haspopup="menu" [attr.aria-expanded]="actionMenuOrderId() === order.id" [attr.aria-label]="'Mais ações do pedido ' + order.id" (click)="toggleActionMenu(order, $event)"><i class="pi pi-ellipsis-v"></i></button> }
               </div></div>
             </article>
           }
@@ -67,11 +71,18 @@ import {
       }
     </app-section-card>
 
+    @if (actionMenuOrder(); as order) {
+      <div appBodyPortal class="action-menu action-menu-overlay order-action-menu" role="menu" [attr.data-placement]="actionMenuPosition().placement" [style.left.px]="actionMenuPosition().left" [style.top.px]="actionMenuPosition().top" [style.max-height.px]="actionMenuPosition().maxHeight" (click)="$event.stopPropagation()" (keydown)="onActionMenuKeydown($event)">
+        @if (canEdit(order)) { <button type="button" role="menuitem" (click)="closeActionMenu(); openEdit(order)"><i class="pi pi-pencil"></i>Editar rascunho</button> }
+        @if (canCancel(order)) { <button type="button" role="menuitem" class="danger-menu-item" (click)="closeActionMenu(); openCancelOrder(order)"><i class="pi pi-times"></i>Cancelar pedido</button> }
+      </div>
+    }
+
     @if (formOpen()) {
       <div class="modal-backdrop" (click)="closeForm()">
         <form class="modal-panel wide order-builder-panel" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="order-dialog-title" [dialogCloseDisabled]="saving()" (dialogClose)="closeForm()" (click)="$event.stopPropagation()" (ngSubmit)="saveDraft()">
           <div class="modal-header"><div><span>Venda</span><h2 id="order-dialog-title">{{ editingOrder() ? 'Editar pedido' : 'Novo pedido' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="closeForm()"><i class="pi pi-times"></i></button></div>
-          <div class="form-grid"><label class="field full"><span>Comanda aberta</span><select name="tabId" [(ngModel)]="form.tabId" [disabled]="!!editingOrder()" required autofocus>@for (tab of tabs(); track tab.id) { <option [ngValue]="tab.id">#{{ tab.id }} · Mesa {{ tab.tableNumber }}</option> }</select></label><label class="field full"><span>Observação geral</span><textarea name="notes" [(ngModel)]="form.notes" maxlength="500"></textarea></label></div>
+          <div class="form-grid"><label class="field full"><span>Comanda aberta</span><select name="tabId" [(ngModel)]="form.tabId" [disabled]="!!editingOrder()" required autofocus>@for (tab of tableTabs; track tab.id) { <option [ngValue]="tab.id">#{{ tab.id }} · {{ tab.displayLabel }}</option> }</select></label><label class="field full"><span>Observação geral</span><textarea name="notes" [(ngModel)]="form.notes" maxlength="500"></textarea></label></div>
           <div class="form-section-title"><div><span>Itens do pedido</span><small>Preço e disponibilidade são validados pelo sistema.</small></div><button type="button" class="ghost-button compact-button" (click)="addItem()"><i class="pi pi-plus"></i>Adicionar item</button></div>
           <div class="order-builder-items">
             @for (item of form.items; track $index; let index = $index) {
@@ -110,9 +121,15 @@ export class OrdersPageComponent implements OnInit {
   private readonly productApi = inject(ProductApiService);
   private readonly auth = inject(AuthService);
   private readonly feedback = inject(FeedbackService);
+  private readonly document = inject(DOCUMENT);
 
   readonly orders = signal<RestaurantOrder[]>([]);
   readonly tabs = signal<Tab[]>([]);
+  readonly counterSales = signal<CounterSaleSummary[]>([]);
+  readonly actionMenuOrder = signal<RestaurantOrder | null>(null);
+  readonly actionMenuOrderId = signal<number | null>(null);
+  readonly actionMenuPosition = signal<OverlayPosition>({ left: 0, top: 0, maxHeight: 240, placement: 'bottom' });
+  private actionMenuTrigger: HTMLElement | null = null;
   readonly products = signal<Product[]>([]);
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -126,9 +143,48 @@ export class OrdersPageComponent implements OnInit {
   form: { tabId: number; notes: string; items: OrderItemRequest[] } = { tabId: 0, notes: '', items: [] };
 
   ngOnInit(): void { this.load(); }
-  load(): void { this.loading.set(true); this.error.set(null); forkJoin({ orders: this.api.getAll(), tabs: this.tabApi.getOpen(), products: this.productApi.getAll() }).pipe(finalize(() => this.loading.set(false))).subscribe({ next: ({ orders, tabs, products }) => { this.orders.set(orders); this.tabs.set(tabs); this.products.set(products.filter(isCatalogProductSellable)); }, error: (error) => this.error.set(apiErrorMessage(error)) }); }
+  load(): void { this.loading.set(true); this.error.set(null); forkJoin({ orders: this.api.getAll(), tabs: this.tabApi.getOpen(), counterSales: this.tabApi.getActiveCounterSales(), products: this.productApi.getAll() }).pipe(finalize(() => this.loading.set(false))).subscribe({ next: ({ orders, tabs, counterSales, products }) => { this.orders.set(orders); this.tabs.set(tabs); this.counterSales.set(counterSales); this.products.set(products.filter(isCatalogProductSellable)); }, error: (error) => this.error.set(apiErrorMessage(error)) }); }
 
-  openCreate(): void { if (!this.auth.currentUser()) { this.feedback.error('Faça login antes de criar o pedido.'); return; } if (!this.tabs().length) { this.feedback.info('Abra uma comanda antes de criar um pedido.'); return; } if (!this.products().length) { this.feedback.info('Não há produtos disponíveis.'); return; } this.editingOrder.set(null); this.form = { tabId: this.tabs()[0].id, notes: '', items: [this.emptyItem()] }; this.formOpen.set(true); }
+  get tableTabs(): Tab[] { return this.tabs().filter((tab) => tab.type === 'TABLE'); }
+
+  @HostListener('document:click') onDocumentClick(): void { this.closeActionMenu(); }
+  @HostListener('document:keydown', ['$event']) onDocumentKeydown(event: KeyboardEvent): void { if (event.key === 'Escape') this.closeActionMenu(); }
+  @HostListener('window:resize') onResize(): void { this.repositionActionMenu(); }
+  @HostListener('window:scroll') onScroll(): void { this.repositionActionMenu(); }
+
+  toggleActionMenu(order: RestaurantOrder, event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.actionMenuOrderId() === order.id) { this.closeActionMenu(); return; }
+    this.actionMenuTrigger = event.currentTarget as HTMLElement;
+    this.actionMenuPosition.set({ left: -9999, top: -9999, maxHeight: 9999, placement: 'bottom' });
+    this.actionMenuOrder.set(order);
+    this.actionMenuOrderId.set(order.id);
+    requestAnimationFrame(() => {
+      this.repositionActionMenu();
+      this.document.querySelector<HTMLButtonElement>('.order-action-menu button')?.focus();
+    });
+  }
+
+  closeActionMenu(): void {
+    this.actionMenuOrder.set(null);
+    this.actionMenuOrderId.set(null);
+    this.actionMenuTrigger = null;
+  }
+
+  onActionMenuKeydown(event: KeyboardEvent): void {
+    const keys = ['ArrowDown', 'ArrowUp', 'Home', 'End', 'Escape'];
+    if (!keys.includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === 'Escape') { this.closeActionMenu(); return; }
+    const menu = (event.target as HTMLElement).closest<HTMLElement>('.order-action-menu');
+    const items = Array.from(menu?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []);
+    if (!items.length) return;
+    const current = Math.max(0, items.indexOf(event.target as HTMLButtonElement));
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : event.key === 'ArrowDown' ? (current + 1) % items.length : (current - 1 + items.length) % items.length;
+    items[next]?.focus();
+  }
+
+  openCreate(): void { if (!this.auth.currentUser()) { this.feedback.error('Faça login antes de criar o pedido.'); return; } if (!this.tableTabs.length) { this.feedback.info('Abra uma comanda de mesa antes de criar um pedido.'); return; } if (!this.products().length) { this.feedback.info('Não há produtos disponíveis.'); return; } this.editingOrder.set(null); this.form = { tabId: this.tableTabs[0].id, notes: '', items: [this.emptyItem()] }; this.formOpen.set(true); }
   openEdit(order: RestaurantOrder): void { this.editingOrder.set(order); this.form = { tabId: order.tabId, notes: order.notes ?? '', items: order.items.filter((item) => item.status === 'DRAFT').map((item) => ({ productId: item.productId, variantId: item.variantId ?? 0, quantity: item.quantity, notes: item.notes, optionIds: item.options.map((option) => option.optionId).filter((id): id is number => id != null) })) }; if (!this.form.items.length) this.form.items = [this.emptyItem()]; this.formOpen.set(true); }
   closeForm(): void { if (!this.saving()) this.formOpen.set(false); }
   addItem(): void { this.form.items.push(this.emptyItem()); }
@@ -142,8 +198,14 @@ export class OrdersPageComponent implements OnInit {
   closeCancel(): void { if (!this.saving()) this.cancelOpen.set(false); }
   confirmCancellation(): void { const order = this.cancelOrder(); const item = this.cancelItem(); const reason = this.cancelReason.trim(); if (!order || !reason) { this.feedback.error('Informe o motivo do cancelamento.'); return; } this.saving.set(true); const operation = item ? this.api.cancelItem(order.id, item.id, reason) : this.api.cancel(order.id, reason); operation.pipe(finalize(() => this.saving.set(false))).subscribe({ next: () => { this.feedback.success(item ? 'Item cancelado.' : 'Pedido cancelado.'); this.cancelOpen.set(false); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
 
-  canEdit(order: RestaurantOrder): boolean { return order.status === 'CREATED' && this.effectiveTabStatus(order) === 'OPEN'; }
-  canCancel(order: RestaurantOrder): boolean { return order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && this.effectiveTabStatus(order) === 'OPEN'; }
+  canEdit(order: RestaurantOrder): boolean { return order.tabType !== 'COUNTER' && order.status === 'CREATED' && this.effectiveTabStatus(order) === 'OPEN'; }
+  canCancel(order: RestaurantOrder): boolean {
+    if (order.status === 'DELIVERED' || order.status === 'CANCELLED' || this.effectiveTabStatus(order) !== 'OPEN') return false;
+    const tab = this.tabs().find((candidate) => candidate.id === order.tabId);
+    if ((tab?.paidAmount ?? 0) > 0) return false;
+    if (order.tabType === 'COUNTER') return this.counterSummary(order)?.cancellationAllowed ?? false;
+    return true;
+  }
   canCancelItem(order: RestaurantOrder, item: OrderItem): boolean { return this.canCancel(order) && item.status !== 'CANCELED' && item.status !== 'DELIVERED'; }
   orderStateMessage(order: RestaurantOrder): string | null { if (order.status === 'CREATED') return 'Aguardando confirmação'; if (order.status === 'DELIVERED') return 'Pedido entregue'; if (order.status === 'CANCELLED') return 'Pedido cancelado'; if (this.effectiveTabStatus(order) !== 'OPEN') return 'Comanda encerrada'; return null; }
   effectiveTabStatus(order: RestaurantOrder): TabStatus { return order.tabStatus ?? 'OPEN'; }
@@ -153,7 +215,17 @@ export class OrdersPageComponent implements OnInit {
   statusTone(status: OrderStatus): string { return { CREATED: 'neutral', SENT_TO_KITCHEN: 'info', PREPARING: 'warning', READY: 'success', DELIVERED: 'success', CANCELLED: 'danger' }[status]; }
   itemStatusLabel(status: OrderItem['status']): string { return { DRAFT: 'Rascunho', WAITING_PREPARATION: 'Na fila', IN_PREPARATION: 'Em preparo', READY: 'Pronto', DELIVERED: 'Entregue', CANCELED: 'Cancelado' }[status]; }
   itemStatusTone(status: OrderItem['status']): string { return { DRAFT: 'neutral', WAITING_PREPARATION: 'info', IN_PREPARATION: 'warning', READY: 'success', DELIVERED: 'success', CANCELED: 'danger' }[status]; }
+  counterSummary(order: RestaurantOrder): CounterSaleSummary | null { return order.tabType === 'COUNTER' ? this.counterSales().find((sale) => sale.id === order.tabId) ?? null : null; }
+  financialLabel(sale: CounterSaleSummary): string { return ({ UNPAID: 'Não pago', PARTIALLY_PAID: 'Parcialmente pago', PAID: 'Pago', CANCELLED: 'Cancelado' })[sale.financialState]; }
   currency(value: number): string { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
+
+  private repositionActionMenu(): void {
+    const trigger = this.actionMenuTrigger;
+    const view = this.document.defaultView;
+    const menu = this.document.querySelector<HTMLElement>('.order-action-menu');
+    if (!trigger || !view || !menu) return;
+    this.actionMenuPosition.set(calculateOverlayPosition(trigger.getBoundingClientRect(), menu.getBoundingClientRect(), view.innerWidth, view.innerHeight));
+  }
   activeVariants(productId: number): ProductVariant[] { return sellableVariants(this.products().find((product) => product.id === productId)); }
   selectedVariant(item: OrderItemRequest): ProductVariant | null { return this.activeVariants(item.productId).find((variant) => variant.id === item.variantId) ?? null; }
   optionGroups(productId: number): ProductOptionGroup[] { return this.products().find((product) => product.id === productId)?.optionGroups.filter((group) => group.active) ?? []; }

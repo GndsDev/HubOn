@@ -1,4 +1,4 @@
-import { TabStatus } from './tab.model';
+import { TabStatus, TabType } from './tab.model';
 import { PreparationFlow } from './product.model';
 
 export type OrderStatus =
@@ -47,8 +47,10 @@ export interface RestaurantOrder {
   id: number;
   tabId: number;
   tabStatus: TabStatus;
-  tableId: number;
-  tableNumber: number;
+  tabType: TabType;
+  tabDisplayLabel: string;
+  tableId: number | null;
+  tableNumber: number | null;
   status: OrderStatus;
   type: OrderType;
   createdByUserId: number;

@@ -31,7 +31,7 @@ import { apiErrorMessage } from '../../shared/util/api-error';
             <div class="kanban-list">
               @for (order of ordersByItemStatus(column.status); track order.id) {
                 <article class="kitchen-order-card" [class.urgent]="elapsedMinutes(order.createdAt) > 25" [class.blocked]="effectiveTabStatus(order) !== 'OPEN'">
-                  <div class="kitchen-order-top"><strong>#{{ order.id }} · Mesa {{ order.tableNumber }}</strong><app-status-badge [label]="elapsed(order.createdAt)" [tone]="elapsedMinutes(order.createdAt) > 25 ? 'danger' : 'info'" /></div>
+                  <div class="kitchen-order-top"><strong>#{{ order.id }} · {{ order.tabDisplayLabel }}</strong><app-status-badge [label]="elapsed(order.createdAt)" [tone]="elapsedMinutes(order.createdAt) > 25 ? 'danger' : 'info'" /></div>
                   <div class="preparation-item-list">
                     @for (item of itemsByStatus(order, column.status); track item.id) {
                       <article class="preparation-item">
@@ -40,7 +40,7 @@ import { apiErrorMessage } from '../../shared/util/api-error';
                       </article>
                     }
                   </div>
-                  @if (column.status === 'READY') { <button type="button" class="primary-button kitchen-action" [disabled]="order.status !== 'READY' || effectiveTabStatus(order) !== 'OPEN'" [title]="order.status === 'READY' ? 'Marcar pedido entregue' : 'Aguardando outros itens do pedido'" (click)="deliver(order)"><i class="pi pi-send"></i>{{ order.status === 'READY' ? 'Marcar entregue' : 'Aguardando outros itens' }}</button> }
+                  @if (column.status === 'READY') { <div class="order-state-note"><i class="pi pi-check-circle"></i>Pronto para retirada no atendimento</div> }
                 </article>
               } @empty { <app-empty-state icon="pi pi-check" title="Fila vazia" description="Nenhum item nesta etapa." /> }
             </div>
@@ -60,8 +60,8 @@ export class KitchenPageComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly columns: Array<{ status: OrderItemStatus; label: string; icon: string; actionLabel: string; actionIcon: string }> = [
-    { status: 'WAITING_PREPARATION', label: 'Recebidos', icon: 'pi pi-inbox', actionLabel: 'Iniciar', actionIcon: 'pi pi-play' },
-    { status: 'IN_PREPARATION', label: 'Preparando', icon: 'pi pi-cog', actionLabel: 'Marcar pronto', actionIcon: 'pi pi-check' },
+    { status: 'WAITING_PREPARATION', label: 'Aguardando', icon: 'pi pi-inbox', actionLabel: 'Iniciar preparo', actionIcon: 'pi pi-play' },
+    { status: 'IN_PREPARATION', label: 'Em preparo', icon: 'pi pi-cog', actionLabel: 'Marcar como pronto', actionIcon: 'pi pi-check' },
     { status: 'READY', label: 'Prontos', icon: 'pi pi-check-circle', actionLabel: 'Entregar', actionIcon: 'pi pi-send' },
   ];
 
@@ -81,9 +81,8 @@ export class KitchenPageComponent implements OnInit {
   load(): void { this.refreshRequests.next(true); }
   itemsByStatus(order: RestaurantOrder, status: OrderItemStatus): OrderItem[] { return order.items.filter((item) => item.status === status); }
   ordersByItemStatus(status: OrderItemStatus): RestaurantOrder[] { return this.orders().filter((order) => this.itemsByStatus(order, status).length > 0); }
-  countItems(status: OrderItemStatus): number { return this.orders().reduce((total, order) => total + this.itemsByStatus(order, status).length, 0); }
+  countItems(status: OrderItemStatus): number { return this.orders().reduce((total, order) => total + this.itemsByStatus(order, status).reduce((quantity, item) => quantity + item.quantity, 0), 0); }
   advanceItem(order: RestaurantOrder, item: OrderItem): void { const next = item.status === 'WAITING_PREPARATION' ? 'IN_PREPARATION' : item.status === 'IN_PREPARATION' ? 'READY' : null; if (!next) return; this.api.updateItemStatus(order.id, item.id, next).subscribe({ next: () => { this.feedback.success('Etapa atualizada.'); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
-  deliver(order: RestaurantOrder): void { if (order.status !== 'READY') return; this.api.updateStatus(order.id, 'DELIVERED').subscribe({ next: () => { this.feedback.success('Pedido entregue.'); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
   effectiveTabStatus(order: RestaurantOrder): 'OPEN' | 'CLOSED' | 'CANCELLED' { return order.tabStatus ?? 'OPEN'; }
   elapsedMinutes(value: string): number { return Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000)); }
   elapsed(value: string): string { const minutes = this.elapsedMinutes(value); return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h ${minutes % 60}min`; }

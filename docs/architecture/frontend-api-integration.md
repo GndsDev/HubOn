@@ -21,6 +21,7 @@ Os acessos estão em `frontend/src/app/core/services/`:
 - `product-api.service.ts`
 - `table-api.service.ts`
 - `tab-api.service.ts`
+- `counter-activity.service.ts`
 - `order-api.service.ts`
 - `payment-api.service.ts`
 - `dashboard-api.service.ts`
@@ -38,9 +39,10 @@ navegador em todas as chamadas autenticadas.
 - Mesas: `/tables`
 - Comandas: `/tabs`
 - Pedidos e cozinha: `/orders`
+- Balcão: `/tabs/counter`, `/tabs/counter/active`, `/tabs/counter/{id}` e consultas de histórico
 - Caixa: `/payments`
 - Usuários: `/users`
-- Relatórios: reutiliza `/dashboard/summary`
+- Relatórios: `/reports/monthly`
 - Minha Conta: `/auth/me` e `/auth/change-password`
 
 Não há fallback silencioso para mocks nas telas operacionais. Quando a API está
@@ -63,14 +65,16 @@ indisponível, a tela mostra erro e ação para tentar novamente.
 
 - Dashboard consulta `/dashboard/summary` a cada 30 segundos.
 - Cozinha consulta `/orders` a cada 15 segundos.
+- O indicador global do Balcão consulta `/tabs/counter/active` a cada 30 segundos.
+- O atendimento aberto consulta seu detalhe a cada 15 segundos para refletir a Cozinha.
+- Ações de montagem, pagamento, preparo, entrega e fechamento também solicitam atualização imediata.
 - As telas usam uma única assinatura com descarte automático ao sair da rota.
 - Requisições sobrepostas são ignoradas enquanto a atualização atual não termina.
 - O tempo decorrido da cozinha é recalculado junto com cada atualização.
 
 ## Estado parcial
 
-- Exportação, impressão parcial e modo chamada aparecem
-  desabilitados e identificados como recursos futuros.
+- O Relatório mensal oferece impressão e CSV apenas quando existem dados carregados.
 - Cadastro de usuários existe para `OWNER` e `ADMIN`, respeitando as restrições
   de perfil definidas no backend.
 - Troca de senha existe para o usuário autenticado, mas recuperação de senha e
