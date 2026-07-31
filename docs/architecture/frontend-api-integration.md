@@ -37,10 +37,10 @@ navegador em todas as chamadas autenticadas.
 - Categorias: `/categories`
 - Produtos: `/products`
 - Mesas: `/tables`
-- Comandas: `/tabs`
-- Pedidos e cozinha: `/orders`
+- Comandas: `/tabs` e componente compartilhado sobre `/payments`
+- Pedidos e preparo: `/orders`
 - Balcão: `/tabs/counter`, `/tabs/counter/active`, `/tabs/counter/{id}` e consultas de histórico
-- Caixa: `/payments`
+- Caixa: `/cash-shifts`; pagamentos aparecem apenas como movimentações e links para a origem
 - Usuários: `/users`
 - Relatórios: `/reports/monthly`
 - Minha Conta: `/auth/me` e `/auth/change-password`

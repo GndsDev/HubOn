@@ -75,6 +75,11 @@ implementado no estoque atual.
 
 Acompanhamento das entradas e saídas financeiras da operação em determinado período.
 
+### Turno de Caixa
+
+Período persistido entre abertura e fechamento, com saldo inicial, recebimentos,
+sangrias, suprimentos, conferência e diferença.
+
 ### Dashboard
 
 Tela de visão geral com indicadores operacionais, financeiros ou administrativos do sistema.
@@ -93,11 +98,13 @@ Perfil de atendimento, voltado à operação de salão, mesas, comandas e pedido
 
 ### Kitchen
 
-Perfil de cozinha, voltado à visualização e atualização do fluxo de preparo dos pedidos.
+Perfil legado de preparo. Quando utilizado, acessa uma versão filtrada de Pedidos
+e pode somente marcar itens preparados como prontos.
 
 ### Cashier
 
-Perfil de caixa, voltado ao fechamento de comandas, pagamentos e consultas financeiras permitidas.
+Perfil operacional que atende Balcão e Comandas e controla o turno financeiro do
+Caixa dentro das permissões definidas.
 
 ### JWT
 

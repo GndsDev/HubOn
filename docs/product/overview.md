@@ -5,11 +5,12 @@ O HubOn é um sistema local para gestão da operação de restaurantes.
 Fluxo principal:
 
 ```text
-Mesa → Comanda → Pedido → Itens do pedido → Pagamento
+Balcão ou Comanda → Pedido → Pagamento → Preparo → Entrega → Fechamento
 ```
 
-O MVP inclui Dashboard, Mesas, Comandas, Pedidos, Cozinha, Caixa, Categorias,
-Produtos, Usuários, Relatórios básicos, login JWT e autorização por perfil.
+O MVP inclui Dashboard, Mesas, Comandas, Pedidos, Balcão, Caixa financeiro,
+Categorias, Produtos, Estoque, Usuários, Relatório mensal, login JWT e
+autorização por perfil. Não existe tela exclusiva de Cozinha.
 
 A autoria operacional é registrada pelo usuário autenticado no backend.
 

@@ -1,5 +1,10 @@
 # Homologação operacional e visual do HubOn
 
+> Registro histórico da revisão de 30 de julho. A divisão atual entre Balcão,
+> Comandas, Pedidos e Caixa, incluindo preparo automático e remoção da tela
+> exclusiva de Cozinha, está em
+> [operational-refinement-homologation.md](operational-refinement-homologation.md).
+
 Data da validação: 30 de julho de 2026.
 
 ## Escopo

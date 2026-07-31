@@ -54,7 +54,7 @@ híbrido, baixa automática simples, saldo negativo e estorno estão separadas e
 - Pagamento incompleto ou excedente impede o fechamento.
 - Ao fechar, a mesa volta para `AVAILABLE`.
 
-## Pedidos e cozinha
+## Pedidos e preparo
 
 - Pedido pertence a uma comanda aberta, começa como `CREATED` e seus itens como `DRAFT`.
 - A confirmação envia itens `REQUIRES_PREPARATION` para `WAITING_PREPARATION`.
@@ -69,8 +69,10 @@ híbrido, baixa automática simples, saldo negativo e estorno estão separadas e
 - Pedido ligado a uma comanda fechada não pode ser alterado.
 - Pedido cancelado não entra no total da comanda.
 - Um pedido possui um ou mais itens.
-- Cancelamento por item não faz parte do MVP; `OrderItemStatus.CANCELLED` fica
-  reservado para evolução futura.
+- Item confirmado pode ser cancelado com motivo, auditoria e estorno idempotente
+  da baixa automática quando aplicável.
+- A interface não possui tela exclusiva de Cozinha. Pedidos e Balcão exibem o
+  preparo; `KITCHEN` recebe somente a fila filtrada e marca item como pronto.
 
 ## Pagamentos e totais
 
@@ -88,6 +90,23 @@ híbrido, baixa automática simples, saldo negativo e estorno estão separadas e
 - `finalAmount = totalAmount + serviceFee - discountAmount`, limitado a zero.
 - `remainingAmount = finalAmount - paidAmount`, limitado a zero.
 - A consulta de pagamentos retorna total, pago, restante e histórico.
+- `POST /payments` retorna também estado financeiro, pedidos atualizados e
+  próxima ação.
+- Em comanda `COUNTER`, pagamento parcial não inicia preparo.
+- Em comanda `COUNTER`, pagamento integral e início dos itens elegíveis ocorrem
+  na mesma transação; uma falha desfaz o pagamento.
+- Comandas `TABLE` preservam o fluxo anterior.
+
+## Caixa
+
+- Só pode existir um turno aberto.
+- Abertura registra operador, horário e saldo inicial.
+- Sangria e suprimento exigem valor positivo e observação.
+- Pagamentos são vinculados ao turno aberto pelo backend.
+- Fechamento registra valor contado, diferença e observação obrigatória quando
+  houver divergência.
+- Fechar Caixa não altera pedido, preparo, entrega ou comanda.
+- Caixa não possui fluxo alternativo de pagamento.
 
 ## Segurança e persistência
 
@@ -103,7 +122,7 @@ híbrido, baixa automática simples, saldo negativo e estorno estão separadas e
 - A comanda permanece na central do Balcão até ser finalizada ou cancelada.
 - Itens, quantidades, variações, escolhas e observações do rascunho são persistidos no backend.
 - O backend deriva o canal do pedido a partir da comanda.
-- Pagamento pode terminar antes do preparo; cozinha e financeiro permanecem estados independentes.
+- Itens preparados aguardam pagamento; a quitação integral inicia o preparo automaticamente.
 - A entrega exige todos os itens ativos prontos, e o fechamento exige entrega ou cancelamento operacional e pagamento exato.
 - Nome, telefone e referência são opcionais.
 - `OWNER`, `ADMIN` e `CASHIER` operam o Balcão; `WAITER` não recebe acesso implícito.

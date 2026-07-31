@@ -68,8 +68,8 @@ As rotas e endpoints continuam filtrados por perfil:
 
 - `OWNER` e `ADMIN`: gestão, dashboard, cardápio, relatórios e usuários.
 - `WAITER`: mesas, comandas e pedidos.
-- `KITCHEN`: somente fila dedicada de preparo e atualização do estado dos itens.
-- `CASHIER`: caixa e comandas.
+- `KITCHEN`: visão filtrada de Pedidos e transição de item preparado para `READY`.
+- `CASHIER`: Balcão, pagamentos, Caixa, Comandas e consulta operacional de Pedidos.
 
 A interface oculta itens não permitidos, mas a autorização real fica no backend.
 
@@ -81,10 +81,11 @@ A interface oculta itens não permitidos, mas a autorização real fica no backe
 - rotação administrativa de credenciais;
 - auditoria completa das ações sensíveis.
 
-## Permissoes de balcao e relatorio
+## Permissões operacionais
 
 - `POST /api/tabs/counter`: `OWNER`, `ADMIN`, `CASHIER`.
-- confirmacao, pagamento, entrega, cancelamento permitido e fechamento do balcao: mesmos perfis operacionais, com auditoria pelo token.
-- fila e transicao de preparo por item: `OWNER`, `ADMIN`, `KITCHEN`.
+- confirmação, pagamento, entrega, cancelamento permitido e fechamento do Balcão: mesmos perfis operacionais, com auditoria pelo token.
+- abertura, sangria, suprimento e fechamento de Caixa: `OWNER`, `ADMIN`, `CASHIER`.
+- fila e transição para item pronto: `OWNER`, `ADMIN`, `KITCHEN`; o perfil `KITCHEN` não inicia preparo nem entrega.
 - `GET /api/reports/monthly`: somente `OWNER` e `ADMIN`.
-- `WAITER` nao recebe permissao de balcao silenciosamente; `KITCHEN` nao acessa pagamentos ou relatorios; `CASHIER` nao altera catalogo.
+- `WAITER` não recebe permissão de Balcão silenciosamente; `KITCHEN` não acessa pagamentos, Caixa ou relatórios; `CASHIER` não altera catálogo.

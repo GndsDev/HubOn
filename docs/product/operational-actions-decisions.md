@@ -5,8 +5,10 @@
 | Estado | Ação principal | Ações secundárias | Ações removidas ou ocultas | Regra |
 | --- | --- | --- | --- | --- |
 | Atendimento vazio | Adicionar itens | Editar identificação; cancelar venda | Confirmar, pagar, entregar e finalizar | A comanda já existe, mas ainda não há pedido vendável. |
-| Em montagem | Confirmar pedido | Editar itens; editar identificação; cancelar venda | Enviar para cozinha, processar e registrar venda | A confirmação é a única fronteira transacional. |
-| Aguardando ou em preparo | Acompanhar preparo | Registrar pagamento; cancelar quando permitido | Entregar e finalizar | Pagamento e preparo continuam independentes. |
+| Em montagem | Confirmar pedido | Editar itens; editar identificação; cancelar venda | Enviar para cozinha, processar e registrar venda | A confirmação valida catálogo e estoque. |
+| Aguardando pagamento | Registrar pagamento | Consultar itens | Iniciar preparo, entregar e finalizar | Pagamento parcial mantém o preparo aguardando. |
+| Pagamento parcial | Completar pagamento | Consultar itens | Iniciar preparo, entregar e finalizar | O preparo começa automaticamente quando o saldo chega a zero. |
+| Em preparo | Acompanhar preparo | Consultar itens | Iniciar preparo, pagar novamente e finalizar | Cada item oferece somente **Marcar como pronto**. |
 | Pronto com saldo | Registrar pagamento | Consultar itens | Entregar e finalizar | A venda deve estar quitada antes da entrega operacional. |
 | Pronto e pago | Marcar como entregue | Consultar itens | Registrar pagamento e finalizar | Pagamento não equivale à entrega. |
 | Entregue com saldo | Registrar pagamento | Consultar itens | Entregar novamente e finalizar | A quitação ainda é obrigatória. |
@@ -17,18 +19,16 @@
 
 | Tela | Estado ou contexto | Ação principal | Ações secundárias | Decisão |
 | --- | --- | --- | --- | --- |
-| Dashboard | Indicador acionável | Abrir a área correspondente | Atualizar indicadores | Métricas levam ao Balcão, Caixa, Cozinha ou Relatório. |
+| Dashboard | Indicador acionável | Abrir a área correspondente | Atualizar indicadores | Métricas levam ao Balcão, Pedidos, Estoque, Caixa ou Relatório. |
 | Produtos | Produto cadastrado | Gerenciar produto | Alternar disponibilidade | Informações, variações, escolhas e estoque ficam em uma única entrada. |
 | Estoque | Item cadastrado | Registrar movimento adequado | Gerenciar item; histórico; vínculos | Entrada, saída, perda e ajuste permanecem operações distintas e auditáveis. |
 | Pedidos | Pedido de mesa em rascunho | Confirmar pedido | Editar; cancelar | A progressão operacional fica fora do menu. |
 | Pedidos | Pedido de balcão | Abrir atendimento | Consultar detalhes | O Balcão concentra a próxima ação e evita confirmação duplicada. |
-| Cozinha | Item aguardando | Iniciar preparo | Consultar identificação | Somente a próxima transição válida é exibida. |
-| Cozinha | Item em preparo | Marcar como pronto | Consultar identificação | Entrega pertence ao Balcão ou ao fluxo da comanda. |
-| Cozinha | Item pronto | Nenhuma ação de preparo | Consultar identificação | O item permanece informativo até a entrega. |
-| Caixa | Saldo pendente ou parcial | Registrar pagamento | Abrir Balcão; ver pedido | Pagamento não fecha nem entrega automaticamente. |
-| Caixa | Pago e aguardando preparo/entrega | Continuar no Balcão | Ver pedido | Fechamento fica bloqueado com justificativa visível. |
-| Caixa | Entregue e pago | Fechar comanda ou finalizar venda | Ver pedido | A pré-condição operacional e financeira foi atendida. |
-| Comandas | Aberta sem pagamento | Ação válida conforme o estado | Cancelar com confirmação | Cancelamento só aparece quando permitido. |
+| Pedidos | Item em preparo | Marcar como pronto | Abrir origem | Não existe ação manual para iniciar preparo. |
+| Pedidos | Item pronto | Marcar como entregue | Abrir origem | O perfil `KITCHEN` não recebe a ação de entrega. |
+| Caixa fechado | Abrir caixa | Consultar último fechamento | Nenhuma operação de venda | O turno precisa existir antes de movimentar dinheiro. |
+| Caixa aberto | Fechar caixa | Registrar sangria; registrar suprimento | Registrar pagamento; montar ou concluir venda | Pagamentos entram automaticamente no turno aberto. |
+| Comandas | Saldo pendente ou parcial | Registrar ou completar pagamento | Cancelar quando permitido | A venda de mesa é recebida dentro da própria comanda. |
 | Relatório | Dados carregados | Consultar período | Imprimir; exportar CSV | Comandos inativos ou prometidos foram removidos. |
 
 ## Princípios

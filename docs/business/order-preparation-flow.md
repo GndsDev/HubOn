@@ -21,6 +21,9 @@ com `PUT /api/orders/{id}`. O preço vem do backend e nenhum estoque é movido.
 Qualquer falha desfaz a confirmação inteira. Repetir a confirmação retorna o
 estado atual sem nova baixa.
 
+Para comandas `COUNTER`, `WAITING_PREPARATION` é apresentado como **Aguardando
+pagamento** enquanto houver saldo. A confirmação não inicia o preparo.
+
 ## Fila de preparo
 
 `GET /api/orders/preparation-queue` consulta no backend somente itens
@@ -34,7 +37,9 @@ DRAFT -> WAITING_PREPARATION -> IN_PREPARATION -> READY -> DELIVERED
                      \-> CANCELED
 ```
 
-Itens `DIRECT_SERVICE` fazem `DRAFT -> READY` e nunca entram nessa consulta.
+Itens `DIRECT_SERVICE` fazem `DRAFT -> READY` e nunca entram nessa consulta. A
+consulta permanece disponível no backend por compatibilidade, mas não existe
+uma tela exclusiva de Cozinha: Pedidos e Balcão são as interfaces visíveis.
 
 ## Pedidos mistos
 
@@ -43,7 +48,7 @@ entra na fila. O pedido global permanece em preparo até não haver item de
 preparo pendente. Todos os itens não cancelados continuam na comanda e no
 pagamento.
 
-Pedido somente direto fica `READY` imediatamente, sem depender da cozinha.
+Pedido somente direto fica `READY` imediatamente, sem depender de preparo.
 
 ## Cancelamentos
 
@@ -65,4 +70,12 @@ delivery, expedição separada ou reabertura de pedido pago/fechado.
 
 ## Canal de balcão
 
-Pedidos de balcão usam as mesmas transições por item. Itens `DIRECT_SERVICE` ficam `READY` na confirmação e não aparecem na Cozinha. Itens `REQUIRES_PREPARATION` seguem `WAITING_PREPARATION -> IN_PREPARATION -> READY`. Em pedidos mistos, cada item mantém seu estado; pagar a comanda não remove o pedido da fila nem da central do Balcão. O pedido inteiro só passa a `DELIVERED` por ação explícita e quando não restar item ativo pendente.
+Pedidos de balcão usam as mesmas transições por item, mas o primeiro avanço dos
+itens `REQUIRES_PREPARATION` é automático. Pagamento parcial não altera o
+preparo. Quando o saldo chega a zero, `PaymentService` registra o pagamento e,
+na mesma transação, move apenas itens elegíveis de `WAITING_PREPARATION` para
+`IN_PREPARATION`, recalculando os pedidos. Falha no preparo desfaz o pagamento.
+
+Itens diretos, cancelados, prontos, entregues ou já em preparo não são alterados.
+A operação é idempotente. Em comandas `TABLE`, o fluxo anterior é preservado e
+não recebe essa automação silenciosamente.

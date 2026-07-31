@@ -1,19 +1,36 @@
 # Fluxo do sistema HubOn
 
-## Fluxo principal
+## Responsabilidades
 
-1. O usuário faz login com um perfil autorizado.
-2. O usuário escolhe uma mesa livre.
-3. Uma comanda é aberta para a mesa.
-4. A mesa muda automaticamente para `OCCUPIED`.
-5. O usuário cria pedidos vinculados à comanda.
-6. Cada item congela nome e preço do produto no momento da venda.
-7. O pedido é enviado para a cozinha.
-8. A cozinha percorre `SENT_TO_KITCHEN`, `PREPARING`, `READY` e `DELIVERED`.
-9. O caixa registra um ou mais pagamentos.
-10. Pedidos devem estar entregues ou cancelados antes do fechamento.
-11. O pagamento total deve ser exatamente igual ao valor final.
-12. A comanda é fechada e a mesa volta para `AVAILABLE`.
+- **Balcão:** abre, monta, confirma, recebe, acompanha, entrega e finaliza vendas `COUNTER`.
+- **Comandas:** abre, recebe e conclui vendas `TABLE` vinculadas a mesas.
+- **Pedidos:** acompanha origem, itens, preparo e entrega; não possui pagamento próprio.
+- **Caixa:** controla turno, dinheiro e movimentações; não atende clientes.
+- **Relatórios:** analisa vendas já concluídas.
+
+O HubOn não possui tela exclusiva de Cozinha. O domínio e a fila de preparo
+continuam no backend; a interface usa Pedidos e Balcão.
+
+## Venda de mesa
+
+1. Uma mesa livre recebe uma comanda `TABLE` e muda para `OCCUPIED`.
+2. Pedidos são montados e confirmados com snapshots e baixa de estoque.
+3. Pedidos acompanha o preparo e a entrega por item.
+4. Pagamentos parciais ou totais são registrados dentro da própria Comanda.
+5. Com todos os pedidos resolvidos e saldo zero, a Comanda é fechada e a mesa
+   volta para `AVAILABLE`.
+
+## Venda de balcão
+
+1. **Nova venda no balcão** persiste imediatamente uma comanda `COUNTER`.
+2. A rota `/balcao/:id` salva e retoma itens, escolhas e observações.
+3. A confirmação valida catálogo e estoque; itens diretos ficam prontos e itens
+   preparados aguardam pagamento.
+4. Pagamento parcial não inicia preparo.
+5. Pagamento integral inicia automaticamente os itens preparados elegíveis na
+   mesma transação.
+6. Itens são marcados como prontos e entregues separadamente.
+7. Venda paga e entregue é finalizada explicitamente.
 
 ## Estados principais
 

@@ -11,7 +11,8 @@ categories -> products -> product_variants -> product_stock_links -> ingredients
                     |-> product_option_groups -> product_options
 
 restaurant_tables -> tabs -> orders -> order_items -> order_item_options
-                          |-> payments       |-> inventory_movements
+                          |-> payments -> cash_shifts -> cash_movements
+                                             |-> inventory_movements
 ```
 
 ## Catálogo
@@ -54,7 +55,15 @@ estado. O preço adicional é somado ao preço unitário e congelado no pedido.
 Mesas usam `AVAILABLE`, `OCCUPIED`, `RESERVED` ou `DISABLED`. Comandas usam
 `OPEN`, `CLOSED` ou `CANCELLED`; o índice parcial
 `uq_tabs_one_open_per_table` impede duas comandas abertas por mesa. Pagamentos
-registram método, valor, data e usuário autenticado.
+registram método, valor, data, usuário autenticado e o `cash_shift_id` do turno
+aberto, quando existir.
+
+### `cash_shifts` e `cash_movements`
+
+`cash_shifts` persiste operador, abertura, saldo inicial, conferência, diferença
+e fechamento. `cash_movements` registra `SUPPLY` e `WITHDRAWAL` com valor,
+responsável, origem, referência, observação e instante. Pagamentos permanecem
+na tabela própria e alimentam o resumo do turno pelo vínculo explícito.
 
 ### `orders`
 
@@ -139,9 +148,13 @@ tab.final_amount = max(total_amount + service_fee - discount_amount, 0)
   item, `SALE`, cancelamentos e remoção segura do preço de `products`.
 - `V6`: correção de itens legados `DIRECT_SERVICE` indevidamente migrados para
   estados de preparo e liberação conservadora de pedidos sem itens pendentes.
+- `V7`: comandas `COUNTER`, identificação opcional, data comercial de fechamento
+  e índices do relatório mensal.
+- `V8`: turnos de Caixa, movimentações financeiras, associação de pagamentos ao
+  turno e índices de consulta.
 
-`V1` a `V5` já estavam versionadas e foram preservadas. A estabilização entrou
-em `V6`, sem editar migrations aplicadas. Mudanças futuras exigem nova versão.
+`V1` a `V7` foram preservadas. O refinamento financeiro entrou somente em `V8`,
+sem editar migrations aplicadas. Mudanças futuras exigem nova versão.
 
 ## Fora do MVP
 

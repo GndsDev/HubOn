@@ -13,7 +13,7 @@ O objetivo é facilitar evolução do produto, revisão de decisões e entrada d
 - [Decisões de ações operacionais](product/operational-actions-decisions.md): consolidação de botões e ações contextuais.
 - [Status do MVP](status-mvp.md): o que está funcional, parcial, fora do MVP e planejado.
 - [Estoque Inteligente](business/stock-management.md): controle híbrido de estoque, baixas automáticas simples e limites do escopo.
-- [Fluxo do sistema](architecture/fluxo-sistema.md): jornada principal entre mesa, comanda, pedido, cozinha e pagamento.
+- [Fluxo do sistema](architecture/fluxo-sistema.md): responsabilidades de Balcão, Comandas, Pedidos, Caixa e Relatórios.
 
 ## Arquitetura
 
@@ -29,6 +29,8 @@ O objetivo é facilitar evolução do produto, revisão de decisões e entrada d
 - [Regras de negócio](business/regras-negocio.md): regras operacionais do MVP.
 - [Estoque Inteligente](business/stock-management.md): regras de itens manuais, baixa automática simples e estornos.
 - [Venda no balcão](business/counter-sales.md): atendimento independente sem mesa, pagamento, preparo e permissões.
+- [Pedidos e preparo](business/order-preparation-flow.md): estados por item e automação após pagamento integral.
+- [Turno de Caixa](business/cash-shifts.md): abertura, movimentações, conferência e fechamento financeiro.
 - [Relatório mensal](business/monthly-report.md): competência, indicadores, agrupamentos e exportações.
 - [Glossário](GLOSSARY.md): termos oficiais usados no produto e na documentação.
 
@@ -56,6 +58,7 @@ O objetivo é facilitar evolução do produto, revisão de decisões e entrada d
 - [Testes](testing/testing.md): estratégia de testes, cobertura atual e recomendações.
 - [Fluxo de teste manual](testing/manual-test-flow.md): roteiro manual da operação principal.
 - [Homologação operacional e visual](testing/counter-operations-homologation.md): diagnóstico, implementação, validações e inventário da revisão do Balcão.
+- [Homologação do refinamento estrutural](testing/operational-refinement-homologation.md): Produtos, pagamento, preparo, Caixa, Pedidos e auditoria visual.
 
 ## Portfolio
 

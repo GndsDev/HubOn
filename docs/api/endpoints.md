@@ -63,9 +63,8 @@ deve entrar novamente.
 | Dashboard | `OWNER`, `ADMIN` |
 | Mesas | `OWNER`, `ADMIN`, `WAITER` |
 | Comandas | `OWNER`, `ADMIN`, `WAITER`, `CASHIER` |
-| Pedidos | `OWNER`, `ADMIN`, `WAITER`, `CASHIER` |
+| Pedidos | `OWNER`, `ADMIN`, `WAITER`, `CASHIER`; `KITCHEN` usa somente a fila filtrada e marca itens prontos |
 | Balcão | `OWNER`, `ADMIN`, `CASHIER` |
-| Cozinha | `OWNER`, `ADMIN`, `KITCHEN`; o perfil `KITCHEN` acessa apenas a fila de preparo. |
 | Caixa | `OWNER`, `ADMIN`, `CASHIER` |
 | Categorias | `OWNER`, `ADMIN` |
 | Produtos | `OWNER`, `ADMIN` |
@@ -214,7 +213,7 @@ O fechamento exige pedidos finalizados e pagamento exatamente igual ao valor
 final. O cancelamento é rejeitado quando há pagamento, pedido entregue ou pedido
 pendente.
 
-## Pedidos e cozinha
+## Pedidos e preparo
 
 | Método | Endpoint | Descrição |
 | --- | --- | --- |
@@ -224,7 +223,7 @@ pendente.
 | POST | `/orders` | Cria rascunho com variações e escolhas validadas. |
 | PUT | `/orders/{id}` | Substitui itens de um pedido ainda em rascunho. |
 | POST | `/orders/{id}/confirm` | Confirma, valida e movimenta estoque em uma transação. |
-| POST | `/orders/{id}/send-to-kitchen` | Alias temporário para confirmação. |
+| POST | `/orders/{id}/send-to-kitchen` | Alias legado de compatibilidade para confirmação; não é usado pela interface. |
 | PATCH | `/orders/{orderId}/items/{itemId}/status` | Avança um item da fila de preparo. |
 | PATCH | `/orders/{id}/status` | Mantém transições globais compatíveis e entrega. |
 | POST | `/orders/{orderId}/items/{itemId}/cancel` | Cancela item com motivo e eventual estorno. |
@@ -237,6 +236,11 @@ pendente.
 cancelamento. Pedido entregue, comanda fechada e comanda com pagamento mantêm
 os bloqueios financeiros existentes.
 
+Para venda `COUNTER`, o perfil operacional não inicia preparo manualmente. O
+pagamento integral move itens elegíveis para `IN_PREPARATION`. `KITCHEN` pode
+somente mover item de preparo de `IN_PREPARATION` para `READY`; entrega e demais
+ações permanecem com os perfis da origem.
+
 ## Pagamentos
 
 | Método | Endpoint | Descrição |
@@ -248,6 +252,23 @@ Métodos aceitos: `CASH`, `CREDIT_CARD`, `DEBIT_CARD`, `PIX` e `VOUCHER`.
 
 O valor deve ser maior que zero e não pode ultrapassar o saldo restante. A
 comanda é bloqueada durante a transação para proteger pagamentos concorrentes.
+A resposta de `POST /payments` contém o pagamento, total, pago, restante, estado
+financeiro, pedidos atualizados e próxima ação. Em `COUNTER`, pagamento integral
+e início automático do preparo pertencem à mesma transação; pagamento parcial
+não inicia preparo.
+
+## Caixa
+
+| Método | Endpoint | Perfis | Descrição |
+| --- | --- | --- | --- |
+| GET | `/cash-shifts/current` | `OWNER`, `ADMIN`, `CASHIER` | Retorna o turno aberto ou `null`. |
+| GET | `/cash-shifts/history` | `OWNER`, `ADMIN`, `CASHIER` | Lista o histórico financeiro. |
+| POST | `/cash-shifts` | `OWNER`, `ADMIN`, `CASHIER` | Abre um turno com saldo inicial. |
+| POST | `/cash-shifts/{id}/movements` | `OWNER`, `ADMIN`, `CASHIER` | Registra `SUPPLY` ou `WITHDRAWAL`. |
+| POST | `/cash-shifts/{id}/close` | `OWNER`, `ADMIN`, `CASHIER` | Confere e fecha o turno. |
+
+Pagamentos são associados automaticamente ao turno aberto. O Caixa não expõe
+endpoint alternativo para receber uma venda.
 
 ## Dashboard
 
