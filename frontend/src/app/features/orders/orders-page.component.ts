@@ -1,8 +1,8 @@
 import { CommonModule, DOCUMENT } from '@angular/common';
-import { Component, HostListener, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, HostListener, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { finalize, forkJoin } from 'rxjs';
+import { finalize, forkJoin, of } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { OrderApiService } from '../../core/services/order-api.service';
@@ -28,40 +28,60 @@ import {
   sellableVariants,
 } from '../../shared/util/catalog-workflow';
 
+type OrderFilter = 'ALL' | 'WAITING_PAYMENT' | 'IN_PREPARATION' | 'READY' | 'DELIVERED' | 'CANCELLED' | 'TABLE' | 'COUNTER';
+
 @Component({
   selector: 'app-orders-page',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent, AccessibleDialogDirective, BodyPortalDirective],
   template: `
     <app-page-header kicker="Operação" title="Pedidos" description="Consulte a origem, o andamento e a próxima ação de cada pedido.">
-      <button type="button" class="primary-button" (click)="openCreate()"><i class="pi pi-shopping-cart"></i>Novo pedido de mesa</button>
+      @if (!kitchenOnly()) { <button type="button" class="primary-button" (click)="openCreate()"><i class="pi pi-shopping-cart"></i>Novo pedido de mesa</button> }
     </app-page-header>
 
     <app-section-card eyebrow="Fluxo de venda" title="Pedidos do turno">
+      <div class="segmented-control order-filters" card-action aria-label="Filtrar pedidos">
+        @for (filter of filters; track filter.value) {
+          <button type="button" [class.active]="activeFilter() === filter.value" (click)="activeFilter.set(filter.value)">{{ filter.label }} <span>{{ filterCount(filter.value) }}</span></button>
+        }
+      </div>
       @if (loading()) {
         <div class="loading-grid">@for (item of [1,2,3,4]; track item) { <div class="loading-row"></div> }</div>
       } @else if (error()) {
         <div class="error-panel"><i class="pi pi-exclamation-triangle"></i><div><strong>Não foi possível carregar</strong><p>{{ error() }}</p></div><button type="button" class="ghost-button" (click)="load()"><i class="pi pi-refresh"></i>Tentar novamente</button></div>
-      } @else if (orders().length === 0) {
-        <app-empty-state icon="pi pi-shopping-cart" title="Nenhum pedido criado" description="Abra uma comanda e registre o primeiro pedido." />
+      } @else if (visibleOrders().length === 0) {
+        <app-empty-state icon="pi pi-shopping-cart" title="Nenhum pedido neste filtro" description="Os pedidos aparecerão aqui conforme avançarem na operação." />
       } @else {
         <div class="order-list">
-          @for (order of orders(); track order.id) {
+          @for (order of visibleOrders(); track order.id) {
             <article class="order-card">
-              <div class="order-card-head"><div><span>Pedido #{{ order.id }} · {{ order.tabType === 'COUNTER' ? 'Balcão' : 'Mesa' }}</span><strong>{{ order.tabDisplayLabel }}</strong><small>Comanda #{{ order.tabId }} · {{ tabStatusLabel(effectiveTabStatus(order)) }}</small>@if (counterSummary(order); as sale) { <small>Financeiro: {{ financialLabel(sale) }} · Restante {{ currency(sale.remainingAmount) }}</small> }</div><app-status-badge [label]="statusLabel(order.status)" [tone]="statusTone(order.status)" /></div>
-              <div class="order-item-list detailed-order-items">
-                @for (item of order.items; track item.id) {
-                  <div class="detailed-order-item" [class.cancelled]="item.status === 'CANCELED'">
-                    <div><span>{{ item.quantity }}x {{ item.displayNameSnapshot || item.productNameSnapshot }}</span>@for (option of item.options; track option.id) { <small>{{ option.groupName }}: {{ option.optionName }}</small> }@if (item.notes) { <small>Observação: {{ item.notes }}</small> }@if (item.cancellationReason) { <small>Cancelado: {{ item.cancellationReason }}</small> }</div>
-                    <div class="order-item-side"><app-status-badge [label]="itemStatusLabel(item.status)" [tone]="itemStatusTone(item.status)" /><b>{{ currency(item.subtotal) }}</b>@if (canCancelItem(order, item)) { <button type="button" class="text-action danger-text" (click)="openCancelItem(order, item)">Cancelar item</button> }</div>
-                  </div>
+              <div class="order-card-head"><div><span>Pedido #{{ order.id }} · {{ order.tabType === 'COUNTER' ? 'Balcão' : 'Mesa' }}</span><strong>{{ order.tabDisplayLabel }}</strong><small>Comanda #{{ order.tabId }} · {{ tabStatusLabel(effectiveTabStatus(order)) }}</small>@if (!kitchenOnly() && counterSummary(order); as sale) { <small>Financeiro: {{ financialLabel(sale) }} · Restante {{ currency(sale.remainingAmount) }}</small> }</div><app-status-badge [label]="statusLabel(order)" [tone]="statusTone(order.status)" /></div>
+              @for (group of itemGroups(order); track group.key) {
+                @if (group.items.length) {
+                  <section class="order-flow-group">
+                    <h3><i [class]="group.key === 'PREPARATION' ? 'pi pi-clock' : 'pi pi-bolt'"></i>{{ group.label }}</h3>
+                    <div class="order-item-list detailed-order-items">
+                      @for (item of group.items; track item.id) {
+                        <div class="detailed-order-item" [class.cancelled]="item.status === 'CANCELED'">
+                          <div><span>{{ item.quantity }}x {{ item.displayNameSnapshot || item.productNameSnapshot }}</span>@for (option of item.options; track option.id) { <small>{{ option.groupName }}: {{ option.optionName }}</small> }@if (item.notes) { <small>Observação: {{ item.notes }}</small> }@if (item.cancellationReason) { <small>Cancelado: {{ item.cancellationReason }}</small> }</div>
+                          <div class="order-item-side">
+                            <app-status-badge [label]="itemStatusLabel(order, item)" [tone]="itemStatusTone(item.status)" />
+                            @if (!kitchenOnly()) { <b>{{ currency(item.subtotal) }}</b> }
+                            @if (canMarkReady(item)) { <button type="button" class="primary-button compact-button" (click)="markReady(order, item)"><i class="pi pi-check"></i>Marcar como pronto</button> }
+                            @if (canDeliverItem(order, item)) { <button type="button" class="primary-button compact-button" (click)="deliverItem(order, item)"><i class="pi pi-check-circle"></i>Marcar como entregue</button> }
+                            @if (canCancelItem(order, item)) { <button type="button" class="text-action danger-text" (click)="openCancelItem(order, item)">Cancelar item</button> }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </section>
                 }
-              </div>
+              }
               @if (order.notes) { <p class="order-notes">{{ order.notes }}</p> }
-              <div class="order-card-footer"><strong>{{ currency(orderTotal(order)) }}</strong><div class="action-cluster">
-                @if (order.tabType === 'COUNTER' && effectiveTabStatus(order) === 'OPEN') { <a class="primary-button compact-button" [routerLink]="['/balcao', order.tabId]"><i class="pi pi-arrow-right"></i>Abrir atendimento</a> }
+              <div class="order-card-footer">@if (!kitchenOnly()) { <strong>{{ currency(orderTotal(order)) }}</strong> }<div class="action-cluster">
+                @if (!kitchenOnly() && order.tabType === 'COUNTER' && effectiveTabStatus(order) === 'OPEN') { <a class="ghost-button compact-button" [routerLink]="['/balcao', order.tabId]"><i class="pi pi-arrow-right"></i>Abrir atendimento</a> }
+                @if (!kitchenOnly() && order.tabType === 'TABLE' && effectiveTabStatus(order) === 'OPEN' && tableRemaining(order) > 0) { <a class="ghost-button compact-button" routerLink="/comandas" [queryParams]="{ tab: order.tabId }"><i class="pi pi-arrow-right"></i>Abrir comanda</a> }
                 @if (canEdit(order)) { <button type="button" class="primary-button compact-button" (click)="confirm(order)"><i class="pi pi-check"></i>Confirmar pedido</button> }
-                @if (order.tabType !== 'COUNTER' && order.status === 'READY' && effectiveTabStatus(order) === 'OPEN') { <button type="button" class="primary-button compact-button" (click)="deliver(order)"><i class="pi pi-check-circle"></i>Marcar como entregue</button> }
                 @if (orderStateMessage(order); as message) { <span class="order-state-note" [class.blocked]="effectiveTabStatus(order) !== 'OPEN'"><i class="pi pi-info-circle"></i>{{ message }}</span> }
                 @if (canEdit(order) || canCancel(order)) { <button type="button" class="icon-action-button actions-trigger" aria-haspopup="menu" [attr.aria-expanded]="actionMenuOrderId() === order.id" [attr.aria-label]="'Mais ações do pedido ' + order.id" (click)="toggleActionMenu(order, $event)"><i class="pi pi-ellipsis-v"></i></button> }
               </div></div>
@@ -131,6 +151,12 @@ export class OrdersPageComponent implements OnInit {
   readonly actionMenuPosition = signal<OverlayPosition>({ left: 0, top: 0, maxHeight: 240, placement: 'bottom' });
   private actionMenuTrigger: HTMLElement | null = null;
   readonly products = signal<Product[]>([]);
+  readonly kitchenOnly = computed(() => {
+    const roles = this.auth.currentUser()?.roles ?? [];
+    return roles.includes('KITCHEN') && !roles.some((role) => role === 'OWNER' || role === 'ADMIN');
+  });
+  readonly activeFilter = signal<OrderFilter>('ALL');
+  readonly visibleOrders = computed(() => this.orders().filter((order) => this.matchesFilter(order, this.activeFilter())));
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
@@ -141,9 +167,37 @@ export class OrdersPageComponent implements OnInit {
   readonly cancelItem = signal<OrderItem | null>(null);
   cancelReason = '';
   form: { tabId: number; notes: string; items: OrderItemRequest[] } = { tabId: 0, notes: '', items: [] };
+  readonly filters: Array<{ value: OrderFilter; label: string }> = [
+    { value: 'ALL', label: 'Todos' },
+    { value: 'WAITING_PAYMENT', label: 'Aguardando pagamento' },
+    { value: 'IN_PREPARATION', label: 'Em preparo' },
+    { value: 'READY', label: 'Prontos' },
+    { value: 'DELIVERED', label: 'Entregues' },
+    { value: 'CANCELLED', label: 'Cancelados' },
+    { value: 'TABLE', label: 'Mesa' },
+    { value: 'COUNTER', label: 'Balcão' },
+  ];
 
   ngOnInit(): void { this.load(); }
-  load(): void { this.loading.set(true); this.error.set(null); forkJoin({ orders: this.api.getAll(), tabs: this.tabApi.getOpen(), counterSales: this.tabApi.getActiveCounterSales(), products: this.productApi.getAll() }).pipe(finalize(() => this.loading.set(false))).subscribe({ next: ({ orders, tabs, counterSales, products }) => { this.orders.set(orders); this.tabs.set(tabs); this.counterSales.set(counterSales); this.products.set(products.filter(isCatalogProductSellable)); }, error: (error) => this.error.set(apiErrorMessage(error)) }); }
+  load(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    const restricted = this.kitchenOnly();
+    forkJoin({
+      orders: restricted ? this.api.getPreparationQueue() : this.api.getAll(),
+      tabs: restricted ? of([] as Tab[]) : this.tabApi.getOpen(),
+      counterSales: restricted ? of([] as CounterSaleSummary[]) : this.tabApi.getActiveCounterSales(),
+      products: restricted ? of([] as Product[]) : this.productApi.getAll(),
+    }).pipe(finalize(() => this.loading.set(false))).subscribe({
+      next: ({ orders, tabs, counterSales, products }) => {
+        this.orders.set(orders);
+        this.tabs.set(tabs);
+        this.counterSales.set(counterSales);
+        this.products.set(products.filter(isCatalogProductSellable));
+      },
+      error: (error) => this.error.set(apiErrorMessage(error)),
+    });
+  }
 
   get tableTabs(): Tab[] { return this.tabs().filter((tab) => tab.type === 'TABLE'); }
 
@@ -191,32 +245,54 @@ export class OrdersPageComponent implements OnInit {
   removeItem(index: number): void { if (this.form.items.length > 1) this.form.items.splice(index, 1); }
   saveDraft(): void { if (!this.form.tabId || this.form.items.some((item) => !item.productId || !item.variantId || item.quantity < 1 || !this.validSelections(item))) { this.feedback.error('Revise os produtos, variações e escolhas obrigatórias.'); return; } this.saving.set(true); const payload = { tabId: this.form.tabId, type: 'TABLE' as const, notes: this.form.notes.trim() || null, items: this.form.items }; const current = this.editingOrder(); const operation = current ? this.api.updateDraft(current.id, payload) : this.api.create(payload); operation.pipe(finalize(() => this.saving.set(false))).subscribe({ next: () => { this.feedback.success('Rascunho salvo. Revise e confirme o pedido.'); this.formOpen.set(false); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
   confirm(order: RestaurantOrder): void { this.api.confirm(order.id).subscribe({ next: () => { this.feedback.success('Pedido confirmado.'); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
-  deliver(order: RestaurantOrder): void { this.api.updateStatus(order.id, 'DELIVERED').subscribe({ next: () => { this.feedback.success('Pedido entregue.'); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
+  markReady(order: RestaurantOrder, item: OrderItem): void {
+    this.api.updateItemStatus(order.id, item.id, 'READY').subscribe({
+      next: () => { this.feedback.success('Item marcado como pronto.'); this.load(); },
+      error: (error) => this.feedback.error(apiErrorMessage(error)),
+    });
+  }
+  deliverItem(order: RestaurantOrder, item: OrderItem): void {
+    this.api.updateItemStatus(order.id, item.id, 'DELIVERED').subscribe({
+      next: () => { this.feedback.success('Item marcado como entregue.'); this.load(); },
+      error: (error) => this.feedback.error(apiErrorMessage(error)),
+    });
+  }
 
   openCancelOrder(order: RestaurantOrder): void { this.cancelOrder.set(order); this.cancelItem.set(null); this.cancelReason = ''; this.cancelOpen.set(true); }
   openCancelItem(order: RestaurantOrder, item: OrderItem): void { this.cancelOrder.set(order); this.cancelItem.set(item); this.cancelReason = ''; this.cancelOpen.set(true); }
   closeCancel(): void { if (!this.saving()) this.cancelOpen.set(false); }
   confirmCancellation(): void { const order = this.cancelOrder(); const item = this.cancelItem(); const reason = this.cancelReason.trim(); if (!order || !reason) { this.feedback.error('Informe o motivo do cancelamento.'); return; } this.saving.set(true); const operation = item ? this.api.cancelItem(order.id, item.id, reason) : this.api.cancel(order.id, reason); operation.pipe(finalize(() => this.saving.set(false))).subscribe({ next: () => { this.feedback.success(item ? 'Item cancelado.' : 'Pedido cancelado.'); this.cancelOpen.set(false); this.load(); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
 
-  canEdit(order: RestaurantOrder): boolean { return order.tabType !== 'COUNTER' && order.status === 'CREATED' && this.effectiveTabStatus(order) === 'OPEN'; }
+  canEdit(order: RestaurantOrder): boolean { return !this.kitchenOnly() && order.tabType !== 'COUNTER' && order.status === 'CREATED' && this.effectiveTabStatus(order) === 'OPEN'; }
   canCancel(order: RestaurantOrder): boolean {
-    if (order.status === 'DELIVERED' || order.status === 'CANCELLED' || this.effectiveTabStatus(order) !== 'OPEN') return false;
+    if (this.kitchenOnly() || order.status === 'DELIVERED' || order.status === 'CANCELLED' || this.effectiveTabStatus(order) !== 'OPEN') return false;
     const tab = this.tabs().find((candidate) => candidate.id === order.tabId);
     if ((tab?.paidAmount ?? 0) > 0) return false;
     if (order.tabType === 'COUNTER') return this.counterSummary(order)?.cancellationAllowed ?? false;
     return true;
   }
   canCancelItem(order: RestaurantOrder, item: OrderItem): boolean { return this.canCancel(order) && item.status !== 'CANCELED' && item.status !== 'DELIVERED'; }
-  orderStateMessage(order: RestaurantOrder): string | null { if (order.status === 'CREATED') return 'Aguardando confirmação'; if (order.status === 'DELIVERED') return 'Pedido entregue'; if (order.status === 'CANCELLED') return 'Pedido cancelado'; if (this.effectiveTabStatus(order) !== 'OPEN') return 'Comanda encerrada'; return null; }
+  canMarkReady(item: OrderItem): boolean { return item.preparationFlow === 'REQUIRES_PREPARATION' && item.status === 'IN_PREPARATION'; }
+  canDeliverItem(order: RestaurantOrder, item: OrderItem): boolean { return !this.kitchenOnly() && item.status === 'READY' && this.effectiveTabStatus(order) === 'OPEN' && (order.tabType !== 'COUNTER' || (this.counterSummary(order)?.remainingAmount ?? 1) === 0); }
+  orderStateMessage(order: RestaurantOrder): string | null { if (this.isWaitingPayment(order)) return 'Aguardando pagamento'; if (order.status === 'CREATED') return 'Aguardando confirmação'; if (order.status === 'DELIVERED') return 'Pedido entregue'; if (order.status === 'CANCELLED') return 'Pedido cancelado'; if (this.effectiveTabStatus(order) !== 'OPEN') return 'Comanda encerrada'; return null; }
   effectiveTabStatus(order: RestaurantOrder): TabStatus { return order.tabStatus ?? 'OPEN'; }
   orderTotal(order: RestaurantOrder): number { return order.items.filter((item) => item.status !== 'CANCELED').reduce((total, item) => total + item.subtotal, 0); }
   tabStatusLabel(status: TabStatus): string { return { OPEN: 'Aberta', CLOSED: 'Fechada', CANCELLED: 'Cancelada' }[status]; }
-  statusLabel(status: OrderStatus): string { return { CREATED: 'Rascunho', SENT_TO_KITCHEN: 'Aguardando preparo', PREPARING: 'Em preparo', READY: 'Pronto', DELIVERED: 'Entregue', CANCELLED: 'Cancelado' }[status]; }
+  statusLabel(order: RestaurantOrder): string { if (this.isWaitingPayment(order)) return 'Aguardando pagamento'; return { CREATED: 'Rascunho', SENT_TO_KITCHEN: 'Aguardando preparo', PREPARING: 'Em preparo', READY: 'Pronto', DELIVERED: 'Entregue', CANCELLED: 'Cancelado' }[order.status]; }
   statusTone(status: OrderStatus): string { return { CREATED: 'neutral', SENT_TO_KITCHEN: 'info', PREPARING: 'warning', READY: 'success', DELIVERED: 'success', CANCELLED: 'danger' }[status]; }
-  itemStatusLabel(status: OrderItem['status']): string { return { DRAFT: 'Rascunho', WAITING_PREPARATION: 'Na fila', IN_PREPARATION: 'Em preparo', READY: 'Pronto', DELIVERED: 'Entregue', CANCELED: 'Cancelado' }[status]; }
+  itemStatusLabel(order: RestaurantOrder, item: OrderItem): string { if (item.status === 'WAITING_PREPARATION' && this.isWaitingPayment(order)) return 'Aguardando pagamento'; return { DRAFT: 'Rascunho', WAITING_PREPARATION: 'Aguardando preparo', IN_PREPARATION: 'Em preparo', READY: 'Pronto', DELIVERED: 'Entregue', CANCELED: 'Cancelado' }[item.status]; }
   itemStatusTone(status: OrderItem['status']): string { return { DRAFT: 'neutral', WAITING_PREPARATION: 'info', IN_PREPARATION: 'warning', READY: 'success', DELIVERED: 'success', CANCELED: 'danger' }[status]; }
   counterSummary(order: RestaurantOrder): CounterSaleSummary | null { return order.tabType === 'COUNTER' ? this.counterSales().find((sale) => sale.id === order.tabId) ?? null : null; }
   financialLabel(sale: CounterSaleSummary): string { return ({ UNPAID: 'Não pago', PARTIALLY_PAID: 'Parcialmente pago', PAID: 'Pago', CANCELLED: 'Cancelado' })[sale.financialState]; }
+  tableRemaining(order: RestaurantOrder): number { return this.tabs().find((tab) => tab.id === order.tabId)?.remainingAmount ?? 0; }
+  filterCount(filter: OrderFilter): number { return this.orders().filter((order) => this.matchesFilter(order, filter)).length; }
+  itemGroups(order: RestaurantOrder): Array<{ key: 'PREPARATION' | 'DIRECT'; label: string; items: OrderItem[] }> {
+    const visible = this.kitchenOnly() ? order.items.filter((item) => item.preparationFlow === 'REQUIRES_PREPARATION') : order.items;
+    return [
+      { key: 'PREPARATION', label: 'Itens de preparo', items: visible.filter((item) => item.preparationFlow === 'REQUIRES_PREPARATION') },
+      { key: 'DIRECT', label: 'Entrega direta', items: visible.filter((item) => item.preparationFlow === 'DIRECT_SERVICE') },
+    ];
+  }
   currency(value: number): string { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
 
   private repositionActionMenu(): void {
@@ -225,6 +301,16 @@ export class OrdersPageComponent implements OnInit {
     const menu = this.document.querySelector<HTMLElement>('.order-action-menu');
     if (!trigger || !view || !menu) return;
     this.actionMenuPosition.set(calculateOverlayPosition(trigger.getBoundingClientRect(), menu.getBoundingClientRect(), view.innerWidth, view.innerHeight));
+  }
+  private isWaitingPayment(order: RestaurantOrder): boolean { const sale = this.counterSummary(order); return order.tabType === 'COUNTER' && (sale?.remainingAmount ?? 0) > 0 && order.items.some((item) => item.status === 'WAITING_PREPARATION'); }
+  private matchesFilter(order: RestaurantOrder, filter: OrderFilter): boolean {
+    if (filter === 'ALL') return true;
+    if (filter === 'TABLE' || filter === 'COUNTER') return order.tabType === filter;
+    if (filter === 'WAITING_PAYMENT') return this.isWaitingPayment(order);
+    if (filter === 'IN_PREPARATION') return order.items.some((item) => item.status === 'IN_PREPARATION');
+    if (filter === 'READY') return order.items.some((item) => item.status === 'READY');
+    if (filter === 'DELIVERED') return order.status === 'DELIVERED';
+    return order.status === 'CANCELLED';
   }
   activeVariants(productId: number): ProductVariant[] { return sellableVariants(this.products().find((product) => product.id === productId)); }
   selectedVariant(item: OrderItemRequest): ProductVariant | null { return this.activeVariants(item.productId).find((variant) => variant.id === item.variantId) ?? null; }

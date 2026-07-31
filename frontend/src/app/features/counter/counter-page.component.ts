@@ -7,15 +7,14 @@ import { finalize, forkJoin, Observable, of, switchMap, timer } from 'rxjs';
 import { CounterActivityService } from '../../core/services/counter-activity.service';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { OrderApiService } from '../../core/services/order-api.service';
-import { PaymentApiService } from '../../core/services/payment-api.service';
 import { ProductApiService } from '../../core/services/product-api.service';
 import { TabApiService } from '../../core/services/tab-api.service';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
+import { PaymentDialogComponent } from '../../shared/components/payment-dialog/payment-dialog.component';
 import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
 import { OrderItemRequest, OrderItemStatus, RestaurantOrder } from '../../shared/models/order.model';
-import { PaymentMethod } from '../../shared/models/payment.model';
 import { Product, ProductOptionGroup, ProductVariant } from '../../shared/models/product.model';
 import {
   CounterAttendanceState,
@@ -56,6 +55,7 @@ type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
     EmptyStateComponent,
     StatusBadgeComponent,
     AccessibleDialogDirective,
+    PaymentDialogComponent,
   ],
   template: `
     @if (saleId() == null) {
@@ -82,8 +82,8 @@ type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
       } @else {
         <section class="counter-overview" aria-label="Resumo dos atendimentos">
           <article><span>Ativos</span><strong>{{ activeSales().length }}</strong><small>permanecem aqui até o fechamento</small></article>
-          <article><span>Em preparo</span><strong>{{ activePreparationCount() }}</strong><small>aguardando ou na cozinha</small></article>
-          <article><span>Prontos</span><strong>{{ readySalesCount() }}</strong><small>aguardando pagamento ou entrega</small></article>
+          <article><span>Em preparo</span><strong>{{ activePreparationCount() }}</strong><small>itens em andamento</small></article>
+          <article><span>Prontos</span><strong>{{ readySalesCount() }}</strong><small>aguardando entrega</small></article>
           <article><span>A receber</span><strong>{{ currency(activeReceivable()) }}</strong><small>saldo das vendas abertas</small></article>
         </section>
 
@@ -290,7 +290,15 @@ type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
                           @if (item.options.length) { <small>{{ optionSummary(item.options) }}</small> }
                           @if (item.notes) { <small>Observação: {{ item.notes }}</small> }
                         </div>
-                        <div class="counter-confirmed-side"><app-status-badge [label]="itemStatusLabel(item.status)" [tone]="itemStatusTone(item.status)" /><strong>{{ currency(item.subtotal) }}</strong></div>
+                        <div class="counter-confirmed-side">
+                          <app-status-badge [label]="itemStatusLabel(item.status, current.summary)" [tone]="itemStatusTone(item.status)" />
+                          <strong>{{ currency(item.subtotal) }}</strong>
+                          @if (item.status === 'IN_PREPARATION') {
+                            <button type="button" class="primary-button compact-button" (click)="markReady(order.id, item.id)" [disabled]="saving()"><i class="pi pi-check"></i>Marcar como pronto</button>
+                          } @else if (item.status === 'READY' && current.summary.remainingAmount === 0) {
+                            <button type="button" class="primary-button compact-button" (click)="deliverItem(order.id, item.id)" [disabled]="saving()"><i class="pi pi-check-circle"></i>Marcar como entregue</button>
+                          }
+                        </div>
                       </article>
                     }
                   }
@@ -316,21 +324,14 @@ type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
 
               @if (current.summary.tabStatus !== 'OPEN') {
                 <div class="info-panel compact-info"><i class="pi pi-check-circle"></i><div><strong>{{ current.summary.tabStatus === 'CLOSED' ? 'Atendimento finalizado' : 'Atendimento cancelado' }}</strong><p>Esta venda permanece disponível para consulta no histórico.</p></div></div>
-              } @else if (showPaymentForm()) {
-                <div class="counter-payment-form">
-                  <div><span>Próxima ação</span><h2>Registrar pagamento</h2></div>
-                  <label class="field"><span>Forma de pagamento</span><select [(ngModel)]="paymentMethod">@for (method of paymentMethods; track method.value) { <option [ngValue]="method.value">{{ method.label }}</option> }</select></label>
-                  <label class="field"><span>Valor</span><input type="number" min="0.01" step="0.01" [max]="current.summary.remainingAmount" [(ngModel)]="paymentAmount" /></label>
-                  <button type="button" class="primary-button counter-primary-action" (click)="registerPayment()" [disabled]="saving()"><i class="pi pi-wallet"></i>Registrar pagamento</button>
-                  @if (current.summary.nextAction !== 'REGISTER_PAYMENT') { <button type="button" class="ghost-button" (click)="paymentPanelOpen.set(false)">Voltar ao andamento</button> }
-                </div>
+              } @else if (current.summary.nextAction === 'REGISTER_PAYMENT' || current.summary.nextAction === 'COMPLETE_PAYMENT') {
+                <div class="counter-action-copy"><span>Próxima ação</span><h2>{{ current.summary.nextAction === 'COMPLETE_PAYMENT' ? 'Completar pagamento' : 'Registrar pagamento' }}</h2><p>O preparo dos itens começa automaticamente quando o saldo chegar a zero.</p></div>
+                <button type="button" class="primary-button counter-primary-action" (click)="paymentOpen.set(true)"><i class="pi pi-wallet"></i>{{ current.summary.nextAction === 'COMPLETE_PAYMENT' ? 'Completar pagamento' : 'Registrar pagamento' }}</button>
               } @else if (current.summary.nextAction === 'FOLLOW_PREPARATION') {
-                <div class="counter-action-copy"><span>Próxima ação</span><h2>Acompanhar preparo</h2><p>O pagamento não interrompe a cozinha. Atualize o atendimento quando os itens avançarem.</p></div>
-                <button type="button" class="primary-button counter-primary-action" (click)="refreshDetail()" [disabled]="saving()"><i class="pi pi-refresh"></i>Atualizar andamento</button>
-                @if (current.summary.remainingAmount > 0) { <button type="button" class="ghost-button counter-secondary-action" (click)="paymentPanelOpen.set(true)"><i class="pi pi-wallet"></i>Registrar pagamento</button> }
+                <div class="counter-action-copy"><span>Próxima ação</span><h2>Acompanhar preparo</h2><p>Marque cada item como pronto assim que o preparo terminar.</p></div>
+                <button type="button" class="ghost-button counter-secondary-action" (click)="refreshDetail()" [disabled]="saving()"><i class="pi pi-refresh"></i>Atualizar andamento</button>
               } @else if (current.summary.nextAction === 'DELIVER') {
-                <div class="counter-action-copy"><span>Próxima ação</span><h2>Marcar como entregue</h2><p>Todos os itens estão prontos e o pagamento foi concluído.</p></div>
-                <button type="button" class="primary-button counter-primary-action" (click)="deliver()" [disabled]="saving()"><i class="pi pi-check-circle"></i>Marcar como entregue</button>
+                <div class="counter-action-copy"><span>Próxima ação</span><h2>Entregar itens prontos</h2><p>Use a ação de cada item para registrar a entrega ao cliente.</p></div>
               } @else if (current.summary.nextAction === 'FINALIZE') {
                 <div class="counter-action-copy"><span>Próxima ação</span><h2>Finalizar venda</h2><p>O pedido foi entregue e não há saldo pendente.</p></div>
                 <button type="button" class="primary-button counter-primary-action" (click)="finalizeSale()" [disabled]="saving()"><i class="pi pi-lock"></i>Finalizar venda</button>
@@ -375,6 +376,18 @@ type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
         </form>
       </div>
     }
+
+    @if (paymentOpen() && detail(); as current) {
+      <app-payment-dialog
+        [tabId]="current.summary.id"
+        [originLabel]="current.summary.displayLabel"
+        [totalAmount]="current.summary.totalAmount"
+        [paidAmount]="current.summary.paidAmount"
+        [remainingAmount]="current.summary.remainingAmount"
+        (dismissed)="paymentOpen.set(false)"
+        (completed)="onPaymentCompleted()"
+      />
+    }
   `,
 })
 export class CounterPageComponent implements OnInit {
@@ -384,7 +397,6 @@ export class CounterPageComponent implements OnInit {
   private readonly productApi = inject(ProductApiService);
   private readonly tabApi = inject(TabApiService);
   private readonly orderApi = inject(OrderApiService);
-  private readonly paymentApi = inject(PaymentApiService);
   private readonly activity = inject(CounterActivityService);
   private readonly feedback = inject(FeedbackService);
   private nextCartKey = 1;
@@ -406,7 +418,7 @@ export class CounterPageComponent implements OnInit {
       ? this.finishedToday()
       : this.history());
   readonly activePreparationCount = computed(() => this.activeSales().filter((sale) =>
-    ['WAITING', 'IN_PREPARATION', 'PARTIALLY_READY'].includes(sale.preparationState),
+    ['WAITING_PAYMENT', 'WAITING', 'IN_PREPARATION', 'PARTIALLY_READY'].includes(sale.preparationState),
   ).length);
   readonly readySalesCount = computed(() => this.activeSales().filter((sale) => this.isReadyForHandoff(sale)).length);
   readonly activeReceivable = computed(() => this.activeSales().reduce((total, sale) => total + sale.remainingAmount, 0));
@@ -417,23 +429,14 @@ export class CounterPageComponent implements OnInit {
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly cancelOpen = signal(false);
-  readonly paymentPanelOpen = signal(false);
+  readonly paymentOpen = signal(false);
 
   searchTerm = '';
   categoryFilter = 'ALL';
   customer = { name: '', phone: '', identification: '' };
   productForm = { variantId: 0, optionIds: [] as number[], quantity: 1, notes: '' };
-  paymentMethod: PaymentMethod = 'PIX';
-  paymentAmount = 0;
   cancelReason = '';
   historyFilters: CounterHistoryFilters = { from: '', to: '', number: null, customer: '', status: '', operator: '' };
-  readonly paymentMethods: { value: PaymentMethod; label: string }[] = [
-    { value: 'PIX', label: 'PIX' },
-    { value: 'CASH', label: 'Dinheiro' },
-    { value: 'DEBIT_CARD', label: 'Cartão de débito' },
-    { value: 'CREDIT_CARD', label: 'Cartão de crédito' },
-    { value: 'VOUCHER', label: 'Voucher' },
-  ];
 
   ngOnInit(): void {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
@@ -652,44 +655,18 @@ export class CounterPageComponent implements OnInit {
     });
   }
 
-  registerPayment(): void {
-    const summary = this.summary();
-    if (!summary || this.saving()) return;
-    const amount = Number(this.paymentAmount);
-    if (amount <= 0 || amount > summary.remainingAmount) {
-      this.feedback.info('Informe um valor válido, sem ultrapassar o restante.');
-      return;
-    }
-    this.saving.set(true);
-    this.paymentApi.create({ tabId: summary.id, method: this.paymentMethod, amount }).pipe(
-      switchMap(() => this.tabApi.getCounterSale(summary.id)),
-      finalize(() => this.saving.set(false)),
-    ).subscribe({
-      next: (detail) => {
-        this.paymentPanelOpen.set(false);
-        this.applyDetail(detail);
-        this.activity.refresh();
-        this.feedback.success('Pagamento registrado. O atendimento continua ativo até a entrega e o fechamento.');
-      },
-      error: (error) => this.feedback.error(apiErrorMessage(error)),
-    });
+  onPaymentCompleted(): void {
+    this.paymentOpen.set(false);
+    this.refreshDetail(false);
+    this.activity.refresh();
   }
 
-  deliver(): void {
-    const orders = this.activeOrders().filter((order) => order.status === 'READY');
-    if (orders.length === 0 || this.saving()) return;
-    this.saving.set(true);
-    forkJoin(orders.map((order) => this.orderApi.updateStatus(order.id, 'DELIVERED'))).pipe(
-      switchMap(() => this.tabApi.getCounterSale(this.saleId()!)),
-      finalize(() => this.saving.set(false)),
-    ).subscribe({
-      next: (detail) => {
-        this.applyDetail(detail);
-        this.activity.refresh();
-        this.feedback.success('Pedido marcado como entregue.');
-      },
-      error: (error) => this.feedback.error(apiErrorMessage(error)),
-    });
+  markReady(orderId: number, itemId: number): void {
+    this.updateOperationalItem(orderId, itemId, 'READY', 'Item marcado como pronto.');
+  }
+
+  deliverItem(orderId: number, itemId: number): void {
+    this.updateOperationalItem(orderId, itemId, 'DELIVERED', 'Item marcado como entregue.');
   }
 
   finalizeSale(): void {
@@ -740,10 +717,6 @@ export class CounterPageComponent implements OnInit {
     return this.summary()?.attendanceState === 'ASSEMBLING';
   }
 
-  showPaymentForm(): boolean {
-    return this.summary()?.nextAction === 'REGISTER_PAYMENT' || this.paymentPanelOpen();
-  }
-
   availableVariants(product: Product): ProductVariant[] { return sellableVariants(product); }
   activeGroups(product: Product): ProductOptionGroup[] { return product.optionGroups.filter((group) => group.active); }
   activeOptions(group: ProductOptionGroup) { return group.options.filter((option) => option.active); }
@@ -775,7 +748,7 @@ export class CounterPageComponent implements OnInit {
   }
 
   preparationLabel(state: CounterPreparationState): string {
-    return ({ NOT_APPLICABLE: 'Sem preparo', WAITING: 'Aguardando preparo', IN_PREPARATION: 'Em preparo', PARTIALLY_READY: 'Parcialmente pronto', READY: 'Pronto', DELIVERED: 'Entregue' })[state];
+    return ({ NOT_APPLICABLE: 'Sem preparo', WAITING_PAYMENT: 'Aguardando pagamento', WAITING: 'Aguardando preparo', IN_PREPARATION: 'Em preparo', PARTIALLY_READY: 'Parcialmente pronto', READY: 'Pronto', DELIVERED: 'Entregue' })[state];
   }
 
   financialLabel(state: CounterFinancialState): string {
@@ -783,7 +756,7 @@ export class CounterPageComponent implements OnInit {
   }
 
   nextActionLabel(action: CounterNextAction): string {
-    return ({ ADD_ITEMS: 'Adicionar itens', CONFIRM_ORDER: 'Confirmar pedido', FOLLOW_PREPARATION: 'Acompanhar preparo', REGISTER_PAYMENT: 'Registrar pagamento', DELIVER: 'Marcar como entregue', FINALIZE: 'Finalizar venda', VIEW: 'Consultar atendimento', NONE: 'Nenhuma ação' })[action];
+    return ({ ADD_ITEMS: 'Adicionar itens', CONFIRM_ORDER: 'Confirmar pedido', FOLLOW_PREPARATION: 'Acompanhar preparo', REGISTER_PAYMENT: 'Registrar pagamento', COMPLETE_PAYMENT: 'Completar pagamento', DELIVER: 'Marcar como entregue', FINALIZE: 'Finalizar venda', VIEW: 'Consultar atendimento', NONE: 'Nenhuma ação' })[action];
   }
 
   attendanceTone(state: CounterAttendanceState): 'neutral' | 'info' | 'warning' | 'success' | 'danger' {
@@ -791,7 +764,7 @@ export class CounterPageComponent implements OnInit {
   }
 
   preparationTone(state: CounterPreparationState): 'neutral' | 'info' | 'warning' | 'success' | 'danger' {
-    return ({ NOT_APPLICABLE: 'neutral', WAITING: 'warning', IN_PREPARATION: 'info', PARTIALLY_READY: 'warning', READY: 'success', DELIVERED: 'success' })[state] as 'neutral' | 'info' | 'warning' | 'success' | 'danger';
+    return ({ NOT_APPLICABLE: 'neutral', WAITING_PAYMENT: 'warning', WAITING: 'warning', IN_PREPARATION: 'info', PARTIALLY_READY: 'warning', READY: 'success', DELIVERED: 'success' })[state] as 'neutral' | 'info' | 'warning' | 'success' | 'danger';
   }
 
   financialTone(state: CounterFinancialState): 'neutral' | 'info' | 'warning' | 'success' | 'danger' {
@@ -807,7 +780,8 @@ export class CounterPageComponent implements OnInit {
       && sale.deliveredItemCount < sale.itemCount;
   }
 
-  itemStatusLabel(status: OrderItemStatus): string {
+  itemStatusLabel(status: OrderItemStatus, summary?: CounterSaleSummary): string {
+    if (status === 'WAITING_PREPARATION' && (summary?.remainingAmount ?? 0) > 0) return 'Aguardando pagamento';
     return ({ DRAFT: 'Rascunho', WAITING_PREPARATION: 'Aguardando preparo', IN_PREPARATION: 'Em preparo', READY: 'Pronto', DELIVERED: 'Entregue', CANCELED: 'Cancelado' })[status];
   }
 
@@ -879,6 +853,23 @@ export class CounterPageComponent implements OnInit {
     });
   }
 
+  private updateOperationalItem(orderId: number, itemId: number, status: OrderItemStatus, message: string): void {
+    const id = this.saleId();
+    if (id == null || this.saving()) return;
+    this.saving.set(true);
+    this.orderApi.updateItemStatus(orderId, itemId, status).pipe(
+      switchMap(() => this.tabApi.getCounterSale(id)),
+      finalize(() => this.saving.set(false)),
+    ).subscribe({
+      next: (detail) => {
+        this.applyDetail(detail);
+        this.activity.refresh();
+        this.feedback.success(message);
+      },
+      error: (error) => this.feedback.error(apiErrorMessage(error)),
+    });
+  }
+
   private applyDetail(detail: CounterSaleDetail): void {
     this.detail.set(detail);
     this.customer = {
@@ -886,7 +877,6 @@ export class CounterPageComponent implements OnInit {
       phone: detail.customerPhone ?? '',
       identification: detail.identificationNote ?? '',
     };
-    this.paymentAmount = detail.summary.remainingAmount;
     this.restoreDraftCart(detail);
   }
 

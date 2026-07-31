@@ -142,6 +142,7 @@ describe('CounterPageComponent', () => {
     updateDraft: vi.fn(() => of(draftOrder)),
     confirm: vi.fn(() => of({ ...draftOrder, status: 'READY' as const })),
     updateStatus: vi.fn(() => of({ ...draftOrder, status: 'DELIVERED' as const })),
+    updateItemStatus: vi.fn(() => of({ ...draftOrder, status: 'DELIVERED' as const })),
     cancel: vi.fn(() => of({ ...draftOrder, status: 'CANCELLED' as const })),
   };
   const paymentApi = { create: vi.fn(() => of({})) };
@@ -163,6 +164,7 @@ describe('CounterPageComponent', () => {
     orderApi.updateDraft.mockReturnValue(of(draftOrder));
     orderApi.confirm.mockReturnValue(of({ ...draftOrder, status: 'READY' as const }));
     orderApi.updateStatus.mockReturnValue(of({ ...draftOrder, status: 'DELIVERED' as const }));
+    orderApi.updateItemStatus.mockReturnValue(of({ ...draftOrder, status: 'DELIVERED' as const }));
     paymentApi.create.mockReturnValue(of({}));
     routeParams = new BehaviorSubject(convertToParamMap({}));
     await TestBed.configureTestingModule({
@@ -260,9 +262,11 @@ describe('CounterPageComponent', () => {
     const text = fixture.nativeElement.textContent as string;
 
     expect(text).toContain('Acompanhar preparo');
-    expect(text).toContain('O pagamento não interrompe a cozinha');
+    expect(text).toContain('Marque cada item como pronto');
+    expect(text).toContain('Marcar como pronto');
+    expect(text).not.toContain('Iniciar preparo');
     expect(text).not.toContain('Finalizar venda');
-    expect(fixture.nativeElement.querySelectorAll('.counter-primary-action')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelectorAll('.counter-primary-action')).toHaveLength(0);
   });
 
   it('registers a partial payment without closing or leaving the active sale', () => {
@@ -278,21 +282,21 @@ describe('CounterPageComponent', () => {
         attendanceState: 'CONFIRMED',
         preparationState: 'NOT_APPLICABLE',
         financialState: 'PARTIALLY_PAID',
-        nextAction: 'REGISTER_PAYMENT',
+        nextAction: 'COMPLETE_PAYMENT',
       },
       orders: [{ ...draftOrder, status: 'READY' }],
     };
     tabApi.getCounterSale.mockReturnValue(of(payableDetail));
     const component = createComponent(50);
-    component.paymentMethod = 'PIX';
-    component.paymentAmount = 5;
 
-    component.registerPayment();
+    component.paymentOpen.set(true);
+    component.onPaymentCompleted();
 
-    expect(paymentApi.create).toHaveBeenCalledWith({ tabId: 50, method: 'PIX', amount: 5 });
+    expect(component.paymentOpen()).toBe(false);
+    expect(tabApi.getCounterSale).toHaveBeenCalledWith(50);
+    expect(activity.refresh).toHaveBeenCalled();
     expect(tabApi.finishCounterSale).not.toHaveBeenCalled();
     expect(router.navigateByUrl).not.toHaveBeenCalled();
-    expect(feedback.success).toHaveBeenCalledWith(expect.stringContaining('continua ativo'));
   });
 
   it('delivers ready orders and finalizes the sale in separate operations', () => {
@@ -321,9 +325,9 @@ describe('CounterPageComponent', () => {
     tabApi.getCounterSale.mockReturnValue(of(readyDetail));
     const component = createComponent(50);
 
-    component.deliver();
+    component.deliverItem(60, 70);
 
-    expect(orderApi.updateStatus).toHaveBeenCalledWith(60, 'DELIVERED');
+    expect(orderApi.updateItemStatus).toHaveBeenCalledWith(60, 70, 'DELIVERED');
     expect(tabApi.finishCounterSale).not.toHaveBeenCalled();
 
     component.detail.set({

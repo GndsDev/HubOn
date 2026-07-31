@@ -1,9 +1,9 @@
 export type TabStatus = 'OPEN' | 'CLOSED' | 'CANCELLED';
 export type TabType = 'TABLE' | 'COUNTER';
 export type CounterAttendanceState = 'ASSEMBLING' | 'CONFIRMED' | 'IN_PROGRESS' | 'READY_TO_FINISH' | 'FINISHED' | 'CANCELLED';
-export type CounterPreparationState = 'NOT_APPLICABLE' | 'WAITING' | 'IN_PREPARATION' | 'PARTIALLY_READY' | 'READY' | 'DELIVERED';
+export type CounterPreparationState = 'NOT_APPLICABLE' | 'WAITING_PAYMENT' | 'WAITING' | 'IN_PREPARATION' | 'PARTIALLY_READY' | 'READY' | 'DELIVERED';
 export type CounterFinancialState = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
-export type CounterNextAction = 'ADD_ITEMS' | 'CONFIRM_ORDER' | 'FOLLOW_PREPARATION' | 'REGISTER_PAYMENT' | 'DELIVER' | 'FINALIZE' | 'VIEW' | 'NONE';
+export type CounterNextAction = 'ADD_ITEMS' | 'CONFIRM_ORDER' | 'FOLLOW_PREPARATION' | 'REGISTER_PAYMENT' | 'COMPLETE_PAYMENT' | 'DELIVER' | 'FINALIZE' | 'VIEW' | 'NONE';
 
 export interface Tab {
   id: number;

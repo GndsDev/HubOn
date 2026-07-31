@@ -63,16 +63,7 @@ export const routes: Routes = [
       import('./features/orders/orders-page.component').then(
         (module) => module.OrdersPageComponent,
       ),
-    data: { label: 'Pedidos', roles: ['OWNER', 'ADMIN', 'WAITER', 'CASHIER'] },
-  },
-  {
-    path: 'cozinha',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('./features/kitchen/kitchen-page.component').then(
-        (module) => module.KitchenPageComponent,
-      ),
-    data: { label: 'Cozinha', roles: ['OWNER', 'ADMIN', 'KITCHEN'] },
+    data: { label: 'Pedidos', roles: ['OWNER', 'ADMIN', 'WAITER', 'CASHIER', 'KITCHEN'] },
   },
   {
     path: 'caixa',
@@ -138,5 +129,6 @@ export const routes: Routes = [
     data: { label: 'Minha Conta', roles: [] },
   },
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+  { path: 'cozinha', redirectTo: 'pedidos' },
   { path: '**', redirectTo: 'dashboard' },
 ];
