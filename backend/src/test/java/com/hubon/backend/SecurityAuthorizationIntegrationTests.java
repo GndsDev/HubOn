@@ -60,6 +60,7 @@ class SecurityAuthorizationIntegrationTests {
     private Long testTableId;
     private Long testTabId;
     private Long testOrderId;
+    private Long testCashShiftId;
     private final List<Long> testProductIds = new java.util.ArrayList<>();
 
     @BeforeEach
@@ -79,6 +80,11 @@ class SecurityAuthorizationIntegrationTests {
 
     @AfterEach
     void cleanup() {
+        if (testCashShiftId != null) {
+            jdbcTemplate.update("delete from cash_movements where cash_shift_id = ?", testCashShiftId);
+            jdbcTemplate.update("update payments set cash_shift_id = null where cash_shift_id = ?", testCashShiftId);
+            jdbcTemplate.update("delete from cash_shifts where id = ?", testCashShiftId);
+        }
         if (testOrderId != null) {
             jdbcTemplate.update("delete from order_item_options where order_item_id in (select id from order_items where order_id = ?)", testOrderId);
             jdbcTemplate.update("delete from order_items where order_id = ?", testOrderId);
@@ -204,13 +210,19 @@ class SecurityAuthorizationIntegrationTests {
         mockMvc.perform(patch("/api/orders/{orderId}/items/{itemId}/status", order.orderId(), order.preparationItemId())
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"IN_PREPARATION\"}"))
+                        .content("{\"status\":\"READY\"}"))
                 .andExpect(status().isOk());
         assertThat(jdbcTemplate.queryForObject(
                 "select status from order_items where id = ?",
                 String.class,
                 order.preparationItemId()
-        )).isEqualTo("IN_PREPARATION");
+        )).isEqualTo("READY");
+
+        mockMvc.perform(patch("/api/orders/{orderId}/items/{itemId}/status", order.orderId(), order.preparationItemId())
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"DELIVERED\"}"))
+                .andExpect(status().isForbidden());
 
         mockMvc.perform(patch("/api/orders/{orderId}/items/{itemId}/status", order.orderId(), order.directItemId())
                         .header("Authorization", bearer(token))
@@ -251,6 +263,55 @@ class SecurityAuthorizationIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"Operacao nao permitida\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void cashShiftShouldRequireAuthenticationAndFinancialRole() throws Exception {
+        mockMvc.perform(get("/api/cash-shifts/current"))
+                .andExpect(status().isUnauthorized());
+
+        for (String email : List.of(waiterEmail, kitchenEmail)) {
+            mockMvc.perform(get("/api/cash-shifts/current")
+                            .header("Authorization", bearer(tokenFor(email))))
+                    .andExpect(status().isForbidden());
+        }
+
+        String opened = mockMvc.perform(post("/api/cash-shifts")
+                        .header("Authorization", bearer(tokenFor(cashierEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"openingBalance\":100.00}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("OPEN"))
+                .andExpect(jsonPath("$.openedByUserName").value("Cashier"))
+                .andReturn().getResponse().getContentAsString();
+        testCashShiftId = objectMapper.readTree(opened).path("id").asLong();
+
+        for (String email : List.of(ownerEmail, adminEmail, cashierEmail)) {
+            mockMvc.perform(get("/api/cash-shifts/current")
+                            .header("Authorization", bearer(tokenFor(email))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(testCashShiftId));
+        }
+
+        mockMvc.perform(post("/api/cash-shifts/{id}/movements", testCashShiftId)
+                        .header("Authorization", bearer(tokenFor(cashierEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"SUPPLY\",\"amount\":20.00,\"note\":\"Troco\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.supplyAmount").value(20.00));
+
+        mockMvc.perform(post("/api/cash-shifts/{id}/close", testCashShiftId)
+                        .header("Authorization", bearer(tokenFor(waiterEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"countedCash\":120.00}"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/cash-shifts/{id}/close", testCashShiftId)
+                        .header("Authorization", bearer(tokenFor(cashierEmail)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"countedCash\":120.00}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"));
     }
 
     @Test
@@ -499,7 +560,7 @@ class SecurityAuthorizationIntegrationTests {
         testOrderId = jdbcTemplate.queryForObject(
                 """
                 insert into orders (tab_id, status, type, created_by_user_id, confirmed_at)
-                values (?, 'SENT_TO_KITCHEN', 'TABLE', ?, current_timestamp)
+                values (?, 'PREPARING', 'TABLE', ?, current_timestamp)
                 returning id
                 """,
                 Long.class,
@@ -511,7 +572,7 @@ class SecurityAuthorizationIntegrationTests {
                 preparationVariantId,
                 "Produto preparo " + suffix,
                 "REQUIRES_PREPARATION",
-                "WAITING_PREPARATION",
+                "IN_PREPARATION",
                 "10.00"
         );
         Long directItemId = insertOrderItem(

@@ -5,6 +5,7 @@ public enum CounterNextAction {
     CONFIRM_ORDER,
     FOLLOW_PREPARATION,
     REGISTER_PAYMENT,
+    COMPLETE_PAYMENT,
     DELIVER,
     FINALIZE,
     VIEW,

@@ -13,6 +13,19 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     List<Payment> findAllByTabIdOrderByPaidAtAsc(Long tabId);
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {
+            "tab", "tab.restaurantTable", "receivedByUser"
+    })
+    List<Payment> findAllByCashShiftIdOrderByPaidAtAsc(Long cashShiftId);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {
+            "tab", "tab.restaurantTable", "receivedByUser"
+    })
+    List<Payment> findAllByPaidAtGreaterThanEqualAndPaidAtLessThanEqualOrderByPaidAtAsc(
+            LocalDateTime start,
+            LocalDateTime end
+    );
+
     boolean existsByTabId(Long tabId);
 
     @Query("select coalesce(sum(payment.amount), 0) from Payment payment where payment.tab.id = :tabId")

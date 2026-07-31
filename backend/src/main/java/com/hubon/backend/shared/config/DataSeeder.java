@@ -64,7 +64,7 @@ public class DataSeeder implements CommandLineRunner {
         Role owner = createRoleIfNotExists("OWNER", "Dono ou responsável máximo pelo sistema");
         Role admin = createRoleIfNotExists("ADMIN", "Administrador do sistema");
         createRoleIfNotExists("WAITER", "Garçom");
-        createRoleIfNotExists("KITCHEN", "Cozinha");
+        createRoleIfNotExists("KITCHEN", "Preparo");
         createRoleIfNotExists("CASHIER", "Caixa");
 
         validateSeedUser("OWNER", ownerName, ownerEmail, ownerPassword);

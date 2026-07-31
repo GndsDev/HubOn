@@ -24,6 +24,11 @@ public interface RestaurantOrderRepository extends JpaRepository<RestaurantOrder
     @EntityGraph(attributePaths = {"tab", "tab.restaurantTable", "tab.openedByUser", "createdByUser"})
     List<RestaurantOrder> findAllByTabIdOrderByCreatedAtAsc(Long tabId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @EntityGraph(attributePaths = {"tab", "tab.restaurantTable", "createdByUser"})
+    @Query("select order from RestaurantOrder order where order.tab.id = :tabId order by order.createdAt asc")
+    List<RestaurantOrder> findAllByTabIdForUpdate(@Param("tabId") Long tabId);
+
     boolean existsByTabIdAndStatusNotIn(Long tabId, Collection<OrderStatus> statuses);
 
     boolean existsByTabIdAndStatus(Long tabId, OrderStatus status);

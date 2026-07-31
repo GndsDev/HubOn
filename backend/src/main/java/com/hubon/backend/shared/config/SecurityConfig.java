@@ -101,12 +101,15 @@ public class SecurityConfig {
 
                         auth.requestMatchers("/api/reports/**").hasAnyRole("OWNER", "ADMIN");
 
+                        auth.requestMatchers("/api/cash-shifts/**")
+                                .hasAnyRole("OWNER", "ADMIN", "CASHIER");
+
                         auth.requestMatchers(HttpMethod.GET, "/api/orders/preparation-queue")
                                 .hasAnyRole("OWNER", "ADMIN", "KITCHEN");
                         auth.requestMatchers(HttpMethod.GET, "/api/orders/**")
                                 .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
                         auth.requestMatchers(HttpMethod.PATCH, "/api/orders/*/items/*/status")
-                                .hasAnyRole("OWNER", "ADMIN", "KITCHEN");
+                                .hasAnyRole("OWNER", "ADMIN", "KITCHEN", "WAITER", "CASHIER");
                         auth.requestMatchers(HttpMethod.PATCH, "/api/orders/*/status")
                                 .hasAnyRole("OWNER", "ADMIN", "CASHIER");
                         auth.requestMatchers(HttpMethod.POST, "/api/orders/*/confirm")
