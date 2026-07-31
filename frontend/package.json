@@ -8,6 +8,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "visual:audit": "node scripts/visual-audit.mjs",
     "portfolio:screenshots": "node scripts/portfolio-media.mjs screenshots",
     "portfolio:video": "node scripts/portfolio-media.mjs video",
     "portfolio:all": "node scripts/portfolio-media.mjs all"

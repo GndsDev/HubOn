@@ -42,12 +42,12 @@ describe('monthly report CSV', () => {
     const csv = monthlySummaryCsv(report);
     expect(csv).toContain('julho de 2026');
     expect(csv).toContain('Canal;Balcão');
-    expect(csv).toContain('Receita liquida;105,00');
+    expect(csv).toContain('Receita líquida;105,00');
   });
 
   it('includes daily results and operational quantities', () => {
     const csv = monthlySummaryCsv(report);
-    expect(csv).toContain('Pedidos concluidos;2');
+    expect(csv).toContain('Pedidos concluídos;2');
     expect(csv).toContain('Itens vendidos;4');
     expect(csv).toContain('2026-07-10;2;105,00');
   });
