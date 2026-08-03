@@ -23,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -163,17 +165,29 @@ class SecurityAuthorizationIntegrationTests {
     }
 
     @Test
-    void monthlyReportShouldAllowOwnerAndAdminButRejectOperationalRoles() throws Exception {
-        for (String email : List.of(ownerEmail, adminEmail)) {
-            mockMvc.perform(get("/api/reports/monthly?year=2026&month=7")
-                            .header("Authorization", bearer(tokenFor(email))))
-                    .andExpect(status().isOk());
+    void reportsShouldAllowOwnerAndAdminButRejectOperationalRoles() throws Exception {
+        for (String endpoint : List.of(
+                "/api/reports/monthly?year=2026&month=7",
+                "/api/reports/annual?year=2026"
+        )) {
+            for (String email : List.of(ownerEmail, adminEmail)) {
+                mockMvc.perform(get(endpoint).header("Authorization", bearer(tokenFor(email))))
+                        .andExpect(status().isOk());
+            }
+            for (String email : List.of(waiterEmail, kitchenEmail, cashierEmail)) {
+                mockMvc.perform(get(endpoint).header("Authorization", bearer(tokenFor(email))))
+                        .andExpect(status().isForbidden());
+            }
         }
-        for (String email : List.of(waiterEmail, kitchenEmail, cashierEmail)) {
-            mockMvc.perform(get("/api/reports/monthly?year=2026&month=7")
-                            .header("Authorization", bearer(tokenFor(email))))
-                    .andExpect(status().isForbidden());
-        }
+
+        mockMvc.perform(get("/api/reports/annual/pdf?year=2026")
+                        .header("Authorization", bearer(tokenFor(ownerEmail))))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andExpect(header().string("Content-Disposition", containsString("hubon-relatorio-anual-2026.pdf")));
+        mockMvc.perform(get("/api/reports/annual/pdf?year=2026")
+                        .header("Authorization", bearer(tokenFor(waiterEmail))))
+                .andExpect(status().isForbidden());
     }
 
     @Test

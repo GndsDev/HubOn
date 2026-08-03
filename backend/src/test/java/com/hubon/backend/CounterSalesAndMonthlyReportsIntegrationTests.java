@@ -18,6 +18,7 @@ import com.hubon.backend.payment.dto.PaymentOperationResponse;
 import com.hubon.backend.payment.dto.PaymentRequest;
 import com.hubon.backend.payment.service.PaymentService;
 import com.hubon.backend.report.domain.ReportChannel;
+import com.hubon.backend.report.dto.AnnualReportResponse;
 import com.hubon.backend.report.dto.MonthlyReportResponse;
 import com.hubon.backend.report.service.MonthlyReportService;
 import com.hubon.backend.role.domain.Role;
@@ -539,6 +540,37 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("inválidos");
         assertThatThrownBy(() -> reportService.generate(1999, 12, ReportChannel.ALL))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("entre 2000 e 2100");
+    }
+
+    @Test
+    void annualReportConsolidatesTheYearAndComparesItWithThePreviousYear() {
+        insertClosedSale("TABLE", LocalDateTime.of(2025, 12, 20, 12, 0), "100", "0", "0", "100", "Ano anterior", "Padrão", 1, "PIX");
+        insertClosedSale("TABLE", LocalDateTime.of(2026, 1, 5, 12, 0), "100", "0", "0", "100", "Coca-Cola", "Lata", 2, "PIX");
+        insertClosedSale("COUNTER", LocalDateTime.of(2026, 7, 10, 18, 0), "200", "0", "0", "200", "Jantinha", "Completa", 1, "CASH");
+        insertClosedSale("COUNTER", LocalDateTime.of(2027, 1, 2, 12, 0), "999", "0", "0", "999", "Fora do período", "Padrão", 1, "CASH");
+
+        AnnualReportResponse report = reportService.generateAnnual(2026, ReportChannel.ALL);
+
+        assertThat(report.periodLabel()).isEqualTo("Ano de 2026");
+        assertThat(report.summary().netRevenue()).isEqualByComparingTo("300.00");
+        assertThat(report.summary().closedTabs()).isEqualTo(2);
+        assertThat(report.summary().itemsSold()).isEqualTo(3);
+        assertThat(report.comparison().previousYearNetRevenue()).isEqualByComparingTo("100.00");
+        assertThat(report.comparison().netRevenueDifference()).isEqualByComparingTo("200.00");
+        assertThat(report.comparison().percentageChange()).isEqualByComparingTo("200.00");
+        assertThat(report.monthly()).hasSize(12);
+        assertThat(report.monthly().getFirst().netRevenue()).isEqualByComparingTo("100.00");
+        assertThat(report.monthly().get(1).netRevenue()).isZero();
+        assertThat(report.monthly().get(6).netRevenue()).isEqualByComparingTo("200.00");
+        assertThat(report.products()).extracting(MonthlyReportResponse.ProductPerformance::productName)
+                .containsExactly("Jantinha", "Coca-Cola");
+    }
+
+    @Test
+    void annualReportRejectsInvalidYear() {
+        assertThatThrownBy(() -> reportService.generateAnnual(1999, ReportChannel.ALL))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("entre 2000 e 2100");
     }
