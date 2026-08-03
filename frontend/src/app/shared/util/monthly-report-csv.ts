@@ -1,4 +1,4 @@
-import { MonthlyReport } from '../models/monthly-report.model';
+import { AnnualReport, MonthlyReport, ReportChannel, ReportProductPerformance } from '../models/monthly-report.model';
 
 export function monthlySummaryCsv(report: MonthlyReport): string {
   return rowsToCsv([
@@ -23,10 +23,47 @@ export function monthlySummaryCsv(report: MonthlyReport): string {
   ]);
 }
 
-export function monthlyProductsCsv(report: MonthlyReport): string {
+export function monthlyProductsCsv(
+  report: MonthlyReport,
+  products: readonly ReportProductPerformance[] = report.products,
+): string {
+  return productsCsv(products);
+}
+
+export function annualSummaryCsv(report: AnnualReport): string {
+  return rowsToCsv([
+    ['Relatório anual', report.periodLabel],
+    ['Canal', channelLabel(report.channel)],
+    [],
+    ['Indicador', 'Valor'],
+    ['Receita bruta', decimal(report.summary.grossRevenue)],
+    ['Taxas de serviço', decimal(report.summary.serviceFees)],
+    ['Descontos', decimal(report.summary.discounts)],
+    ['Receita líquida', decimal(report.summary.netRevenue)],
+    ['Valor recebido', decimal(report.summary.receivedAmount)],
+    ['Comandas fechadas', String(report.summary.closedTabs)],
+    ['Pedidos concluídos', String(report.summary.orders)],
+    ['Itens vendidos', String(report.summary.itemsSold)],
+    ['Ticket médio', decimal(report.summary.averageTicket)],
+    ['Itens cancelados', String(report.cancellations.cancelledItems)],
+    ['Valor cancelado', decimal(report.cancellations.cancelledAmount)],
+    [],
+    ['Mês', 'Comandas fechadas', 'Receita líquida'],
+    ...report.monthly.map((month) => [month.monthLabel, String(month.closedTabs), decimal(month.netRevenue)]),
+  ]);
+}
+
+export function annualProductsCsv(
+  report: AnnualReport,
+  products: readonly ReportProductPerformance[] = report.products,
+): string {
+  return productsCsv(products);
+}
+
+function productsCsv(products: readonly ReportProductPerformance[]): string {
   return rowsToCsv([
     ['Produto', 'Variação', 'Categoria', 'Quantidade', 'Valor dos itens', 'Participação (%)'],
-    ...report.products.flatMap((product) => product.variants.map((variant) => [
+    ...products.flatMap((product) => product.variants.map((variant) => [
       product.productName,
       variant.variantName,
       product.categoryName,
@@ -50,6 +87,6 @@ function decimal(value: number): string {
   return Number(value ?? 0).toFixed(2).replace('.', ',');
 }
 
-function channelLabel(channel: MonthlyReport['channel']): string {
+function channelLabel(channel: ReportChannel): string {
   return channel === 'TABLE' ? 'Mesas' : channel === 'COUNTER' ? 'Balcão' : 'Todos';
 }

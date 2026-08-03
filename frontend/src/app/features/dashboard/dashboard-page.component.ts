@@ -18,7 +18,9 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
   imports: [CommonModule, RouterLink, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent],
   template: `
     <app-page-header kicker="Visão do turno" title="Operação em tempo real" description="Vendas, ocupação, preparo e caixa do turno atual.">
-      <button type="button" class="ghost-button" (click)="load()"><i class="pi pi-refresh"></i>Atualizar dados</button>
+      <div page-actions class="page-header-actions">
+        <button type="button" class="secondary-button" (click)="load()"><i class="pi pi-refresh"></i>Atualizar dados</button>
+      </div>
     </app-page-header>
 
     @if (loading()) {

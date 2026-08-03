@@ -10,7 +10,7 @@ import { Component, Input } from '@angular/core';
         <h1>{{ title }}</h1>
         <p>{{ description }}</p>
       </div>
-      <ng-content />
+      <ng-content select="[page-actions]" />
     </header>
   `,
 })

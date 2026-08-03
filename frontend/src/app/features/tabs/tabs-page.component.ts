@@ -23,7 +23,9 @@ import { PaymentDialogComponent } from '../../shared/components/payment-dialog/p
   imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent, AccessibleDialogDirective, PaymentDialogComponent],
   template: `
     <app-page-header kicker="Atendimento de mesas" title="Comandas" description="Atenda, receba e conclua as vendas das mesas em um único lugar.">
-      <button type="button" class="primary-button" (click)="openForm()"><i class="pi pi-plus"></i>Abrir comanda</button>
+      <div page-actions class="page-header-actions">
+        <button type="button" class="primary-button" (click)="openForm()"><i class="pi pi-plus"></i>Abrir comanda</button>
+      </div>
     </app-page-header>
 
     <app-section-card eyebrow="Salão" title="Comandas abertas">
@@ -69,21 +71,23 @@ import { PaymentDialogComponent } from '../../shared/components/payment-dialog/p
           (ngSubmit)="create()"
         >
           <div class="modal-header">
-            <div><span>Atendimento</span><h2 id="tab-form-dialog-title">Abrir comanda</h2></div>
+            <div class="modal-heading"><span class="modal-eyebrow">Atendimento</span><h2 id="tab-form-dialog-title">Abrir comanda</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="formOpen.set(false)"><i class="pi pi-times"></i></button>
           </div>
-          <div class="form-grid">
-            <label class="field full">
-              <span>Mesa disponível</span>
-              <select name="tableId" [(ngModel)]="form.tableId" required autofocus>
-                <option [ngValue]="0" disabled>Selecione</option>
-                @for (table of availableTables; track table.id) { <option [ngValue]="table.id">Mesa {{ table.number }} · {{ table.name }}</option> }
-              </select>
-            </label>
-            <label class="field"><span>Taxa de serviço</span><input name="serviceFee" type="number" min="0" step="0.01" [(ngModel)]="form.serviceFee" /></label>
-            <label class="field"><span>Desconto</span><input name="discount" type="number" min="0" step="0.01" [(ngModel)]="form.discountAmount" /></label>
+          <div class="modal-body">
+            <div class="form-grid">
+              <label class="field full">
+                <span>Mesa disponível</span>
+                <select name="tableId" [(ngModel)]="form.tableId" required autofocus>
+                  <option [ngValue]="0" disabled>Selecione</option>
+                  @for (table of availableTables; track table.id) { <option [ngValue]="table.id">Mesa {{ table.number }} · {{ table.name }}</option> }
+                </select>
+              </label>
+              <label class="field"><span>Taxa de serviço</span><input name="serviceFee" type="number" min="0" step="0.01" [(ngModel)]="form.serviceFee" /></label>
+              <label class="field"><span>Desconto</span><input name="discount" type="number" min="0" step="0.01" [(ngModel)]="form.discountAmount" /></label>
+            </div>
           </div>
-          <div class="modal-actions">
+          <div class="modal-footer modal-actions">
             <button type="button" class="ghost-button" (click)="formOpen.set(false)">Cancelar</button>
             <button type="submit" class="primary-button" [disabled]="saving()"><i class="pi pi-receipt"></i>{{ saving() ? 'Abrindo...' : 'Abrir comanda' }}</button>
           </div>
@@ -103,20 +107,22 @@ import { PaymentDialogComponent } from '../../shared/components/payment-dialog/p
           (click)="$event.stopPropagation()"
         >
           <div class="modal-header">
-            <div><span>Detalhes</span><h2 id="tab-details-dialog-title">Comanda #{{ tab.id }} · {{ tab.displayLabel }}</h2></div>
+            <div class="modal-heading"><span class="modal-eyebrow">Detalhes</span><h2 id="tab-details-dialog-title">Comanda #{{ tab.id }} · {{ tab.displayLabel }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="selected.set(null)"><i class="pi pi-times"></i></button>
           </div>
-          <div class="detail-grid">
-            <div><span>Itens</span><strong>{{ currency(tab.totalAmount) }}</strong></div>
-            <div><span>Serviço</span><strong>{{ currency(tab.serviceFee) }}</strong></div>
-            <div><span>Desconto</span><strong>{{ currency(tab.discountAmount) }}</strong></div>
-            <div><span>Total final</span><strong>{{ currency(tab.finalAmount) }}</strong></div>
-            <div><span>Pago</span><strong>{{ currency(tab.paidAmount) }}</strong></div>
-            <div><span>Restante</span><strong>{{ currency(tab.remainingAmount) }}</strong></div>
+          <div class="modal-body tab-details-body">
+            <div class="detail-grid tab-financial-grid">
+              <div class="financial-detail secondary"><span>Itens</span><strong>{{ currency(tab.totalAmount) }}</strong></div>
+              <div class="financial-detail secondary"><span>Serviço</span><strong>{{ currency(tab.serviceFee) }}</strong></div>
+              <div class="financial-detail secondary"><span>Desconto</span><strong>{{ currency(tab.discountAmount) }}</strong></div>
+              <div class="financial-detail total"><span>Total final</span><strong>{{ currency(tab.finalAmount) }}</strong></div>
+              <div class="financial-detail paid"><span>Pago</span><strong>{{ currency(tab.paidAmount) }}</strong></div>
+              <div class="financial-detail remaining"><span>Restante</span><strong>{{ currency(tab.remainingAmount) }}</strong></div>
+            </div>
           </div>
-          <div class="modal-actions split-actions">
+          <div class="modal-footer modal-actions tab-details-actions">
             @if (tab.paidAmount === 0) {
-              <button type="button" class="danger-button" (click)="pendingCancel.set(tab)"><i class="pi pi-times-circle"></i>Cancelar comanda</button>
+              <button type="button" class="danger-button secondary-danger" (click)="pendingCancel.set(tab)"><i class="pi pi-times-circle"></i>Cancelar comanda</button>
             }
             @if (tab.remainingAmount === 0) {
               <button type="button" class="primary-button" (click)="close(tab)"><i class="pi pi-check-circle"></i>Fechar comanda</button>
@@ -131,9 +137,9 @@ import { PaymentDialogComponent } from '../../shared/components/payment-dialog/p
     @if (pendingCancel(); as tab) {
       <div class="modal-backdrop" (click)="pendingCancel.set(null)">
         <section class="modal-panel compact" appAccessibleDialog role="alertdialog" aria-modal="true" aria-labelledby="tab-cancel-title" (dialogClose)="pendingCancel.set(null)" (click)="$event.stopPropagation()">
-          <div class="modal-header"><div><span>Confirmação</span><h2 id="tab-cancel-title">Cancelar a comanda #{{ tab.id }}?</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="pendingCancel.set(null)"><i class="pi pi-times"></i></button></div>
-          <p>Esta ação encerra a comanda sem registrar venda e só será aceita quando não houver pagamentos ou pedidos pendentes.</p>
-          <div class="modal-actions"><button type="button" class="ghost-button" (click)="pendingCancel.set(null)">Voltar</button><button type="button" class="danger-button" (click)="cancel(tab)"><i class="pi pi-times-circle"></i>Confirmar cancelamento</button></div>
+          <div class="modal-header"><div class="modal-heading"><span class="modal-eyebrow">Confirmação</span><h2 id="tab-cancel-title">Cancelar a comanda #{{ tab.id }}?</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="pendingCancel.set(null)"><i class="pi pi-times"></i></button></div>
+          <div class="modal-body"><p class="modal-description">Esta ação encerra a comanda sem registrar venda e só será aceita quando não houver pagamentos ou pedidos pendentes.</p></div>
+          <div class="modal-footer modal-actions"><button type="button" class="ghost-button" (click)="pendingCancel.set(null)">Voltar</button><button type="button" class="danger-button" (click)="cancel(tab)"><i class="pi pi-times-circle"></i>Confirmar cancelamento</button></div>
         </section>
       </div>
     }

@@ -31,10 +31,12 @@ import { apiErrorMessage } from '../../shared/util/api-error';
   ],
   template: `
     <app-page-header kicker="Gestão financeira" title="Caixa" description="Controle o turno, o dinheiro e a conferência financeira.">
-      @if (currentShift(); as shift) {
-        <app-status-badge label="Turno aberto" tone="success" />
-        <button type="button" class="ghost-button" (click)="load()"><i class="pi pi-refresh"></i>Atualizar</button>
-      }
+      <div page-actions class="page-header-actions">
+        @if (currentShift()) {
+          <app-status-badge label="Turno aberto" tone="success" />
+          <button type="button" class="secondary-button" (click)="load()"><i class="pi pi-refresh"></i>Atualizar</button>
+        }
+      </div>
     </app-page-header>
 
     @if (loading()) {
@@ -141,10 +143,9 @@ import { apiErrorMessage } from '../../shared/util/api-error';
     @if (movementOpen()) {
       <div class="modal-backdrop" (click)="movementOpen.set(false)">
         <form class="modal-panel compact" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="cash-movement-title" [dialogCloseDisabled]="saving()" (dialogClose)="movementOpen.set(false)" (click)="$event.stopPropagation()" (ngSubmit)="saveMovement()">
-          <div class="modal-header"><div><span>Movimentação do turno</span><h2 id="cash-movement-title">{{ movementForm.type === 'SUPPLY' ? 'Registrar suprimento' : 'Registrar sangria' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar movimentação" (click)="movementOpen.set(false)"><i class="pi pi-times"></i></button></div>
-          <label class="field"><span>Valor</span><input name="movementAmount" type="number" min="0.01" step="0.01" [(ngModel)]="movementForm.amount" required autofocus /></label>
-          <label class="field"><span>Observação</span><textarea name="movementNote" maxlength="500" [(ngModel)]="movementForm.note" required></textarea></label>
-          <div class="modal-actions"><button type="button" class="ghost-button" (click)="movementOpen.set(false)">Cancelar</button><button type="submit" class="primary-button" [disabled]="saving()"><i class="pi pi-save"></i>Registrar movimentação</button></div>
+          <div class="modal-header"><div class="modal-heading"><span class="modal-eyebrow">Movimentação do turno</span><h2 id="cash-movement-title">{{ movementForm.type === 'SUPPLY' ? 'Registrar suprimento' : 'Registrar sangria' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar movimentação" (click)="movementOpen.set(false)"><i class="pi pi-times"></i></button></div>
+          <div class="modal-body"><label class="field"><span>Valor</span><input name="movementAmount" type="number" min="0.01" step="0.01" [(ngModel)]="movementForm.amount" required autofocus /></label><label class="field"><span>Observação</span><textarea name="movementNote" maxlength="500" [(ngModel)]="movementForm.note" required></textarea></label></div>
+          <div class="modal-footer modal-actions"><button type="button" class="ghost-button" (click)="movementOpen.set(false)">Cancelar</button><button type="submit" class="primary-button" [disabled]="saving()"><i class="pi pi-save"></i>Registrar movimentação</button></div>
         </form>
       </div>
     }
@@ -152,12 +153,9 @@ import { apiErrorMessage } from '../../shared/util/api-error';
     @if (closeOpen() && currentShift(); as shift) {
       <div class="modal-backdrop" (click)="closeOpen.set(false)">
         <form class="modal-panel compact" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="cash-close-title" [dialogCloseDisabled]="saving()" (dialogClose)="closeOpen.set(false)" (click)="$event.stopPropagation()" (ngSubmit)="closeShift(shift)">
-          <div class="modal-header"><div><span>Conferência</span><h2 id="cash-close-title">Fechar caixa</h2></div><button type="button" class="icon-button" aria-label="Fechar conferência" (click)="closeOpen.set(false)"><i class="pi pi-times"></i></button></div>
-          <div class="payment-total-card"><div><span>Esperado em dinheiro</span><strong>{{ currency(shift.expectedCash) }}</strong></div><div><span>Eletrônicos</span><strong>{{ currency(electronicTotal(shift)) }}</strong></div><div><span>Total do turno</span><strong>{{ currency(shift.receivedTotal) }}</strong></div></div>
-          <label class="field"><span>Valor contado</span><input name="countedCash" type="number" min="0" step="0.01" [(ngModel)]="closeForm.countedCash" required autofocus /></label>
-          <div class="cash-difference-preview"><span>Diferença</span><strong [class.negative]="closeDifference(shift) < 0">{{ currency(closeDifference(shift)) }}</strong></div>
-          <label class="field"><span>Observação {{ closeDifference(shift) !== 0 ? 'obrigatória' : 'opcional' }}</span><textarea name="closingNote" maxlength="500" [(ngModel)]="closeForm.note" [required]="closeDifference(shift) !== 0"></textarea></label>
-          <div class="modal-actions"><button type="button" class="ghost-button" (click)="closeOpen.set(false)">Cancelar</button><button type="submit" class="primary-button" [disabled]="saving() || (closeDifference(shift) !== 0 && !closeForm.note.trim())"><i class="pi pi-lock"></i>Confirmar fechamento</button></div>
+          <div class="modal-header"><div class="modal-heading"><span class="modal-eyebrow">Conferência</span><h2 id="cash-close-title">Fechar caixa</h2></div><button type="button" class="icon-button" aria-label="Fechar conferência" (click)="closeOpen.set(false)"><i class="pi pi-times"></i></button></div>
+          <div class="modal-body"><div class="payment-total-card"><div><span>Esperado em dinheiro</span><strong>{{ currency(shift.expectedCash) }}</strong></div><div><span>Eletrônicos</span><strong>{{ currency(electronicTotal(shift)) }}</strong></div><div><span>Total do turno</span><strong>{{ currency(shift.receivedTotal) }}</strong></div></div><label class="field"><span>Valor contado</span><input name="countedCash" type="number" min="0" step="0.01" [(ngModel)]="closeForm.countedCash" required autofocus /></label><div class="cash-difference-preview"><span>Diferença</span><strong [class.negative]="closeDifference(shift) < 0">{{ currency(closeDifference(shift)) }}</strong></div><label class="field"><span>Observação {{ closeDifference(shift) !== 0 ? 'obrigatória' : 'opcional' }}</span><textarea name="closingNote" maxlength="500" [(ngModel)]="closeForm.note" [required]="closeDifference(shift) !== 0"></textarea></label></div>
+          <div class="modal-footer modal-actions"><button type="button" class="ghost-button" (click)="closeOpen.set(false)">Cancelar</button><button type="submit" class="primary-button" [disabled]="saving() || (closeDifference(shift) !== 0 && !closeForm.note.trim())"><i class="pi pi-lock"></i>Confirmar fechamento</button></div>
         </form>
       </div>
     }

@@ -26,28 +26,30 @@ import { AccessibleDialogDirective } from '../../directives/accessible-dialog.di
         (ngSubmit)="submit()"
       >
         <div class="modal-header">
-          <div><span>{{ originLabel }}</span><h2 id="payment-dialog-title">{{ title }}</h2></div>
+          <div class="modal-heading"><span class="modal-eyebrow">{{ originLabel }}</span><h2 id="payment-dialog-title">{{ title }}</h2></div>
           <button type="button" class="icon-button" aria-label="Fechar pagamento" (click)="close()"><i class="pi pi-times"></i></button>
         </div>
 
-        <div class="payment-total-card">
-          <div><span>Total</span><strong>{{ currency(totalAmount) }}</strong></div>
-          <div><span>Pago</span><strong>{{ currency(paidAmount) }}</strong></div>
-          <div class="remaining"><span>Restante</span><strong>{{ currency(remainingAmount) }}</strong></div>
+        <div class="modal-body payment-dialog-body">
+          <div class="payment-total-card">
+            <div><span>Total</span><strong>{{ currency(totalAmount) }}</strong></div>
+            <div><span>Pago</span><strong>{{ currency(paidAmount) }}</strong></div>
+            <div class="remaining"><span>Restante</span><strong>{{ currency(remainingAmount) }}</strong></div>
+          </div>
+
+          <div class="payment-dialog-fields">
+            <label class="field"><span>Forma de pagamento</span>
+              <select name="paymentMethod" [(ngModel)]="method" autofocus>
+                @for (option of methods; track option.value) { <option [ngValue]="option.value">{{ option.label }}</option> }
+              </select>
+            </label>
+            <label class="field"><span>Valor</span>
+              <input name="paymentAmount" type="number" min="0.01" step="0.01" [max]="remainingAmount" [(ngModel)]="amount" required />
+            </label>
+          </div>
         </div>
 
-        <div class="payment-dialog-fields">
-          <label class="field"><span>Forma de pagamento</span>
-            <select name="paymentMethod" [(ngModel)]="method" autofocus>
-              @for (option of methods; track option.value) { <option [ngValue]="option.value">{{ option.label }}</option> }
-            </select>
-          </label>
-          <label class="field"><span>Valor</span>
-            <input name="paymentAmount" type="number" min="0.01" step="0.01" [max]="remainingAmount" [(ngModel)]="amount" required />
-          </label>
-        </div>
-
-        <div class="modal-actions">
+        <div class="modal-footer modal-actions">
           <button type="button" class="ghost-button" (click)="close()">Cancelar</button>
           <button type="submit" class="primary-button" [disabled]="saving() || amount <= 0 || amount > remainingAmount">
             <i class="pi pi-wallet"></i>{{ saving() ? 'Registrando...' : title }}

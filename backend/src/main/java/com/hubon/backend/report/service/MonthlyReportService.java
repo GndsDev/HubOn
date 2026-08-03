@@ -1,6 +1,7 @@
 package com.hubon.backend.report.service;
 
 import com.hubon.backend.report.domain.ReportChannel;
+import com.hubon.backend.report.dto.AnnualReportResponse;
 import com.hubon.backend.report.dto.MonthlyReportResponse;
 import com.hubon.backend.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -11,10 +12,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.Collator;
+import java.time.LocalDate;
+import java.time.Month;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -30,9 +35,7 @@ public class MonthlyReportService {
 
     @Transactional(readOnly = true)
     public MonthlyReportResponse generate(int year, int month, ReportChannel channel) {
-        if (year < 2000 || year > 2100) {
-            throw new BusinessException("Ano do relatório deve estar entre 2000 e 2100");
-        }
+        validateYear(year);
         YearMonth period;
         try {
             period = YearMonth.of(year, month);
@@ -61,6 +64,36 @@ public class MonthlyReportService {
                 payments(parameters, selectedChannel),
                 channels(parameters, selectedChannel),
                 daily(parameters, selectedChannel),
+                cancellations(parameters, selectedChannel)
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public AnnualReportResponse generateAnnual(int year, ReportChannel channel) {
+        validateYear(year);
+        ReportChannel selectedChannel = channel == null ? ReportChannel.ALL : channel;
+        LocalDate startDate = LocalDate.of(year, 1, 1);
+        LocalDate endDate = startDate.plusYears(1);
+        MapSqlParameterSource parameters = parameters(startDate, endDate, selectedChannel);
+
+        MonthlyReportResponse.Summary summary = summary(parameters, selectedChannel);
+        BigDecimal previousNet = netRevenue(parameters(startDate.minusYears(1), startDate, selectedChannel), selectedChannel);
+        BigDecimal difference = summary.netRevenue().subtract(previousNet);
+        BigDecimal percentage = previousNet.signum() == 0
+                ? null
+                : difference.multiply(BigDecimal.valueOf(100)).divide(previousNet, 2, RoundingMode.HALF_UP);
+
+        return new AnnualReportResponse(
+                year,
+                "Ano de " + year,
+                selectedChannel,
+                summary,
+                new AnnualReportResponse.Comparison(previousNet, difference, percentage),
+                products(parameters, selectedChannel),
+                categories(parameters, selectedChannel),
+                payments(parameters, selectedChannel),
+                channels(parameters, selectedChannel),
+                monthly(parameters, selectedChannel),
                 cancellations(parameters, selectedChannel)
         );
     }
@@ -127,6 +160,10 @@ public class MonthlyReportService {
     }
 
     private BigDecimal previousNet(YearMonth period, ReportChannel channel) {
+        return netRevenue(parameters(period, channel), channel);
+    }
+
+    private BigDecimal netRevenue(MapSqlParameterSource parameters, ReportChannel channel) {
         return decimal(jdbc.queryForObject(
                 """
                 SELECT COALESCE(SUM(final_amount), 0)
@@ -135,7 +172,7 @@ public class MonthlyReportService {
                   AND closed_business_date >= :startDate
                   AND closed_business_date < :endDate
                 """ + validSaleFilter("tabs") + channelFilter(channel, "type"),
-                parameters(period, channel),
+                parameters,
                 BigDecimal.class
         ));
     }
@@ -185,6 +222,16 @@ public class MonthlyReportService {
         BigDecimal productsTotal = grouped.values().stream()
                 .map(product -> product.amount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        Collator names = Collator.getInstance(PT_BR);
+        names.setStrength(Collator.PRIMARY);
+        Comparator<MonthlyReportResponse.VariantPerformance> variantOrder = Comparator
+                .comparing(MonthlyReportResponse.VariantPerformance::salesAmount).reversed()
+                .thenComparing(Comparator.comparingLong(MonthlyReportResponse.VariantPerformance::quantity).reversed())
+                .thenComparing(MonthlyReportResponse.VariantPerformance::variantName, names);
+        Comparator<MonthlyReportResponse.ProductPerformance> productOrder = Comparator
+                .comparing(MonthlyReportResponse.ProductPerformance::salesAmount).reversed()
+                .thenComparing(Comparator.comparingLong(MonthlyReportResponse.ProductPerformance::quantity).reversed())
+                .thenComparing(MonthlyReportResponse.ProductPerformance::productName, names);
         return grouped.values().stream()
                 .map(product -> new MonthlyReportResponse.ProductPerformance(
                         product.productName,
@@ -192,9 +239,9 @@ public class MonthlyReportService {
                         product.quantity,
                         product.amount,
                         percentage(product.amount, productsTotal),
-                        List.copyOf(product.variants)
+                        product.variants.stream().sorted(variantOrder).toList()
                 ))
-                .sorted((left, right) -> right.salesAmount().compareTo(left.salesAmount()))
+                .sorted(productOrder)
                 .toList();
     }
 
@@ -310,6 +357,44 @@ public class MonthlyReportService {
         );
     }
 
+    private List<AnnualReportResponse.MonthPerformance> monthly(
+            MapSqlParameterSource parameters,
+            ReportChannel channel
+    ) {
+        Map<Integer, AnnualReportResponse.MonthPerformance> values = new LinkedHashMap<>();
+        jdbc.query(
+                """
+                SELECT EXTRACT(MONTH FROM closed_business_date)::INTEGER AS month_number,
+                       COUNT(*) AS closed_tabs,
+                       COALESCE(SUM(final_amount), 0) AS net_revenue
+                FROM tabs
+                WHERE status = 'CLOSED'
+                  AND closed_business_date >= :startDate
+                  AND closed_business_date < :endDate
+                """ + validSaleFilter("tabs") + channelFilter(channel, "type") + """
+                GROUP BY month_number
+                ORDER BY month_number
+                """,
+                parameters,
+                resultSet -> {
+                    int month = resultSet.getInt("month_number");
+                    long tabs = resultSet.getLong("closed_tabs");
+                    BigDecimal revenue = resultSet.getBigDecimal("net_revenue");
+                    values.put(month, new AnnualReportResponse.MonthPerformance(
+                            month,
+                            monthLabel(month),
+                            tabs,
+                            revenue,
+                            tabs == 0 ? BigDecimal.ZERO : revenue.divide(BigDecimal.valueOf(tabs), 2, RoundingMode.HALF_UP)
+                    ));
+                }
+        );
+        return java.util.stream.IntStream.rangeClosed(1, 12)
+                .mapToObj(month -> values.getOrDefault(month, new AnnualReportResponse.MonthPerformance(
+                        month, monthLabel(month), 0, BigDecimal.ZERO, BigDecimal.ZERO)))
+                .toList();
+    }
+
     private MonthlyReportResponse.CancellationSummary cancellations(
             MapSqlParameterSource parameters,
             ReportChannel channel
@@ -378,12 +463,27 @@ public class MonthlyReportService {
     }
 
     private MapSqlParameterSource parameters(YearMonth period, ReportChannel channel) {
+        return parameters(period.atDay(1), period.plusMonths(1).atDay(1), channel);
+    }
+
+    private MapSqlParameterSource parameters(LocalDate startDate, LocalDate endDate, ReportChannel channel) {
         return new MapSqlParameterSource()
-                .addValue("start", period.atDay(1).atStartOfDay())
-                .addValue("end", period.plusMonths(1).atDay(1).atStartOfDay())
-                .addValue("startDate", period.atDay(1))
-                .addValue("endDate", period.plusMonths(1).atDay(1))
+                .addValue("start", startDate.atStartOfDay())
+                .addValue("end", endDate.atStartOfDay())
+                .addValue("startDate", startDate)
+                .addValue("endDate", endDate)
                 .addValue("channel", channel.name());
+    }
+
+    private void validateYear(int year) {
+        if (year < 2000 || year > 2100) {
+            throw new BusinessException("Ano do relatório deve estar entre 2000 e 2100");
+        }
+    }
+
+    private String monthLabel(int month) {
+        String label = Month.of(month).getDisplayName(TextStyle.FULL, PT_BR);
+        return Character.toUpperCase(label.charAt(0)) + label.substring(1);
     }
 
     private String channelFilter(ReportChannel channel, String column) {

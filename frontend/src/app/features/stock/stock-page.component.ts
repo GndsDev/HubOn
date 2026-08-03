@@ -47,18 +47,20 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
       title="Estoque"
       description="Controle itens manuais, baixas automáticas, alertas e movimentações auditáveis."
     >
-      @if (canManage()) {
-        <button type="button" class="primary-button" (click)="openCreate()">
-          <i class="pi pi-plus"></i>
-          Novo item
-        </button>
-      }
+      <div page-actions class="page-header-actions">
+        @if (canManage()) {
+          <button type="button" class="primary-button" (click)="openCreate()">
+            <i class="pi pi-plus"></i>
+            Novo item
+          </button>
+        }
+      </div>
     </app-page-header>
 
     <section class="stats-grid stock-stats-grid" aria-label="Indicadores de estoque">
       <article class="premium-card stat-card tone-blue">
         <div class="stat-icon"><i class="pi pi-list"></i></div>
-        <div class="stat-copy"><span>Itens ativos</span><strong>{{ activeCount }}</strong><p>Cadastros disponiveis para uso.</p></div>
+        <div class="stat-copy"><span>Itens ativos</span><strong>{{ activeCount }}</strong><p>Cadastros disponíveis para uso.</p></div>
       </article>
       <article class="premium-card stat-card tone-amber">
         <div class="stat-icon"><i class="pi pi-exclamation-triangle"></i></div>
@@ -200,7 +202,7 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
           </button>
           <button type="button" role="menuitem" (click)="closeActionMenu(); manageLinks()">
             <i class="pi pi-link"></i>
-            Gerenciar vinculos
+            Gerenciar vínculos
           </button>
           <button
             type="button"
@@ -260,32 +262,34 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
           (ngSubmit)="saveIngredient()"
         >
           <div class="modal-header">
-            <div><span>Estoque</span><h2 id="ingredient-dialog-title">{{ editing() ? 'Editar item' : 'Novo item' }}</h2></div>
+            <div class="modal-heading"><span class="modal-eyebrow">Estoque</span><h2 id="ingredient-dialog-title">{{ editing() ? 'Editar item' : 'Novo item' }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeForm()"><i class="pi pi-times"></i></button>
           </div>
-          <div class="form-grid">
-            <label class="field full"><span>Nome</span><input name="name" [(ngModel)]="form.name" maxlength="120" required autofocus /></label>
-            <label class="field full"><span>Descrição</span><textarea name="description" [(ngModel)]="form.description" maxlength="255"></textarea></label>
-            <label class="field">
-              <span>Unidade</span>
-              <select name="unit" [(ngModel)]="form.unit" required>
-                @for (unit of unitOptions; track unit.value) { <option [value]="unit.value">{{ unit.label }}</option> }
-              </select>
-            </label>
-            <label class="field full">
-              <span>Modo de controle</span>
-              <select name="controlMode" [(ngModel)]="form.controlMode" required>
-                @for (mode of controlModeOptions; track mode.value) {
-                  <option [value]="mode.value">{{ mode.label }}</option>
-                }
-              </select>
-              <small class="field-help">{{ controlModeHelp(form.controlMode) }}</small>
-            </label>
-            <label class="field"><span>Estoque mínimo</span><input name="minimumStock" type="number" min="0" step="0.001" [(ngModel)]="form.minimumStock" required /></label>
-            <label class="field"><span>Estoque ideal</span><input name="idealStock" type="number" min="0" step="0.001" [(ngModel)]="form.idealStock" required /></label>
-            <label class="toggle-field"><input name="active" type="checkbox" [(ngModel)]="form.active" /><span>Item ativo</span></label>
+          <div class="modal-body">
+            <div class="form-grid">
+              <label class="field full"><span>Nome</span><input name="name" [(ngModel)]="form.name" maxlength="120" required autofocus /></label>
+              <label class="field full"><span>Descrição</span><textarea name="description" [(ngModel)]="form.description" maxlength="255"></textarea></label>
+              <label class="field">
+                <span>Unidade</span>
+                <select name="unit" [(ngModel)]="form.unit" required>
+                  @for (unit of unitOptions; track unit.value) { <option [value]="unit.value">{{ unit.label }}</option> }
+                </select>
+              </label>
+              <label class="field full">
+                <span>Modo de controle</span>
+                <select name="controlMode" [(ngModel)]="form.controlMode" required>
+                  @for (mode of controlModeOptions; track mode.value) {
+                    <option [value]="mode.value">{{ mode.label }}</option>
+                  }
+                </select>
+                <small class="field-help">{{ controlModeHelp(form.controlMode) }}</small>
+              </label>
+              <label class="field"><span>Estoque mínimo</span><input name="minimumStock" type="number" min="0" step="0.001" [(ngModel)]="form.minimumStock" required /></label>
+              <label class="field"><span>Estoque ideal</span><input name="idealStock" type="number" min="0" step="0.001" [(ngModel)]="form.idealStock" required /></label>
+              <label class="toggle-field"><input name="active" type="checkbox" [(ngModel)]="form.active" /><span>Item ativo</span></label>
+            </div>
           </div>
-          <div class="modal-actions">
+          <div class="modal-footer modal-actions">
             <button type="button" class="ghost-button" (click)="closeForm()">Cancelar</button>
             <button type="submit" class="primary-button" [disabled]="saving()"><i class="pi pi-check"></i>{{ saving() ? 'Salvando...' : 'Salvar item' }}</button>
           </div>
@@ -307,48 +311,50 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
           (ngSubmit)="saveMovement()"
         >
           <div class="modal-header">
-            <div><span>{{ movementIngredient()?.name }}</span><h2 id="movement-dialog-title">{{ movementTitle() }}</h2></div>
+            <div class="modal-heading"><span class="modal-eyebrow">{{ movementIngredient()?.name }}</span><h2 id="movement-dialog-title">{{ movementTitle() }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeMovement()"><i class="pi pi-times"></i></button>
           </div>
-          <div class="form-grid">
-            @if (movementType() === 'EXIT') {
-              <div class="balance-preview full" [class.danger]="exitOverStock()">
-                <div>
-                  <span>Saldo atual</span>
-                  <strong>{{ stockValue(movementIngredient()?.currentStock ?? 0, movementIngredient()?.unit) }}</strong>
+          <div class="modal-body">
+            <div class="form-grid">
+              @if (movementType() === 'EXIT') {
+                <div class="balance-preview full" [class.danger]="exitOverStock()">
+                  <div>
+                    <span>Saldo atual</span>
+                    <strong>{{ stockValue(movementIngredient()?.currentStock ?? 0, movementIngredient()?.unit) }}</strong>
+                  </div>
+                  <div>
+                    <span>Saída</span>
+                    <strong>{{ stockValue(movementForm.quantity || 0, movementIngredient()?.unit) }}</strong>
+                  </div>
+                  <div>
+                    <span>Saldo previsto</span>
+                    <strong>{{ stockValue(predictedExitBalance(), movementIngredient()?.unit) }}</strong>
+                  </div>
                 </div>
-                <div>
-                  <span>Saída</span>
-                  <strong>{{ stockValue(movementForm.quantity || 0, movementIngredient()?.unit) }}</strong>
-                </div>
-                <div>
-                  <span>Saldo previsto</span>
-                  <strong>{{ stockValue(predictedExitBalance(), movementIngredient()?.unit) }}</strong>
-                </div>
-              </div>
-            }
-            @if (movementType() === 'ADJUSTMENT') {
-              <label class="field full"><span>Novo saldo fisico</span><input name="newStock" type="number" min="0" step="0.001" [(ngModel)]="movementForm.newStock" required autofocus /></label>
-            } @else {
-              <label class="field full"><span>Quantidade</span><input name="quantity" type="number" min="0.001" step="0.001" [(ngModel)]="movementForm.quantity" required autofocus /></label>
-            }
-            @if (movementType() === 'EXIT') {
-              <label class="field full">
-                <span>Motivo</span>
-                <input name="reason" list="stock-exit-reasons" [(ngModel)]="movementForm.reason" maxlength="500" />
-              </label>
-              <datalist id="stock-exit-reasons">
-                <option value="Consumo do dia"></option>
-                <option value="Uso na produção"></option>
-                <option value="Quebra operacional"></option>
-                <option value="Correcao de fechamento"></option>
-                <option value="Outro"></option>
-              </datalist>
-            } @else {
-              <label class="field full"><span>Motivo</span><textarea name="reason" [(ngModel)]="movementForm.reason" maxlength="500" [required]="movementType() === 'LOSS' || movementType() === 'ADJUSTMENT'"></textarea></label>
-            }
+              }
+              @if (movementType() === 'ADJUSTMENT') {
+                <label class="field full"><span>Novo saldo físico</span><input name="newStock" type="number" min="0" step="0.001" [(ngModel)]="movementForm.newStock" required autofocus /></label>
+              } @else {
+                <label class="field full"><span>Quantidade</span><input name="quantity" type="number" min="0.001" step="0.001" [(ngModel)]="movementForm.quantity" required autofocus /></label>
+              }
+              @if (movementType() === 'EXIT') {
+                <label class="field full">
+                  <span>Motivo</span>
+                  <input name="reason" list="stock-exit-reasons" [(ngModel)]="movementForm.reason" maxlength="500" />
+                </label>
+                <datalist id="stock-exit-reasons">
+                  <option value="Consumo do dia"></option>
+                  <option value="Uso na produção"></option>
+                  <option value="Quebra operacional"></option>
+                  <option value="Correção de fechamento"></option>
+                  <option value="Outro"></option>
+                </datalist>
+              } @else {
+                <label class="field full"><span>Motivo</span><textarea name="reason" [(ngModel)]="movementForm.reason" maxlength="500" [required]="movementType() === 'LOSS' || movementType() === 'ADJUSTMENT'"></textarea></label>
+              }
+            </div>
           </div>
-          <div class="modal-actions">
+          <div class="modal-footer modal-actions">
             <button type="button" class="ghost-button" (click)="closeMovement()">Cancelar</button>
             <button type="submit" class="primary-button" [disabled]="saving() || exitOverStock()"><i class="pi pi-check"></i>{{ saving() ? 'Registrando...' : 'Registrar' }}</button>
           </div>
@@ -368,31 +374,34 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
           (click)="$event.stopPropagation()"
         >
           <div class="modal-header">
-            <div><span>Histórico</span><h2 id="history-dialog-title">{{ historyIngredient()?.name }}</h2></div>
+            <div class="modal-heading"><span class="modal-eyebrow">Histórico</span><h2 id="history-dialog-title">{{ historyIngredient()?.name }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeHistory()"><i class="pi pi-times"></i></button>
           </div>
-          @if (historyLoading()) {
-            <div class="loading-grid"><div class="loading-row"></div><div class="loading-row"></div></div>
-          } @else if (historyMovements().length === 0) {
-            <app-empty-state icon="pi pi-history" title="Sem histórico" description="Este ingrediente ainda não possui movimentações." />
-          } @else {
-            <div class="movement-list">
-              @for (movement of historyMovements(); track movement.id) {
-                <article class="movement-row">
-                  <div class="movement-icon" [ngClass]="movementTone(movement.type)"><i [class]="movementIcon(movement.type)"></i></div>
-                  <div class="movement-main">
-                    <strong>{{ movementLabel(movement.type) }}</strong>
-                    <span>{{ movement.userName }} - {{ dateTime(movement.createdAt) }}</span>
-                    <small>{{ movement.reason || 'Sem motivo informado' }}</small>
-                  </div>
-                  <div class="movement-side">
-                    <b>{{ stockValue(movement.quantity, historyIngredient()?.unit) }}</b>
-                    <small>{{ stockValue(movement.previousStock, historyIngredient()?.unit) }} -> {{ stockValue(movement.resultingStock, historyIngredient()?.unit) }}</small>
-                  </div>
-                </article>
-              }
-            </div>
-          }
+          <div class="modal-body">
+            @if (historyLoading()) {
+              <div class="loading-grid"><div class="loading-row"></div><div class="loading-row"></div></div>
+            } @else if (historyMovements().length === 0) {
+              <app-empty-state icon="pi pi-history" title="Sem histórico" description="Este ingrediente ainda não possui movimentações." />
+            } @else {
+              <div class="movement-list">
+                @for (movement of historyMovements(); track movement.id) {
+                  <article class="movement-row">
+                    <div class="movement-icon" [ngClass]="movementTone(movement.type)"><i [class]="movementIcon(movement.type)"></i></div>
+                    <div class="movement-main">
+                      <strong>{{ movementLabel(movement.type) }}</strong>
+                      <span>{{ movement.userName }} - {{ dateTime(movement.createdAt) }}</span>
+                      <small>{{ movement.reason || 'Sem motivo informado' }}</small>
+                    </div>
+                    <div class="movement-side">
+                      <b>{{ stockValue(movement.quantity, historyIngredient()?.unit) }}</b>
+                      <small>{{ stockValue(movement.previousStock, historyIngredient()?.unit) }} -> {{ stockValue(movement.resultingStock, historyIngredient()?.unit) }}</small>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </div>
+          <div class="modal-footer modal-actions"><button type="button" class="secondary-button" (click)="closeHistory()">Fechar</button></div>
         </section>
       </div>
     }
@@ -692,7 +701,7 @@ export class StockPageComponent implements OnInit {
       return;
     }
     if (type === 'EXIT' && this.exitOverStock()) {
-      this.feedback.error('A saida informada ultrapassa o saldo atual.');
+      this.feedback.error('A saída informada ultrapassa o saldo atual.');
       return;
     }
 
@@ -781,7 +790,7 @@ export class StockPageComponent implements OnInit {
   movementTitle(): string {
     return {
       ENTRY: 'Registrar entrada',
-      EXIT: 'Registrar saida',
+      EXIT: 'Registrar saída',
       LOSS: 'Registrar perda',
       ADJUSTMENT: 'Ajustar saldo',
     }[this.movementType()];

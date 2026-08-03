@@ -98,4 +98,22 @@ describe('TabsPageComponent', () => {
     expect(paymentDialog?.textContent).toContain('Mesa 8');
     expect(paymentDialog?.textContent).toContain('Restante');
   });
+
+  it('uses semantic modal regions and clear financial emphasis in tab details', () => {
+    const unpaidTab = { ...tableTab, paidAmount: 0, remainingAmount: tableTab.finalAmount };
+    tabApi.getById.mockReturnValueOnce(of(unpaidTab));
+    fixture.componentInstance.showDetails(unpaidTab);
+    fixture.detectChanges();
+
+    const dialog = document.querySelector('[aria-labelledby="tab-details-dialog-title"]') as HTMLElement;
+    expect(dialog.querySelector(':scope > .modal-header')).not.toBeNull();
+    expect(dialog.querySelector(':scope > .modal-body')).not.toBeNull();
+    expect(dialog.querySelector(':scope > .modal-footer')).not.toBeNull();
+    expect(dialog.querySelectorAll('.financial-detail')).toHaveLength(6);
+    expect(dialog.querySelector('.financial-detail.total')?.textContent).toContain('Total final');
+    expect(dialog.querySelector('.financial-detail.paid')?.textContent).toContain('Pago');
+    expect(dialog.querySelector('.financial-detail.remaining')?.textContent).toContain('Restante');
+    expect(dialog.querySelector('.secondary-danger')?.textContent).toContain('Cancelar comanda');
+    expect(dialog.querySelector('.primary-button')?.textContent).toContain('Registrar pagamento');
+  });
 });

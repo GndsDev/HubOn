@@ -50,9 +50,11 @@ type ProductManagementTab = 'INFORMATION' | 'VARIANTS' | 'CHOICES';
   ],
   template: `
     <app-page-header kicker="Cardápio" title="Produtos" description="Cadastre o item, suas variações e as escolhas da venda em um único fluxo.">
-      <button type="button" class="primary-button" (click)="openRegistration()">
-        <i class="pi pi-plus"></i>Novo produto
-      </button>
+      <div page-actions class="page-header-actions">
+        <button type="button" class="primary-button" (click)="openRegistration()">
+          <i class="pi pi-plus"></i>Novo produto
+        </button>
+      </div>
     </app-page-header>
 
     <app-section-card eyebrow="Catálogo" title="Produtos do cardápio">
@@ -127,20 +129,21 @@ type ProductManagementTab = 'INFORMATION' | 'VARIANTS' | 'CHOICES';
       <div class="modal-backdrop" (click)="closeRegistration()">
         <form class="modal-panel product-wizard-panel" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="registration-title" [dialogCloseDisabled]="saving()" (dialogClose)="closeRegistration()" (click)="$event.stopPropagation()" (ngSubmit)="finishRegistration()">
           <div class="modal-header">
-            <div><span>Novo produto</span><h2 id="registration-title">{{ wizardTitle() }}</h2></div>
+            <div class="modal-heading"><span class="modal-eyebrow">Novo produto</span><h2 id="registration-title">{{ wizardTitle() }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeRegistration()"><i class="pi pi-times"></i></button>
           </div>
 
-          <div class="wizard-progress" aria-label="Etapas do cadastro">
-            @for (step of wizardSteps; track step.number) {
-              <button type="button" [class.active]="wizardStep() === step.number" [class.complete]="wizardStep() > step.number" (click)="goToStep(step.number)">
-                <span>{{ step.number }}</span><small>{{ step.label }}</small>
-              </button>
-            }
-          </div>
+          <div class="modal-body product-wizard-body">
+            <div class="wizard-progress" aria-label="Etapas do cadastro">
+              @for (step of wizardSteps; track step.number) {
+                <button type="button" [class.active]="wizardStep() === step.number" [class.complete]="wizardStep() > step.number" (click)="goToStep(step.number)">
+                  <span>{{ step.number }}</span><small>{{ step.label }}</small>
+                </button>
+              }
+            </div>
 
-          @if (wizardStep() === 1) {
-            <div class="form-grid">
+            @if (wizardStep() === 1) {
+              <div class="form-grid">
               <label class="field"><span>Nome</span><input name="name" [(ngModel)]="registrationProduct.name" maxlength="120" required autofocus /></label>
               <label class="field"><span>Categoria</span><select name="category" [(ngModel)]="registrationProduct.categoryId" required><option [ngValue]="0" disabled>Selecione</option>@for (category of activeCategories; track category.id) { <option [ngValue]="category.id">{{ category.name }}</option> }</select></label>
               <label class="field full"><span>Descrição</span><textarea name="description" [(ngModel)]="registrationProduct.description" maxlength="255"></textarea></label>
@@ -150,12 +153,12 @@ type ProductManagementTab = 'INFORMATION' | 'VARIANTS' | 'CHOICES';
               </fieldset>
               <label class="toggle-field"><input type="checkbox" name="active" [(ngModel)]="registrationProduct.active" /><span>Ativo</span></label>
               <label class="toggle-field"><input type="checkbox" name="available" [(ngModel)]="registrationProduct.available" /><span>Disponível</span></label>
-            </div>
-          }
+              </div>
+            }
 
-          @if (wizardStep() === 2) {
-            <div class="form-section-title"><div><span>Variações e preços</span><small>O preço pertence à variação vendável.</small></div><div class="action-cluster"><button type="button" class="ghost-button compact-button" (click)="useDefaultVariant()">Usar variação Padrão</button><button type="button" class="ghost-button compact-button" (click)="addRegistrationVariant()"><i class="pi pi-plus"></i>Adicionar</button></div></div>
-            <div class="wizard-list">
+            @if (wizardStep() === 2) {
+              <div class="form-section-title"><div><span>Variações e preços</span><small>O preço pertence à variação vendável.</small></div><div class="action-cluster"><button type="button" class="secondary-button compact-button" (click)="useDefaultVariant()">Usar variação Padrão</button><button type="button" class="secondary-button compact-button" (click)="addRegistrationVariant()"><i class="pi pi-plus"></i>Adicionar</button></div></div>
+              <div class="wizard-list">
               @for (entry of registrationVariants; track $index; let index = $index) {
                 <div class="wizard-variant-row">
                   <label class="field"><span>Nome</span><input [name]="'variant-name-' + index" [(ngModel)]="entry.variant.name" maxlength="120" /></label>
@@ -166,11 +169,11 @@ type ProductManagementTab = 'INFORMATION' | 'VARIANTS' | 'CHOICES';
                   <button type="button" class="icon-button danger-icon" title="Remover variação" [attr.aria-label]="'Remover variação ' + entry.variant.name" (click)="removeRegistrationVariant(index)" [disabled]="registrationVariants.length === 1"><i class="pi pi-trash"></i></button>
                 </div>
               }
-            </div>
-          }
+              </div>
+            }
 
-          @if (wizardStep() === 3) {
-            <div class="wizard-optional-section">
+            @if (wizardStep() === 3) {
+              <div class="wizard-optional-section">
               <div class="form-section-title"><div><span>Estoque automático</span><small>Opcional. Disponível apenas para itens com baixa automática.</small></div></div>
               <div class="wizard-list compact-list">
                 @for (entry of registrationVariants; track $index; let index = $index) {
@@ -181,8 +184,8 @@ type ProductManagementTab = 'INFORMATION' | 'VARIANTS' | 'CHOICES';
                   </div>
                 }
               </div>
-            </div>
-            <div class="wizard-optional-section">
+              </div>
+              <div class="wizard-optional-section">
               <div class="form-section-title"><div><span>Grupos de escolhas</span><small>Opcional. Configure acompanhamentos, sabores ou outras decisões do cliente.</small></div><button type="button" class="ghost-button compact-button" (click)="addRegistrationGroup()"><i class="pi pi-plus"></i>Grupo</button></div>
               @for (group of registrationGroups; track $index; let groupIndex = $index) {
                 <section class="choice-editor">
@@ -192,11 +195,12 @@ type ProductManagementTab = 'INFORMATION' | 'VARIANTS' | 'CHOICES';
                   }
                   <button type="button" class="text-action" (click)="addRegistrationOption(group)"><i class="pi pi-plus"></i>Adicionar opção</button>
                 </section>
-              } @empty { <p class="form-helper">Este produto não exige escolhas adicionais.</p> }
-            </div>
-          }
+                } @empty { <p class="form-helper">Este produto não exige escolhas adicionais.</p> }
+              </div>
+            }
+          </div>
 
-          <div class="modal-actions wizard-actions">
+          <div class="modal-footer modal-actions wizard-actions">
             <button type="button" class="ghost-button" (click)="wizardStep() === 1 ? closeRegistration() : previousStep()">{{ wizardStep() === 1 ? 'Cancelar' : 'Voltar' }}</button>
             @if (wizardStep() < 3) { <button type="button" class="primary-button" (click)="nextStep()">Continuar<i class="pi pi-arrow-right"></i></button> }
             @else { <button type="submit" class="primary-button" [disabled]="saving()"><i class="pi pi-check"></i>{{ saving() ? 'Salvando...' : 'Concluir cadastro' }}</button> }
@@ -209,17 +213,18 @@ type ProductManagementTab = 'INFORMATION' | 'VARIANTS' | 'CHOICES';
       <div class="modal-backdrop" (click)="closeManagement()">
         <section class="modal-panel product-management-dialog" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="product-management-title" [dialogCloseDisabled]="saving()" (dialogClose)="closeManagement()" (click)="$event.stopPropagation()">
           <div class="modal-header product-management-header">
-            <div><span>{{ product.name }}</span><h2 id="product-management-title">Gerenciar produto</h2></div>
+            <div class="modal-heading"><span class="modal-eyebrow">{{ product.name }}</span><h2 id="product-management-title">Gerenciar produto</h2></div>
             <button type="button" class="icon-button" title="Fechar" aria-label="Fechar gerenciamento do produto" (click)="closeManagement()"><i class="pi pi-times"></i></button>
           </div>
 
-          <div class="segmented-control product-manager-tabs" aria-label="Seções do produto">
-            <button type="button" [class.active]="managementTab() === 'INFORMATION'" [attr.aria-pressed]="managementTab() === 'INFORMATION'" (click)="showManagementTab('INFORMATION')">Informações</button>
-            <button type="button" [class.active]="managementTab() === 'VARIANTS'" [attr.aria-pressed]="managementTab() === 'VARIANTS'" (click)="showManagementTab('VARIANTS')">Variações e estoque</button>
-            <button type="button" [class.active]="managementTab() === 'CHOICES'" [attr.aria-pressed]="managementTab() === 'CHOICES'" (click)="showManagementTab('CHOICES')">Escolhas</button>
-          </div>
+          <div class="modal-body product-management-body">
+            <div class="segmented-control product-manager-tabs" aria-label="Seções do produto">
+              <button type="button" [class.active]="managementTab() === 'INFORMATION'" [attr.aria-pressed]="managementTab() === 'INFORMATION'" (click)="showManagementTab('INFORMATION')">Informações</button>
+              <button type="button" [class.active]="managementTab() === 'VARIANTS'" [attr.aria-pressed]="managementTab() === 'VARIANTS'" (click)="showManagementTab('VARIANTS')">Variações e estoque</button>
+              <button type="button" [class.active]="managementTab() === 'CHOICES'" [attr.aria-pressed]="managementTab() === 'CHOICES'" (click)="showManagementTab('CHOICES')">Escolhas</button>
+            </div>
 
-          <div class="product-management-content" (scroll)="repositionVariantActionMenu()">
+            <div class="product-management-content" (scroll)="repositionVariantActionMenu()">
             @if (managementTab() === 'INFORMATION') {
               <div class="product-information-form">
                 <div class="content-heading"><div><span>Informações do produto</span><small>Dados exibidos no catálogo e no atendimento.</small></div></div>
@@ -300,9 +305,10 @@ type ProductManagementTab = 'INFORMATION' | 'VARIANTS' | 'CHOICES';
                 </form>
               </div>
             }
+            </div>
           </div>
 
-          <div class="modal-actions product-management-actions">
+          <div class="modal-footer modal-actions product-management-actions">
             @if (managementTab() === 'INFORMATION') {
               <button type="button" class="ghost-button" (click)="closeManagement()">Cancelar</button><button type="button" class="primary-button" [disabled]="saving()" (click)="saveEdit()"><i class="pi pi-save"></i>Salvar informações</button>
             } @else if (managementTab() === 'VARIANTS') {

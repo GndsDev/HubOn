@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MonthlyReport } from '../models/monthly-report.model';
-import { monthlyProductsCsv, monthlySummaryCsv } from './monthly-report-csv';
+import { AnnualReport, MonthlyReport } from '../models/monthly-report.model';
+import { annualProductsCsv, annualSummaryCsv, monthlyProductsCsv, monthlySummaryCsv } from './monthly-report-csv';
 
 const report: MonthlyReport = {
   year: 2026,
@@ -58,7 +58,51 @@ describe('monthly report CSV', () => {
     expect(csv).toContain('600 mL;Bebidas;1;40,00');
   });
 
+  it('preserves the product and variant order supplied by the interface', () => {
+    const secondProduct = {
+      ...report.products[0],
+      productName: 'Água',
+      variants: [{ variantName: 'Garrafa', quantity: 2, salesAmount: 50 }],
+    };
+    const csv = monthlyProductsCsv(report, [secondProduct, report.products[0]]);
+
+    expect(csv.indexOf('Água')).toBeLessThan(csv.indexOf('Coca-Cola'));
+    expect(csv.indexOf('Lata')).toBeLessThan(csv.indexOf('600 mL'));
+  });
+
   it('escapes cells containing the CSV separator', () => {
     expect(monthlyProductsCsv(report)).toContain('"Coca-Cola; Especial"');
+  });
+});
+
+describe('annual report CSV', () => {
+  const annual: AnnualReport = {
+    year: 2026,
+    periodLabel: 'Ano de 2026',
+    channel: 'ALL',
+    summary: report.summary,
+    comparison: { previousYearNetRevenue: 50, netRevenueDifference: 55, percentageChange: 110 },
+    products: report.products,
+    categories: report.categories,
+    paymentMethods: report.paymentMethods,
+    channels: report.channels,
+    monthly: [{ month: 1, monthLabel: 'Janeiro', closedTabs: 2, netRevenue: 105, averageTicket: 52.5 }],
+    cancellations: report.cancellations,
+  };
+
+  it('exports the annual summary and monthly consolidated series', () => {
+    const csv = annualSummaryCsv(annual);
+    expect(csv).toContain('Relatório anual;Ano de 2026');
+    expect(csv).toContain('Janeiro;2;105,00');
+  });
+
+  it('uses the product order supplied by the annual interface', () => {
+    const secondProduct = {
+      ...annual.products[0],
+      productName: 'Água',
+      variants: [{ variantName: 'Garrafa', quantity: 2, salesAmount: 50 }],
+    };
+    const csv = annualProductsCsv(annual, [secondProduct, annual.products[0]]);
+    expect(csv.indexOf('Água')).toBeLessThan(csv.indexOf('Coca-Cola'));
   });
 });
