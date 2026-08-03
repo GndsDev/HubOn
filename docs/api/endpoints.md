@@ -309,10 +309,15 @@ Status mais comuns:
 
 Os filtros de histórico são opcionais: `from`, `to`, `number`, `customer`, `status` e `operator`. O usuário responsável sempre vem do token. O backend deriva o canal do pedido a partir da comanda e calcula estados importantes com dados persistidos; a interface não é a fonte de verdade.
 
-## Relatório mensal
+## Relatórios
 
 | Método | Endpoint | Perfis | Descrição |
 | --- | --- | --- | --- |
 | GET | `/reports/monthly?year=2026&month=7&channel=ALL` | `OWNER`, `ADMIN` | Consolida vendas válidas pela data comercial de fechamento. |
+| GET | `/reports/annual?year=2026&channel=ALL` | `OWNER`, `ADMIN` | Consolida todo o ano e devolve a evolução dos doze meses. |
+| GET | `/reports/monthly/pdf?year=2026&month=7&channel=ALL` | `OWNER`, `ADMIN` | Gera o relatório mensal em PDF a partir do template Thymeleaf. |
+| GET | `/reports/annual/pdf?year=2026&channel=ALL` | `OWNER`, `ADMIN` | Gera o relatório anual em PDF a partir do template Thymeleaf. |
 
-`channel` aceita `ALL`, `TABLE` e `COUNTER`. Mês deve estar entre 1 e 12 e ano entre 2000 e 2100. A resposta é um DTO agregado com resumo, comparação, produtos/variações, categorias, pagamentos, canais, dias e cancelamentos.
+`channel` aceita `ALL`, `TABLE` e `COUNTER`. Mês deve estar entre 1 e 12 e ano entre 2000 e 2100. A resposta mensal agrega resumo, comparação, produtos/variações, categorias, pagamentos, canais, dias e cancelamentos. A resposta anual possui os mesmos totais consolidados, comparação com o ano anterior e a série `monthly` com os doze meses.
+
+Os PDFs retornam `application/pdf` com `Content-Disposition: attachment`. A ordem de produtos no documento é fixa: maior faturamento, maior quantidade em caso de empate e nome em português. Os parâmetros de apresentação `sort` e `direction` são exclusivos do frontend e não fazem parte desses contratos.
