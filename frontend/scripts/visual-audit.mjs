@@ -172,19 +172,70 @@ const monthlyReport = {
   year: 2026, month: 7, periodLabel: 'julho de 2026', channel: 'ALL',
   summary: { grossRevenue: 8420, serviceFees: 320, discounts: 180, netRevenue: 8240, receivedAmount: 8240, closedTabs: 186, orders: 194, itemsSold: 438, averageTicket: 44.3 },
   comparison: { previousMonthNetRevenue: 7600, netRevenueDifference: 640, percentageChange: 8.42 },
-  products: Array.from({ length: 14 }, (_, index) => ({
-    productName: index % 3 === 0 ? 'Coca-Cola' : `Produto ${index + 1}`,
-    categoryName: index % 3 === 0 ? 'Bebidas' : 'Pratos', quantity: 44 - index,
-    salesAmount: 920 - index * 42, revenueSharePercentage: 11 - index * 0.4,
-    variants: index % 3 === 0
-      ? [{ variantName: 'Lata', quantity: 25, salesAmount: 500 }, { variantName: '600 mL', quantity: 19, salesAmount: 420 }]
-      : [{ variantName: 'Padrão', quantity: 44 - index, salesAmount: 920 - index * 42 }],
-  })),
+  products: [
+    'Combo executivo com acompanhamento especial',
+    'Café coado',
+    'Açaí tradicional',
+    'Água mineral',
+    'Bolo de cenoura',
+    'Coca-Cola',
+    'Espetinho misto',
+    'Hambúrguer artesanal',
+    'Limonada suíça',
+    'Pão de queijo',
+    'Porção de fritas',
+    'Salada da casa',
+    'Suco de laranja',
+    'Torta de frango',
+  ].map((productName, index) => {
+    const quantity = index === 0 ? 12 : 44 - index;
+    const salesAmount = 920 - index * 42;
+    const smallerQuantity = Math.floor(quantity * 0.4);
+    const smallerAmount = Math.floor(salesAmount * 0.4);
+    return {
+      productName,
+      categoryName: index % 3 === 0 ? 'Bebidas' : 'Pratos',
+      quantity,
+      salesAmount,
+      revenueSharePercentage: 11 - index * 0.4,
+      variants: index % 3 === 0
+        ? [
+            { variantName: '600 mL', quantity: smallerQuantity, salesAmount: smallerAmount },
+            { variantName: 'Lata', quantity: quantity - smallerQuantity, salesAmount: salesAmount - smallerAmount },
+          ]
+        : [{ variantName: 'Padrão', quantity, salesAmount }],
+    };
+  }),
   categories: [{ categoryName: 'Pratos', quantity: 310, salesAmount: 6200, revenueSharePercentage: 75.24 }, { categoryName: 'Bebidas', quantity: 128, salesAmount: 2040, revenueSharePercentage: 24.76 }],
   paymentMethods: [{ method: 'PIX', payments: 102, amount: 4500, receivedSharePercentage: 54.61 }, { method: 'CREDIT_CARD', payments: 56, amount: 2700, receivedSharePercentage: 32.77 }, { method: 'CASH', payments: 28, amount: 1040, receivedSharePercentage: 12.62 }],
   channels: [{ channel: 'TABLE', closedTabs: 144, netRevenue: 6900, averageTicket: 47.92 }, { channel: 'COUNTER', closedTabs: 42, netRevenue: 1340, averageTicket: 31.9 }],
   daily: Array.from({ length: 18 }, (_, index) => ({ date: `2026-07-${String(index + 1).padStart(2, '0')}`, closedTabs: 8 + index % 5, netRevenue: 320 + index * 18, averageTicket: 42 })),
   cancellations: { cancelledOrders: 3, cancelledItems: 5, cancelledAmount: 145, mainReasons: [{ reason: 'Cliente desistiu', occurrences: 3 }, { reason: 'Item indisponível', occurrences: 2 }] },
+};
+const annualReport = {
+  year: 2026, periodLabel: 'Ano de 2026', channel: 'ALL',
+  summary: { grossRevenue: 92400, serviceFees: 3280, discounts: 1940, netRevenue: 93740, receivedAmount: 93740, closedTabs: 2180, orders: 2260, itemsSold: 5124, averageTicket: 43 },
+  comparison: { previousYearNetRevenue: 86400, netRevenueDifference: 7340, percentageChange: 8.5 },
+  products: monthlyReport.products.map((product, index) => ({
+    ...product,
+    quantity: product.quantity * 10 + index,
+    salesAmount: product.salesAmount * 10 + index * 25,
+  })),
+  categories: monthlyReport.categories,
+  paymentMethods: monthlyReport.paymentMethods,
+  channels: monthlyReport.channels,
+  monthly: [
+    ['Janeiro', 7200], ['Fevereiro', 6840], ['Março', 7550], ['Abril', 7900],
+    ['Maio', 8120], ['Junho', 7600], ['Julho', 8240], ['Agosto', 8450],
+    ['Setembro', 8010], ['Outubro', 8790], ['Novembro', 9020], ['Dezembro', 10020],
+  ].map(([monthLabel, netRevenue], index) => ({
+    month: index + 1,
+    monthLabel,
+    closedTabs: 160 + index * 4,
+    netRevenue,
+    averageTicket: 43,
+  })),
+  cancellations: { cancelledOrders: 18, cancelledItems: 23, cancelledAmount: 620, mainReasons: [{ reason: 'Cliente desistiu', occurrences: 12 }] },
 };
 
 function json(route, body, status = 200) {
@@ -192,6 +243,13 @@ function json(route, body, status = 200) {
 }
 
 async function mockApi(page) {
+  const state = {
+    monthlyReport,
+    annualReport,
+    reportDelayMs: 0,
+    reportError: false,
+    reportRequests: 0,
+  };
   await page.route('**:8080/api/**', async (route) => {
     const url = new URL(route.request().url());
     const apiPath = url.pathname.replace('/api', '');
@@ -213,7 +271,21 @@ async function mockApi(page) {
     }
     if (apiPath === '/tabs/counter' && method === 'POST') return json(route, draftTab, 201);
     if (apiPath === '/tabs/open') return json(route, tabs);
-    if (apiPath === '/reports/monthly') return json(route, monthlyReport);
+    if (/^\/tabs\/\d+$/.test(apiPath) && method === 'GET') {
+      return json(route, tabs.find((item) => item.id === Number(apiPath.split('/').at(-1))) ?? tableTab);
+    }
+    if (apiPath === '/reports/monthly') {
+      state.reportRequests += 1;
+      if (state.reportDelayMs) await new Promise((resolve) => setTimeout(resolve, state.reportDelayMs));
+      if (state.reportError) return json(route, { message: 'Não foi possível carregar o relatório de teste.' }, 500);
+      return json(route, state.monthlyReport);
+    }
+    if (apiPath === '/reports/annual') {
+      state.reportRequests += 1;
+      if (state.reportDelayMs) await new Promise((resolve) => setTimeout(resolve, state.reportDelayMs));
+      if (state.reportError) return json(route, { message: 'Não foi possível carregar o relatório de teste.' }, 500);
+      return json(route, state.annualReport);
+    }
     if (apiPath === '/cash-shifts/current' && method === 'GET') return json(route, cashShift);
     if (apiPath === '/cash-shifts/history' && method === 'GET') return json(route, []);
     if (/^\/cash-shifts\/\d+\/(movements|close)$/.test(apiPath) && method === 'POST') return json(route, cashShift);
@@ -234,6 +306,7 @@ async function mockApi(page) {
     if (apiPath === '/dashboard/summary') return json(route, { todaySales: 65, openTabs: 3, ordersInPreparation: 2, activeCounterSales: 2, readyOrders: 1, pendingPayments: 2, averageTicket: 32.5, bestSellingProducts: [], tableSummary: { available: 8, occupied: 1, reserved: 1, disabled: 0, total: 10 }, cashSummary: { received: 30, openAmount: 35, cancelledAmount: 0 }, recentOrders: [{ id: 88, tableNumber: null, originLabel: 'Balcão #104 - Ana', status: 'PREPARING', amount: 30, createdAt: now }, { id: 77, tableNumber: 12, originLabel: 'Mesa 12', status: 'SENT_TO_KITCHEN', amount: 35, createdAt: now }] });
     return json(route, {});
   });
+  return state;
 }
 
 async function viewportChecks(page, screen, viewport, theme) {
@@ -273,6 +346,19 @@ async function viewportChecks(page, screen, viewport, theme) {
         return style.display !== 'none' && style.visibility !== 'hidden' && box.width > 0
           && (box.left < -1 || box.right > innerWidth + 1);
       }).length;
+    const actionGroups = Array.from(document.querySelectorAll('.page-header > .page-header-actions'));
+    const actionItems = Array.from(actionGroups[0]?.children ?? [])
+      .filter((element) => {
+        const box = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return element.matches('button, a') && box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+      })
+      .map((element) => element.getBoundingClientRect())
+      .sort((left, right) => Math.abs(left.top - right.top) < 2 ? left.left - right.left : left.top - right.top);
+    const actionGaps = actionItems.slice(1)
+      .filter((box, index) => Math.abs(box.top - actionItems[index].top) < 2)
+      .map((box, index) => Math.round((box.left - actionItems[index].right) * 100) / 100);
+    const actionGroupBox = actionGroups[0]?.getBoundingClientRect();
     return {
       screen,
       viewport,
@@ -293,6 +379,14 @@ async function viewportChecks(page, screen, viewport, theme) {
       kitchenNavigationLinks: Array.from(document.querySelectorAll('a')).filter((link) => link.textContent?.trim() === 'Cozinha').length,
       startPreparationActions: Array.from(document.querySelectorAll('button, a')).filter((element) => element.textContent?.includes('Iniciar preparo')).length,
       paymentActionCount: Array.from(document.querySelectorAll('button')).filter((button) => /Registrar pagamento|Completar pagamento/.test(button.textContent ?? '')).length,
+      pageActions: actionGroups.length ? {
+        groupCount: actionGroups.length,
+        itemCount: actionItems.length,
+        gaps: actionGaps,
+        heightDelta: actionItems.length ? Math.max(...actionItems.map((box) => box.height)) - Math.min(...actionItems.map((box) => box.height)) : 0,
+        insideViewport: !!actionGroupBox && actionGroupBox.left >= -1 && actionGroupBox.right <= innerWidth + 1,
+        ungroupedActions: document.querySelectorAll('.page-header > button, .page-header > a').length,
+      } : null,
     };
   }, { screen, viewport, theme });
 }
@@ -322,6 +416,96 @@ async function openRoute(page, route, name) {
   await page.goto(`${baseUrl}${route}`, { waitUntil: 'networkidle' });
   await page.locator('h1').waitFor();
   await screenshot(page, name);
+}
+
+async function dialogMetrics(page, selector, screen, viewport, theme) {
+  return page.locator(selector).evaluate((panel, metadata) => {
+    const directRegion = (className) => Array.from(panel.children).find((child) => child.classList.contains(className));
+    const header = directRegion('modal-header');
+    const body = directRegion('modal-body');
+    const footer = directRegion('modal-footer');
+    const panelBox = panel.getBoundingClientRect();
+    const headerBox = header?.getBoundingClientRect();
+    const bodyBox = body?.getBoundingClientRect();
+    const footerBox = footer?.getBoundingClientRect();
+    const closeBox = header?.querySelector('.icon-button')?.getBoundingClientRect();
+    const bodyStyle = body ? getComputedStyle(body) : null;
+    const headerStyle = header ? getComputedStyle(header) : null;
+    const footerStyle = footer ? getComputedStyle(footer) : null;
+    const number = (value) => Number.parseFloat(value || '0');
+    return {
+      ...metadata,
+      regionCount: [header, body, footer].filter(Boolean).length,
+      panelInsideViewport: panelBox.left >= -1 && panelBox.top >= -1 && panelBox.right <= innerWidth + 1 && panelBox.bottom <= innerHeight + 1,
+      panelHorizontalOverflow: Math.max(0, panel.scrollWidth - panel.clientWidth),
+      panelVerticalOverflow: Math.max(0, panel.scrollHeight - panel.clientHeight),
+      bodyScrollable: !!body && body.scrollHeight > body.clientHeight + 1,
+      footerVisible: !!footerBox && footerBox.top >= 0 && footerBox.bottom <= innerHeight,
+      regionOverlap: !headerBox || !bodyBox || !footerBox
+        ? true
+        : headerBox.bottom > bodyBox.top + 1 || bodyBox.bottom > footerBox.top + 1,
+      safePadding: {
+        headerLeft: number(headerStyle?.paddingLeft),
+        headerRight: number(headerStyle?.paddingRight),
+        bodyLeft: number(bodyStyle?.paddingLeft),
+        bodyRight: number(bodyStyle?.paddingRight),
+        footerLeft: number(footerStyle?.paddingLeft),
+        footerRight: number(footerStyle?.paddingRight),
+      },
+      closeControl: closeBox ? { width: closeBox.width, height: closeBox.height, insideHeader: closeBox.left >= headerBox.left && closeBox.right <= headerBox.right && closeBox.top >= headerBox.top && closeBox.bottom <= headerBox.bottom } : null,
+    };
+  }, { screen, viewport, theme });
+}
+
+async function reportSortMetrics(page, screen, viewport, theme, requestDelta = 0) {
+  return page.evaluate(({ screen, viewport, theme, requestDelta }) => {
+    const container = document.querySelector('.report-product-sort');
+    const section = container?.closest('.section-card');
+    const criteria = Array.from(document.querySelectorAll('.report-sort-criteria button'));
+    const direction = document.querySelector('.report-sort-direction');
+    const controls = [...criteria, direction].filter(Boolean);
+    const boxes = controls.map((control) => control.getBoundingClientRect());
+    const productNames = Array.from(document.querySelectorAll('.report-product-row summary > strong'))
+      .map((element) => element.firstChild?.textContent?.trim() ?? '');
+    const params = new URL(location.href).searchParams;
+    const periodOptions = Array.from(document.querySelectorAll('.report-filters > .field:first-child .segmented-control button'))
+      .map((button) => ({
+        label: button.textContent?.trim() ?? '',
+        active: button.classList.contains('active'),
+        pressed: button.getAttribute('aria-pressed'),
+        background: getComputedStyle(button).backgroundColor,
+      }));
+    const activeChannel = document.querySelector('.report-channel-filter .segmented-control button.active');
+    const containerBox = container?.getBoundingClientRect();
+    const sectionBox = section?.getBoundingClientRect();
+    const overlaps = boxes.some((box, index) => boxes.slice(index + 1).some((other) => (
+      Math.max(0, Math.min(box.right, other.right) - Math.max(box.left, other.left))
+      * Math.max(0, Math.min(box.bottom, other.bottom) - Math.max(box.top, other.top)) > 1
+    )));
+    return {
+      screen,
+      viewport,
+      theme,
+      requestDelta,
+      countLabel: document.querySelector('.report-product-count')?.textContent?.trim() ?? '',
+      contextualLabel: document.querySelector('.report-product-sort-label')?.textContent?.trim() ?? '',
+      criterionCount: criteria.length,
+      activeCriterion: criteria.find((button) => button.getAttribute('aria-pressed') === 'true')?.textContent?.trim() ?? '',
+      activeCriterionCount: criteria.filter((button) => button.getAttribute('aria-pressed') === 'true').length,
+      directionText: direction?.textContent?.trim() ?? '',
+      directionAriaLabel: direction?.getAttribute('aria-label') ?? '',
+      announcement: document.querySelector('.report-product-sort [aria-live="polite"]')?.textContent?.trim() ?? '',
+      focusedControl: document.activeElement?.closest('.report-product-sort') ? document.activeElement.textContent?.trim() ?? '' : '',
+      productNames,
+      periodOptions,
+      activeChannelBackground: activeChannel ? getComputedStyle(activeChannel).backgroundColor : '',
+      query: { sort: params.get('sort'), direction: params.get('direction') },
+      controlsInsideSection: !!containerBox && !!sectionBox && containerBox.left >= sectionBox.left - 1 && containerBox.right <= sectionBox.right + 1,
+      clippedControls: controls.filter((control) => control.scrollWidth > control.clientWidth + 1 || control.scrollHeight > control.clientHeight + 1).length,
+      overlaps,
+      horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  }, { screen, viewport, theme, requestDelta });
 }
 
 async function overlayBounds(page, selector) {
@@ -384,7 +568,7 @@ for (const theme of ['dark', 'light']) {
       localStorage.setItem('hubon-theme', theme);
     }, { session, theme });
     const page = await context.newPage();
-    await mockApi(page);
+    const apiState = await mockApi(page);
     for (const [route, screen] of routes) {
       const name = `${screen}-${theme}-${viewport.label}`;
       await openRoute(page, route, name);
@@ -396,6 +580,69 @@ for (const theme of ['dark', 'light']) {
         results.push({ screen: 'sidebar-collapsed', viewport: viewport.label, theme, collapsedWidth });
         await screenshot(page, `sidebar-collapsed-${theme}-${viewport.label}`);
         await page.locator('.sidebar-toggle').click();
+      }
+      if (screen === 'reports') {
+        await page.waitForFunction(() => new URL(location.href).searchParams.get('sort') === 'REVENUE');
+        const reportRequestsBeforeSort = apiState.reportRequests;
+        results.push(await reportSortMetrics(page, 'report-sort-revenue', viewport.label, theme, apiState.reportRequests - reportRequestsBeforeSort));
+
+        const trigger = page.locator('.page-header-actions [aria-controls="report-export-menu"]');
+        await trigger.click();
+        await waitForOverlay(page, '.report-export-menu');
+        await screenshot(page, `reports-export-menu-${theme}-${viewport.label}`);
+        const menuItems = await page.locator('.report-export-menu [role="menuitem"]').allTextContents();
+        const firstItemFocused = await page.locator('.report-export-menu [role="menuitem"]').first().evaluate((element) => element === document.activeElement);
+        results.push({
+          screen: 'reports-export-menu',
+          viewport: viewport.label,
+          theme,
+          overlay: await overlayBounds(page, '.report-export-menu'),
+          menuItems: menuItems.map((item) => item.trim()),
+          firstItemFocused,
+        });
+        await page.keyboard.press('Escape');
+        await page.locator('.report-export-menu').waitFor({ state: 'detached' });
+        results.push({
+          screen: 'reports-export-focus-return',
+          viewport: viewport.label,
+          theme,
+          focusRestored: await trigger.evaluate((element) => element === document.activeElement),
+        });
+
+        await page.getByRole('button', { name: 'Quantidade', exact: true }).click();
+        await page.waitForFunction(() => new URL(location.href).searchParams.get('sort') === 'QUANTITY');
+        await page.waitForFunction(() => document.querySelector('.report-sort-criteria button[aria-pressed="true"]')?.textContent?.trim() === 'Quantidade');
+        results.push(await reportSortMetrics(page, 'report-sort-quantity', viewport.label, theme, apiState.reportRequests - reportRequestsBeforeSort));
+
+        await page.getByRole('button', { name: /Ordem decrescente/ }).click();
+        await page.waitForFunction(() => new URL(location.href).searchParams.get('direction') === 'ASC');
+        await page.waitForFunction(() => document.querySelector('.report-sort-direction')?.textContent?.trim() === 'Crescente');
+        results.push(await reportSortMetrics(page, 'report-sort-direction', viewport.label, theme, apiState.reportRequests - reportRequestsBeforeSort));
+
+        const nameSort = page.getByRole('button', { name: 'Nome', exact: true });
+        await nameSort.focus();
+        await page.keyboard.press('Enter');
+        await page.waitForFunction(() => new URL(location.href).searchParams.get('sort') === 'NAME');
+        await page.waitForFunction(() => document.querySelector('.report-sort-criteria button[aria-pressed="true"]')?.textContent?.trim() === 'Nome');
+        results.push(await reportSortMetrics(page, 'report-sort-name-keyboard', viewport.label, theme, apiState.reportRequests - reportRequestsBeforeSort));
+        await screenshot(page, `report-sort-name-${theme}-${viewport.label}`);
+
+        await page.getByRole('button', { name: 'Anual', exact: true }).click();
+        await page.getByRole('heading', { name: 'Relatório anual', exact: true }).waitFor({ state: 'visible' });
+        await page.waitForFunction(() => document.querySelector('.report-product-count')?.textContent?.includes('14 produtos'));
+        await page.waitForFunction(() => Array.from(document.querySelectorAll('.report-filters > .field:first-child button'))
+          .every((button) => button.getAnimations().every((animation) => animation.playState === 'finished')));
+        const reportRequestsBeforeAnnualSort = apiState.reportRequests;
+        results.push(await reportSortMetrics(page, 'report-sort-annual', viewport.label, theme, apiState.reportRequests - reportRequestsBeforeAnnualSort));
+        await screenshot(page, `report-sort-annual-${theme}-${viewport.label}`);
+      }
+      if (screen === 'tabs') {
+        await page.locator('.collection-card-button').first().click();
+        await page.locator('[aria-labelledby="tab-details-dialog-title"]').waitFor({ state: 'visible' });
+        await screenshot(page, `tab-details-${theme}-${viewport.label}`);
+        results.push(await dialogMetrics(page, '[aria-labelledby="tab-details-dialog-title"]', 'tab-details', viewport.label, theme));
+        await page.keyboard.press('Escape');
+        await page.locator('[aria-labelledby="tab-details-dialog-title"]').waitFor({ state: 'detached' });
       }
       if (screen === 'products' || screen === 'stock') {
         const menuSelector = screen === 'products' ? '.product-action-menu' : '.stock-action-menu';
@@ -423,6 +670,7 @@ for (const theme of ['dark', 'light']) {
         await page.getByRole('button', { name: 'Variações e estoque' }).click();
         await page.locator('.variant-manager-row').first().waitFor();
         await screenshot(page, `product-variants-new-${theme}-${viewport.label}`);
+        results.push(await dialogMetrics(page, '.product-management-dialog', 'product-management-dialog', viewport.label, theme));
         results.push(await page.evaluate(({ viewport, theme }) => {
           const dialog = document.querySelector('.product-management-dialog');
           const content = document.querySelector('.product-management-content');
@@ -515,7 +763,7 @@ for (const theme of ['dark', 'light']) {
     localStorage.setItem('hubon-theme', theme);
   }, { session, theme });
   const page = await context.newPage();
-  await mockApi(page);
+  const apiState = await mockApi(page);
 
   await page.goto(`${baseUrl}/produtos`, { waitUntil: 'networkidle' });
   const productTriggers = page.locator('.catalog-product-table .actions-trigger');
@@ -533,6 +781,7 @@ for (const theme of ['dark', 'light']) {
 
   await page.getByRole('button', { name: 'Novo produto' }).click();
   await screenshot(page, `product-wizard-step1-${theme}`);
+  results.push(await dialogMetrics(page, '.product-wizard-panel', 'product-wizard', '1440x900', theme));
   results.push(await page.evaluate((theme) => ({
     screen: 'product-wizard-flow',
     theme,
@@ -551,12 +800,14 @@ for (const theme of ['dark', 'light']) {
   results.push({ screen: 'orders-payment-duplication', theme, paymentActions: await page.getByRole('button', { name: /Registrar pagamento|Completar pagamento/ }).count() });
   await page.getByRole('button', { name: 'Novo pedido de mesa' }).click();
   await screenshot(page, `order-builder-${theme}`);
+  results.push(await dialogMetrics(page, '.order-builder-panel', 'order-builder', '1440x900', theme));
   await page.keyboard.press('Escape');
   await waitForDialogCleanup(page);
   await page.locator('.order-card .actions-trigger').first().click();
   await waitForOverlay(page, '.order-action-menu');
   await page.getByRole('menuitem', { name: 'Cancelar pedido' }).click();
   await screenshot(page, `order-cancel-${theme}`);
+  results.push(await dialogMetrics(page, '[aria-labelledby="cancel-title"]', 'order-cancel', '1440x900', theme));
   await page.keyboard.press('Escape');
 
   await page.goto(`${baseUrl}/comandas`, { waitUntil: 'networkidle' });
@@ -564,6 +815,7 @@ for (const theme of ['dark', 'light']) {
   await page.getByRole('button', { name: 'Registrar pagamento' }).click();
   await screenshot(page, `table-payment-${theme}`);
   results.push({ screen: 'table-payment', theme, overlay: await overlayBounds(page, '.payment-dialog') });
+  results.push(await dialogMetrics(page, '.payment-dialog', 'table-payment-dialog', '1440x900', theme));
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
 
@@ -571,23 +823,72 @@ for (const theme of ['dark', 'light']) {
   await page.getByRole('button', { name: 'Completar pagamento' }).click();
   await screenshot(page, `counter-partial-payment-${theme}`);
   results.push({ screen: 'counter-partial-payment', theme, overlay: await overlayBounds(page, '.payment-dialog') });
+  results.push(await dialogMetrics(page, '.payment-dialog', 'counter-payment-dialog', '1440x900', theme));
   await page.keyboard.press('Escape');
 
   await page.goto(`${baseUrl}/balcao/105`, { waitUntil: 'networkidle' });
   await page.locator('.counter-product').first().click();
   await screenshot(page, `counter-product-options-${theme}`);
   results.push({ screen: 'counter-product-options', theme, overlay: await overlayBounds(page, '.modal-panel') });
+  results.push(await dialogMetrics(page, '.modal-panel', 'counter-product-options-dialog', '1440x900', theme));
   await page.keyboard.press('Escape');
 
   await page.goto(`${baseUrl}/caixa`, { waitUntil: 'networkidle' });
   results.push({ screen: 'cashier-payment-duplication', theme, paymentActions: await page.getByRole('button', { name: /Registrar pagamento|Completar pagamento/ }).count() });
   await page.getByRole('button', { name: 'Registrar sangria' }).click();
   await screenshot(page, `cashier-withdrawal-${theme}`);
+  results.push(await dialogMetrics(page, '[aria-labelledby="cash-movement-title"]', 'cashier-withdrawal-dialog', '1440x900', theme));
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Fechar caixa' }).click();
   await screenshot(page, `cashier-closing-${theme}`);
   results.push({ screen: 'cashier-closing', theme, overlay: await overlayBounds(page, '.modal-panel') });
+  results.push(await dialogMetrics(page, '[aria-labelledby="cash-close-title"]', 'cashier-closing-dialog', '1440x900', theme));
   await page.keyboard.press('Escape');
+
+  const tiedProducts = [
+    { ...monthlyReport.products[0], productName: 'Bolo', quantity: 10, salesAmount: 100 },
+    { ...monthlyReport.products[1], productName: 'Água', quantity: 10, salesAmount: 100 },
+    { ...monthlyReport.products[2], productName: 'Açaí', quantity: 10, salesAmount: 100 },
+  ];
+  const reportSortScenarios = [
+    { name: 'report-sort-zero', products: [] },
+    { name: 'report-sort-one', products: monthlyReport.products.slice(0, 1) },
+    { name: 'report-sort-two', products: monthlyReport.products.slice(0, 2) },
+    { name: 'report-sort-ties', products: tiedProducts },
+    { name: 'report-sort-long', products: monthlyReport.products },
+  ];
+  for (const scenario of reportSortScenarios) {
+    apiState.monthlyReport = { ...monthlyReport, products: scenario.products };
+    await page.goto(`${baseUrl}/relatorios`, { waitUntil: 'networkidle' });
+    await page.locator('.report-product-sort').waitFor({ state: 'visible' });
+    await page.waitForFunction(() => new URL(location.href).searchParams.get('sort') === 'REVENUE');
+    await page.locator('.report-product-sort').scrollIntoViewIfNeeded();
+    await screenshot(page, `${scenario.name}-${theme}`);
+    results.push(await reportSortMetrics(page, scenario.name, '1440x900', theme));
+  }
+  apiState.monthlyReport = monthlyReport;
+
+  apiState.reportDelayMs = 800;
+  await page.goto(`${baseUrl}/relatorios`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.report-loading').waitFor({ state: 'visible' });
+  await screenshot(page, `monthly-report-loading-${theme}`);
+  results.push(await viewportChecks(page, 'reports-loading', '1440x900', theme));
+  await page.locator('.report-metrics').waitFor({ state: 'visible' });
+  apiState.reportDelayMs = 0;
+
+  apiState.monthlyReport = { ...monthlyReport, summary: { ...monthlyReport.summary, closedTabs: 0 } };
+  await page.goto(`${baseUrl}/relatorios`, { waitUntil: 'networkidle' });
+  await page.locator('.empty-panel').waitFor({ state: 'visible' });
+  await screenshot(page, `monthly-report-empty-${theme}`);
+  results.push(await viewportChecks(page, 'reports-empty', '1440x900', theme));
+
+  apiState.reportError = true;
+  await page.goto(`${baseUrl}/relatorios`, { waitUntil: 'networkidle' });
+  await page.locator('.error-panel').waitFor({ state: 'visible' });
+  await screenshot(page, `monthly-report-error-${theme}`);
+  results.push(await viewportChecks(page, 'reports-error', '1440x900', theme));
+  apiState.reportError = false;
+  apiState.monthlyReport = monthlyReport;
 
   await page.goto(`${baseUrl}/relatorios`, { waitUntil: 'networkidle' });
   await page.locator('.report-product-row').first().click();
@@ -611,6 +912,7 @@ for (const theme of ['dark', 'light']) {
   await waitForOverlay(page, '.stock-action-menu');
   await page.getByRole('menuitem', { name: 'Saída' }).click();
   await screenshot(page, `stock-manual-exit-${theme}`);
+  results.push(await dialogMetrics(page, '[aria-labelledby="movement-dialog-title"]', 'stock-manual-exit-dialog', '1440x900', theme));
 
   await context.close();
 }
@@ -618,10 +920,65 @@ for (const theme of ['dark', 'light']) {
 await browser.close();
 await writeFile(path.join(outputDir, 'audit-results.json'), JSON.stringify(results, null, 2));
 
+function invalidReportSortResult(result) {
+  if (!result.screen?.startsWith('report-sort-')) return false;
+  if (!result.controlsInsideSection || result.clippedControls > 0 || result.overlaps || result.requestDelta > 0) return true;
+
+  const expectations = {
+    'report-sort-zero': { count: 'Nenhum produto vendido no período', controls: 0 },
+    'report-sort-one': { count: '1 produto no período', controls: 0 },
+    'report-sort-two': { count: '2 produtos no período', controls: 3 },
+    'report-sort-ties': { count: '3 produtos no período', controls: 3 },
+    'report-sort-long': { count: '14 produtos no período', controls: 3 },
+    'report-sort-revenue': { count: '14 produtos no período', controls: 3, active: 'Faturamento', direction: 'Decrescente', sort: 'REVENUE', queryDirection: 'DESC' },
+    'report-sort-quantity': { count: '14 produtos no período', controls: 3, active: 'Quantidade', direction: 'Decrescente', sort: 'QUANTITY', queryDirection: 'DESC' },
+    'report-sort-direction': { count: '14 produtos no período', controls: 3, active: 'Quantidade', direction: 'Crescente', sort: 'QUANTITY', queryDirection: 'ASC' },
+    'report-sort-name-keyboard': { count: '14 produtos no período', controls: 3, active: 'Nome', direction: 'Crescente', sort: 'NAME', queryDirection: 'ASC' },
+    'report-sort-annual': { count: '14 produtos no período', controls: 3, active: 'Nome', direction: 'Crescente', sort: 'NAME', queryDirection: 'ASC' },
+  }[result.screen];
+  if (!expectations || result.countLabel !== expectations.count || result.criterionCount !== expectations.controls) return true;
+  if (expectations.controls === 0) return result.activeCriterionCount !== 0 || result.directionText !== '';
+  if (result.contextualLabel !== 'Ordenar produtos por' || result.activeCriterionCount !== 1
+    || !result.directionAriaLabel.startsWith('Ordem ') || !result.announcement.startsWith('Produtos ordenados por ')) return true;
+  if (expectations.active && (result.activeCriterion !== expectations.active
+    || result.directionText !== expectations.direction
+    || result.query.sort !== expectations.sort
+    || result.query.direction !== expectations.queryDirection)) return true;
+  if (result.screen === 'report-sort-ties' && result.productNames.join('|') !== 'Açaí|Água|Bolo') return true;
+  if (result.screen === 'report-sort-name-keyboard' && result.focusedControl !== 'Nome') return true;
+  if (result.screen === 'report-sort-revenue' && result.periodOptions?.find((option) => option.label === 'Mensal')?.active !== true) return true;
+  if (result.screen === 'report-sort-annual') {
+    const annual = result.periodOptions?.find((option) => option.label === 'Anual');
+    const monthly = result.periodOptions?.find((option) => option.label === 'Mensal');
+    if (!annual?.active || annual.pressed !== 'true' || monthly?.active || monthly?.pressed !== 'false'
+      || annual.background !== result.activeChannelBackground) return true;
+  }
+  return false;
+}
+
 const failures = results.filter((result) => result.horizontalOverflow > 1
   || result.overlaps
   || result.openDialogs > 1
   || result.overlay?.insideViewport === false
+  || (result.pageActions && (result.pageActions.groupCount !== 1
+    || result.pageActions.ungroupedActions > 0
+    || !result.pageActions.insideViewport
+    || result.pageActions.heightDelta > 1
+    || result.pageActions.gaps.some((gap) => gap < 8 || gap > 13)))
+  || (result.screen === 'reports-export-menu' && (!result.firstItemFocused
+    || result.menuItems?.join('|') !== 'Exportar resumo CSV|Exportar produtos CSV'))
+  || (result.screen === 'reports-export-focus-return' && !result.focusRestored)
+  || invalidReportSortResult(result)
+  || (result.regionCount != null && (result.regionCount !== 3
+    || !result.panelInsideViewport
+    || result.panelHorizontalOverflow > 1
+    || result.panelVerticalOverflow > 1
+    || !result.footerVisible
+    || result.regionOverlap
+    || Object.values(result.safePadding ?? {}).some((padding) => padding < 20)
+    || !result.closeControl?.insideHeader
+    || Math.abs(result.closeControl.width - 40) > 1
+    || Math.abs(result.closeControl.height - 40) > 1))
   || result.kitchenNavigationLinks > 0
   || result.startPreparationActions > 0
   || ((result.screen === 'orders' || result.screen === 'cashier') && result.paymentActionCount > 0)
