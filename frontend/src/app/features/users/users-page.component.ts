@@ -36,10 +36,12 @@ interface RoleOption {
       title="Usuários"
       description="Cadastre operadores conforme a hierarquia de perfis do restaurante."
     >
-      <button type="button" class="primary-button" [disabled]="!canCreateUsers()" (click)="openCreate()">
-        <i class="pi pi-user-plus"></i>
-        Novo usuário
-      </button>
+      <div page-actions class="page-header-actions">
+        <button type="button" class="primary-button" [disabled]="!canCreateUsers()" (click)="openCreate()">
+          <i class="pi pi-user-plus"></i>
+          Novo usuário
+        </button>
+      </div>
     </app-page-header>
 
     <app-section-card eyebrow="API local" title="Usuários cadastrados">
@@ -117,8 +119,8 @@ interface RoleOption {
           (ngSubmit)="create()"
         >
           <div class="modal-header">
-            <div>
-              <span>Permissões</span>
+            <div class="modal-heading">
+              <span class="modal-eyebrow">Permissões</span>
               <h2 id="user-form-dialog-title">Novo usuário</h2>
             </div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeCreate()">
@@ -126,34 +128,36 @@ interface RoleOption {
             </button>
           </div>
 
-          <div class="form-grid">
-            <label class="field full">
-              <span>Nome</span>
-              <input name="name" [(ngModel)]="form.name" maxlength="120" required autofocus />
-            </label>
-            <label class="field full">
-              <span>E-mail</span>
-              <input name="email" type="email" [(ngModel)]="form.email" maxlength="160" required />
-            </label>
-            <label class="field">
-              <span>Senha inicial</span>
-              <input name="password" type="password" [(ngModel)]="form.password" minlength="6" required />
-            </label>
-            <label class="field">
-              <span>Perfil</span>
-              <select name="role" [(ngModel)]="form.role">
-                @for (role of roleOptions(); track role.value) {
-                  <option [value]="role.value">{{ role.label }}</option>
-                }
-              </select>
-            </label>
-            <label class="toggle-field full">
-              <input name="active" type="checkbox" [(ngModel)]="form.active" />
-              <span>Usuário ativo</span>
-            </label>
+          <div class="modal-body">
+            <div class="form-grid">
+              <label class="field full">
+                <span>Nome</span>
+                <input name="name" [(ngModel)]="form.name" maxlength="120" required autofocus />
+              </label>
+              <label class="field full">
+                <span>E-mail</span>
+                <input name="email" type="email" [(ngModel)]="form.email" maxlength="160" required />
+              </label>
+              <label class="field">
+                <span>Senha inicial</span>
+                <input name="password" type="password" [(ngModel)]="form.password" minlength="6" required />
+              </label>
+              <label class="field">
+                <span>Perfil</span>
+                <select name="role" [(ngModel)]="form.role">
+                  @for (role of roleOptions(); track role.value) {
+                    <option [value]="role.value">{{ role.label }}</option>
+                  }
+                </select>
+              </label>
+              <label class="toggle-field full">
+                <input name="active" type="checkbox" [(ngModel)]="form.active" />
+                <span>Usuário ativo</span>
+              </label>
+            </div>
           </div>
 
-          <div class="modal-actions">
+          <div class="modal-footer modal-actions">
             <button type="button" class="ghost-button" (click)="closeCreate()">Cancelar</button>
             <button type="submit" class="primary-button" [disabled]="saving()">
               <i class="pi pi-check"></i>

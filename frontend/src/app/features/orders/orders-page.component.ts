@@ -36,7 +36,9 @@ type OrderFilter = 'ALL' | 'WAITING_PAYMENT' | 'IN_PREPARATION' | 'READY' | 'DEL
   imports: [CommonModule, FormsModule, RouterLink, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent, AccessibleDialogDirective, BodyPortalDirective],
   template: `
     <app-page-header kicker="Operação" title="Pedidos" description="Consulte a origem, o andamento e a próxima ação de cada pedido.">
-      @if (!kitchenOnly()) { <button type="button" class="primary-button" (click)="openCreate()"><i class="pi pi-shopping-cart"></i>Novo pedido de mesa</button> }
+      <div page-actions class="page-header-actions">
+        @if (!kitchenOnly()) { <button type="button" class="primary-button" (click)="openCreate()"><i class="pi pi-shopping-cart"></i>Novo pedido de mesa</button> }
+      </div>
     </app-page-header>
 
     <app-section-card eyebrow="Fluxo de venda" title="Pedidos do turno">
@@ -101,37 +103,39 @@ type OrderFilter = 'ALL' | 'WAITING_PAYMENT' | 'IN_PREPARATION' | 'READY' | 'DEL
     @if (formOpen()) {
       <div class="modal-backdrop" (click)="closeForm()">
         <form class="modal-panel wide order-builder-panel" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="order-dialog-title" [dialogCloseDisabled]="saving()" (dialogClose)="closeForm()" (click)="$event.stopPropagation()" (ngSubmit)="saveDraft()">
-          <div class="modal-header"><div><span>Venda</span><h2 id="order-dialog-title">{{ editingOrder() ? 'Editar pedido' : 'Novo pedido' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="closeForm()"><i class="pi pi-times"></i></button></div>
-          <div class="form-grid"><label class="field full"><span>Comanda aberta</span><select name="tabId" [(ngModel)]="form.tabId" [disabled]="!!editingOrder()" required autofocus>@for (tab of tableTabs; track tab.id) { <option [ngValue]="tab.id">#{{ tab.id }} · {{ tab.displayLabel }}</option> }</select></label><label class="field full"><span>Observação geral</span><textarea name="notes" [(ngModel)]="form.notes" maxlength="500"></textarea></label></div>
-          <div class="form-section-title"><div><span>Itens do pedido</span><small>Preço e disponibilidade são validados pelo sistema.</small></div><button type="button" class="ghost-button compact-button" (click)="addItem()"><i class="pi pi-plus"></i>Adicionar item</button></div>
-          <div class="order-builder-items">
-            @for (item of form.items; track $index; let index = $index) {
-              <section class="order-builder-item">
-                <div class="order-builder-main">
-                  <label class="field"><span>Produto</span><select [name]="'product-' + index" [(ngModel)]="item.productId" (ngModelChange)="onProductChange(item, $event)"><option [ngValue]="0" disabled>Selecione</option>@for (product of products(); track product.id) { <option [ngValue]="product.id">{{ product.name }} · {{ priceSummary(product) }}</option> }</select></label>
-                  @if (activeVariants(item.productId).length > 1) { <label class="field"><span>Variação</span><select [name]="'variant-' + index" [(ngModel)]="item.variantId" (ngModelChange)="item.optionIds = []"><option [ngValue]="0" disabled>Selecione</option>@for (variant of activeVariants(item.productId); track variant.id) { <option [ngValue]="variant.id">{{ variant.name }} · {{ currency(variant.price) }}</option> }</select></label> }
-                  @else if (selectedVariant(item); as variant) { <div class="selected-variant"><span>Variação</span><strong>{{ variantLabel(variant) }}</strong><small>{{ currency(variant.price) }}</small></div> }
-                  <label class="field quantity-field"><span>Qtd.</span><input [name]="'quantity-' + index" type="number" min="1" [(ngModel)]="item.quantity" /></label>
-                  <label class="field"><span>Observação</span><input [name]="'notes-' + index" [(ngModel)]="item.notes" placeholder="Ex.: sem cebola" /></label>
-                  <button type="button" class="icon-button danger-icon" title="Remover item" (click)="removeItem(index)" [disabled]="form.items.length === 1"><i class="pi pi-trash"></i></button>
-                </div>
-                @if (optionGroups(item.productId).length) {
-                  <div class="order-choice-groups">
-                    @for (group of optionGroups(item.productId); track group.id) {
-                      <fieldset class="order-choice-group"><legend>{{ group.name }} @if (group.required) { <small>Obrigatório</small> }</legend><div class="choice-pills">@for (option of activeOptions(group); track option.id) { <label [class.selected]="item.optionIds.includes(option.id)"><input [type]="group.maximumSelections === 1 ? 'radio' : 'checkbox'" [name]="'choice-' + index + '-' + group.id" [checked]="item.optionIds.includes(option.id)" (change)="toggleOption(item, group, option.id)" /><span>{{ option.name }} @if (option.additionalPrice) { <small>+ {{ currency(option.additionalPrice) }}</small> }</span></label> }</div><small>Escolha de {{ group.minimumSelections }} a {{ group.maximumSelections }}.</small></fieldset>
-                    }
+          <div class="modal-header"><div class="modal-heading"><span class="modal-eyebrow">Venda</span><h2 id="order-dialog-title">{{ editingOrder() ? 'Editar pedido' : 'Novo pedido' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="closeForm()"><i class="pi pi-times"></i></button></div>
+          <div class="modal-body order-builder-body">
+            <div class="form-grid"><label class="field full"><span>Comanda aberta</span><select name="tabId" [(ngModel)]="form.tabId" [disabled]="!!editingOrder()" required autofocus>@for (tab of tableTabs; track tab.id) { <option [ngValue]="tab.id">#{{ tab.id }} · {{ tab.displayLabel }}</option> }</select></label><label class="field full"><span>Observação geral</span><textarea name="notes" [(ngModel)]="form.notes" maxlength="500"></textarea></label></div>
+            <div class="form-section-title"><div><span>Itens do pedido</span><small>Preço e disponibilidade são validados pelo sistema.</small></div><button type="button" class="secondary-button compact-button" (click)="addItem()"><i class="pi pi-plus"></i>Adicionar item</button></div>
+            <div class="order-builder-items">
+              @for (item of form.items; track $index; let index = $index) {
+                <section class="order-builder-item">
+                  <div class="order-builder-main">
+                    <label class="field"><span>Produto</span><select [name]="'product-' + index" [(ngModel)]="item.productId" (ngModelChange)="onProductChange(item, $event)"><option [ngValue]="0" disabled>Selecione</option>@for (product of products(); track product.id) { <option [ngValue]="product.id">{{ product.name }} · {{ priceSummary(product) }}</option> }</select></label>
+                    @if (activeVariants(item.productId).length > 1) { <label class="field"><span>Variação</span><select [name]="'variant-' + index" [(ngModel)]="item.variantId" (ngModelChange)="item.optionIds = []"><option [ngValue]="0" disabled>Selecione</option>@for (variant of activeVariants(item.productId); track variant.id) { <option [ngValue]="variant.id">{{ variant.name }} · {{ currency(variant.price) }}</option> }</select></label> }
+                    @else if (selectedVariant(item); as variant) { <div class="selected-variant"><span>Variação</span><strong>{{ variantLabel(variant) }}</strong><small>{{ currency(variant.price) }}</small></div> }
+                    <label class="field quantity-field"><span>Qtd.</span><input [name]="'quantity-' + index" type="number" min="1" [(ngModel)]="item.quantity" /></label>
+                    <label class="field"><span>Observação</span><input [name]="'notes-' + index" [(ngModel)]="item.notes" placeholder="Ex.: sem cebola" /></label>
+                    <button type="button" class="icon-button danger-icon" title="Remover item" aria-label="Remover item" (click)="removeItem(index)" [disabled]="form.items.length === 1"><i class="pi pi-trash"></i></button>
                   </div>
-                }
-              </section>
-            }
+                  @if (optionGroups(item.productId).length) {
+                    <div class="order-choice-groups">
+                      @for (group of optionGroups(item.productId); track group.id) {
+                        <fieldset class="order-choice-group"><legend>{{ group.name }} @if (group.required) { <small>Obrigatório</small> }</legend><div class="choice-pills">@for (option of activeOptions(group); track option.id) { <label [class.selected]="item.optionIds.includes(option.id)"><input [type]="group.maximumSelections === 1 ? 'radio' : 'checkbox'" [name]="'choice-' + index + '-' + group.id" [checked]="item.optionIds.includes(option.id)" (change)="toggleOption(item, group, option.id)" /><span>{{ option.name }} @if (option.additionalPrice) { <small>+ {{ currency(option.additionalPrice) }}</small> }</span></label> }</div><small>Escolha de {{ group.minimumSelections }} a {{ group.maximumSelections }}.</small></fieldset>
+                      }
+                    </div>
+                  }
+                </section>
+              }
+            </div>
           </div>
-          <div class="modal-actions"><button type="button" class="ghost-button" (click)="closeForm()">Cancelar</button><button type="submit" class="primary-button" [disabled]="saving()"><i class="pi pi-save"></i>{{ saving() ? 'Salvando...' : 'Salvar rascunho' }}</button></div>
+          <div class="modal-footer modal-actions"><button type="button" class="ghost-button" (click)="closeForm()">Cancelar</button><button type="submit" class="primary-button" [disabled]="saving()"><i class="pi pi-save"></i>{{ saving() ? 'Salvando...' : 'Salvar rascunho' }}</button></div>
         </form>
       </div>
     }
 
     @if (cancelOpen()) {
-      <div class="modal-backdrop" (click)="closeCancel()"><form class="modal-panel compact" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="cancel-title" [dialogCloseDisabled]="saving()" (dialogClose)="closeCancel()" (click)="$event.stopPropagation()" (ngSubmit)="confirmCancellation()"><div class="modal-header"><div><span>Auditoria</span><h2 id="cancel-title">{{ cancelItem() ? 'Cancelar item' : 'Cancelar pedido' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="closeCancel()"><i class="pi pi-times"></i></button></div><label class="field"><span>Motivo</span><textarea name="cancelReason" [(ngModel)]="cancelReason" maxlength="500" required autofocus></textarea></label><div class="modal-actions"><button type="button" class="ghost-button" (click)="closeCancel()">Voltar</button><button type="submit" class="danger-button" [disabled]="saving()"><i class="pi pi-times"></i>Confirmar cancelamento</button></div></form></div>
+      <div class="modal-backdrop" (click)="closeCancel()"><form class="modal-panel compact" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="cancel-title" [dialogCloseDisabled]="saving()" (dialogClose)="closeCancel()" (click)="$event.stopPropagation()" (ngSubmit)="confirmCancellation()"><div class="modal-header"><div class="modal-heading"><span class="modal-eyebrow">Auditoria</span><h2 id="cancel-title">{{ cancelItem() ? 'Cancelar item' : 'Cancelar pedido' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="closeCancel()"><i class="pi pi-times"></i></button></div><div class="modal-body"><label class="field"><span>Motivo</span><textarea name="cancelReason" [(ngModel)]="cancelReason" maxlength="500" required autofocus></textarea></label></div><div class="modal-footer modal-actions"><button type="button" class="ghost-button" (click)="closeCancel()">Voltar</button><button type="submit" class="danger-button" [disabled]="saving()"><i class="pi pi-times"></i>Confirmar cancelamento</button></div></form></div>
     }
   `,
 })

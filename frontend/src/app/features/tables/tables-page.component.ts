@@ -22,7 +22,9 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
   imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, StatusBadgeComponent, AccessibleDialogDirective],
   template: `
     <app-page-header kicker="Mapa do salão" title="Mesas" description="Acompanhe disponibilidade e abra comandas diretamente pelo salão.">
-      <button type="button" class="primary-button" (click)="openCreate()"><i class="pi pi-plus"></i>Nova mesa</button>
+      <div page-actions class="page-header-actions">
+        <button type="button" class="primary-button" (click)="openCreate()"><i class="pi pi-plus"></i>Nova mesa</button>
+      </div>
     </app-page-header>
 
     <div class="table-filter-bar">
@@ -111,20 +113,22 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
           (ngSubmit)="saveTable()"
         >
           <div class="modal-header">
-            <div><span>Salão</span><h2 id="table-form-dialog-title">{{ editing() ? 'Editar mesa' : 'Nova mesa' }}</h2></div>
+            <div class="modal-heading"><span class="modal-eyebrow">Salão</span><h2 id="table-form-dialog-title">{{ editing() ? 'Editar mesa' : 'Nova mesa' }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeAll()"><i class="pi pi-times"></i></button>
           </div>
-          <div class="form-grid">
-            <label class="field"><span>Número</span><input name="number" type="number" min="1" [(ngModel)]="tableForm.number" required autofocus /></label>
-            <label class="field"><span>Nome</span><input name="name" [(ngModel)]="tableForm.name" maxlength="80" /></label>
-            <label class="field">
-              <span>Status</span>
-              <select name="status" [(ngModel)]="tableForm.status">
-                @for (status of tableStatuses; track status) { <option [value]="status">{{ statusLabel(status) }}</option> }
-              </select>
-            </label>
+          <div class="modal-body">
+            <div class="form-grid">
+              <label class="field"><span>Número</span><input name="number" type="number" min="1" [(ngModel)]="tableForm.number" required autofocus /></label>
+              <label class="field"><span>Nome</span><input name="name" [(ngModel)]="tableForm.name" maxlength="80" /></label>
+              <label class="field">
+                <span>Status</span>
+                <select name="status" [(ngModel)]="tableForm.status">
+                  @for (status of tableStatuses; track status) { <option [value]="status">{{ statusLabel(status) }}</option> }
+                </select>
+              </label>
+            </div>
           </div>
-          <div class="modal-actions">
+          <div class="modal-footer modal-actions">
             <button type="button" class="ghost-button" (click)="closeAll()">Cancelar</button>
             <button type="submit" class="primary-button" [disabled]="saving()"><i class="pi pi-check"></i>{{ saving() ? 'Salvando...' : 'Salvar mesa' }}</button>
           </div>
@@ -146,14 +150,16 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
           (ngSubmit)="openTab()"
         >
           <div class="modal-header">
-            <div><span>Atendimento</span><h2 id="open-tab-dialog-title">Abrir comanda · Mesa {{ table.number }}</h2></div>
+            <div class="modal-heading"><span class="modal-eyebrow">Atendimento</span><h2 id="open-tab-dialog-title">Abrir comanda · Mesa {{ table.number }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeAll()"><i class="pi pi-times"></i></button>
           </div>
-          <div class="form-grid">
-            <label class="field"><span>Taxa de serviço</span><input name="serviceFee" type="number" min="0" step="0.01" [(ngModel)]="tabForm.serviceFee" autofocus /></label>
-            <label class="field"><span>Desconto</span><input name="discount" type="number" min="0" step="0.01" [(ngModel)]="tabForm.discountAmount" /></label>
+          <div class="modal-body">
+            <div class="form-grid">
+              <label class="field"><span>Taxa de serviço</span><input name="serviceFee" type="number" min="0" step="0.01" [(ngModel)]="tabForm.serviceFee" autofocus /></label>
+              <label class="field"><span>Desconto</span><input name="discount" type="number" min="0" step="0.01" [(ngModel)]="tabForm.discountAmount" /></label>
+            </div>
           </div>
-          <div class="modal-actions">
+          <div class="modal-footer modal-actions">
             <button type="button" class="ghost-button" (click)="closeAll()">Cancelar</button>
             <button type="submit" class="primary-button" [disabled]="saving()"><i class="pi pi-receipt"></i>Abrir comanda</button>
           </div>
@@ -173,16 +179,18 @@ type TableFilter = 'ALL' | RestaurantTableStatus;
           (click)="$event.stopPropagation()"
         >
           <div class="modal-header">
-            <div><span>Comanda atual</span><h2 id="current-tab-dialog-title">#{{ tab.id }} · Mesa {{ tab.tableNumber }}</h2></div>
+            <div class="modal-heading"><span class="modal-eyebrow">Comanda atual</span><h2 id="current-tab-dialog-title">#{{ tab.id }} · Mesa {{ tab.tableNumber }}</h2></div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeAll()"><i class="pi pi-times"></i></button>
           </div>
-          <div class="detail-grid">
-            <div><span>Total</span><strong>{{ currency(tab.finalAmount) }}</strong></div>
-            <div><span>Pago</span><strong>{{ currency(tab.paidAmount) }}</strong></div>
-            <div><span>Restante</span><strong>{{ currency(tab.remainingAmount) }}</strong></div>
-            <div><span>Responsável</span><strong>{{ tab.openedByUserName }}</strong></div>
+          <div class="modal-body">
+            <div class="detail-grid">
+              <div><span>Total</span><strong>{{ currency(tab.finalAmount) }}</strong></div>
+              <div><span>Pago</span><strong>{{ currency(tab.paidAmount) }}</strong></div>
+              <div><span>Restante</span><strong>{{ currency(tab.remainingAmount) }}</strong></div>
+              <div><span>Responsável</span><strong>{{ tab.openedByUserName }}</strong></div>
+            </div>
           </div>
-          <div class="modal-actions"><button type="button" class="primary-button" (click)="closeAll()">Entendi</button></div>
+          <div class="modal-footer modal-actions"><button type="button" class="primary-button" (click)="closeAll()">Entendi</button></div>
         </section>
       </div>
     }

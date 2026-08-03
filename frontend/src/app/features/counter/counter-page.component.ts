@@ -64,9 +64,11 @@ type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
         title="Balcão"
         description="Acompanhe cada venda até o pagamento, a entrega e o fechamento."
       >
-        <button type="button" class="primary-button" (click)="startSale()" [disabled]="saving()">
-          <i class="pi pi-plus"></i>{{ saving() ? 'Abrindo...' : 'Nova venda no balcão' }}
-        </button>
+        <div page-actions class="page-header-actions">
+          <button type="button" class="primary-button" (click)="startSale()" [disabled]="saving()">
+            <i class="pi pi-plus"></i>{{ saving() ? 'Abrindo...' : 'Nova venda no balcão' }}
+          </button>
+        </div>
       </app-page-header>
 
       @if (loading()) {
@@ -171,10 +173,12 @@ type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
         [title]="summary()?.displayLabel || 'Carregando atendimento'"
         [description]="detailDescription()"
       >
-        <a class="ghost-button" routerLink="/balcao"><i class="pi pi-arrow-left"></i>Atendimentos</a>
-        <button type="button" class="icon-button" aria-label="Atualizar atendimento" title="Atualizar" (click)="refreshDetail()" [disabled]="saving()">
-          <i class="pi pi-refresh"></i>
-        </button>
+        <div page-actions class="page-header-actions">
+          <a class="secondary-button" routerLink="/balcao"><i class="pi pi-arrow-left"></i>Atendimentos</a>
+          <button type="button" class="icon-button" aria-label="Atualizar atendimento" title="Atualizar" (click)="refreshDetail()" [disabled]="saving()">
+            <i class="pi pi-refresh"></i>
+          </button>
+        </div>
       </app-page-header>
 
       @if (loading()) {
@@ -351,17 +355,9 @@ type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
     @if (selectedProduct(); as product) {
       <div class="modal-backdrop" (click)="closeProduct()">
         <form class="modal-panel compact" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="counter-product-title" (dialogClose)="closeProduct()" (click)="$event.stopPropagation()" (ngSubmit)="saveCartItem()">
-          <div class="modal-header"><div><span>{{ product.categoryName }}</span><h2 id="counter-product-title">{{ product.name }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="closeProduct()"><i class="pi pi-times"></i></button></div>
-          <label class="field"><span>Variação</span><select name="variant" [(ngModel)]="productForm.variantId" autofocus required>@for (variant of availableVariants(product); track variant.id) { <option [ngValue]="variant.id">{{ variantLabel(variant) }} · {{ currency(variant.price) }}</option> }</select></label>
-          @for (group of activeGroups(product); track group.id) {
-            <fieldset class="counter-option-group"><legend>{{ group.name }} <small>{{ group.required ? 'Obrigatório' : 'Opcional' }} · até {{ group.maximumSelections }}</small></legend>
-              @for (option of activeOptions(group); track option.id) {
-                <label><input type="checkbox" [checked]="productForm.optionIds.includes(option.id)" (change)="toggleOption(group, option.id)" /> <span>{{ option.name }}</span><b>{{ option.additionalPrice ? '+' + currency(option.additionalPrice) : 'Incluso' }}</b></label>
-              }
-            </fieldset>
-          }
-          <div class="form-grid"><label class="field"><span>Quantidade</span><input name="quantity" type="number" min="1" step="1" [(ngModel)]="productForm.quantity" required /></label><label class="field"><span>Observação</span><input name="notes" [(ngModel)]="productForm.notes" maxlength="500" /></label></div>
-          <div class="modal-actions"><button type="button" class="ghost-button" (click)="closeProduct()">Voltar</button><button type="submit" class="primary-button" [disabled]="!productFormValid(product) || saving()"><i [class]="editingCartKey() == null ? 'pi pi-plus' : 'pi pi-check'"></i>{{ editingCartKey() == null ? 'Adicionar' : 'Salvar item' }} · {{ currency(configuredUnitPrice(product) * productForm.quantity) }}</button></div>
+          <div class="modal-header"><div class="modal-heading"><span class="modal-eyebrow">{{ product.categoryName }}</span><h2 id="counter-product-title">{{ product.name }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="closeProduct()"><i class="pi pi-times"></i></button></div>
+          <div class="modal-body"><label class="field"><span>Variação</span><select name="variant" [(ngModel)]="productForm.variantId" autofocus required>@for (variant of availableVariants(product); track variant.id) { <option [ngValue]="variant.id">{{ variantLabel(variant) }} · {{ currency(variant.price) }}</option> }</select></label>@for (group of activeGroups(product); track group.id) { <fieldset class="counter-option-group"><legend>{{ group.name }} <small>{{ group.required ? 'Obrigatório' : 'Opcional' }} · até {{ group.maximumSelections }}</small></legend>@for (option of activeOptions(group); track option.id) { <label><input type="checkbox" [checked]="productForm.optionIds.includes(option.id)" (change)="toggleOption(group, option.id)" /> <span>{{ option.name }}</span><b>{{ option.additionalPrice ? '+' + currency(option.additionalPrice) : 'Incluso' }}</b></label> }</fieldset> }<div class="form-grid"><label class="field"><span>Quantidade</span><input name="quantity" type="number" min="1" step="1" [(ngModel)]="productForm.quantity" required /></label><label class="field"><span>Observação</span><input name="notes" [(ngModel)]="productForm.notes" maxlength="500" /></label></div></div>
+          <div class="modal-footer modal-actions"><button type="button" class="ghost-button" (click)="closeProduct()">Voltar</button><button type="submit" class="primary-button" [disabled]="!productFormValid(product) || saving()"><i [class]="editingCartKey() == null ? 'pi pi-plus' : 'pi pi-check'"></i>{{ editingCartKey() == null ? 'Adicionar' : 'Salvar item' }} · {{ currency(configuredUnitPrice(product) * productForm.quantity) }}</button></div>
         </form>
       </div>
     }
@@ -369,10 +365,9 @@ type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
     @if (cancelOpen()) {
       <div class="modal-backdrop" (click)="cancelOpen.set(false)">
         <form class="modal-panel compact" appAccessibleDialog role="alertdialog" aria-modal="true" aria-labelledby="counter-cancel-title" (dialogClose)="cancelOpen.set(false)" (click)="$event.stopPropagation()" (ngSubmit)="cancelSale()">
-          <div class="modal-header"><div><span>Confirmação</span><h2 id="counter-cancel-title">{{ isAssembly() ? 'Descartar este atendimento?' : 'Cancelar esta venda?' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="cancelOpen.set(false)"><i class="pi pi-times"></i></button></div>
-          <p>O atendimento sairá da lista de ativos, mas continuará disponível no histórico.</p>
-          <label class="field"><span>Motivo</span><textarea name="cancelReason" [(ngModel)]="cancelReason" maxlength="500" required autofocus></textarea></label>
-          <div class="modal-actions"><button type="button" class="ghost-button" (click)="cancelOpen.set(false)">Voltar</button><button type="submit" class="danger-button" [disabled]="saving() || !cancelReason.trim()"><i class="pi pi-times"></i>Confirmar cancelamento</button></div>
+          <div class="modal-header"><div class="modal-heading"><span class="modal-eyebrow">Confirmação</span><h2 id="counter-cancel-title">{{ isAssembly() ? 'Descartar este atendimento?' : 'Cancelar esta venda?' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="cancelOpen.set(false)"><i class="pi pi-times"></i></button></div>
+          <div class="modal-body"><p class="modal-description">O atendimento sairá da lista de ativos, mas continuará disponível no histórico.</p><label class="field"><span>Motivo</span><textarea name="cancelReason" [(ngModel)]="cancelReason" maxlength="500" required autofocus></textarea></label></div>
+          <div class="modal-footer modal-actions"><button type="button" class="ghost-button" (click)="cancelOpen.set(false)">Voltar</button><button type="submit" class="danger-button" [disabled]="saving() || !cancelReason.trim()"><i class="pi pi-times"></i>Confirmar cancelamento</button></div>
         </form>
       </div>
     }

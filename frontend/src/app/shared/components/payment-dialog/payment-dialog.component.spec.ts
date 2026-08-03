@@ -61,6 +61,9 @@ describe('PaymentDialogComponent', () => {
     expect(dialog.textContent).toContain('Balcão #50');
     expect(dialog.getAttribute('role')).toBe('dialog');
     expect(dialog.querySelector('[aria-label="Fechar pagamento"]')).not.toBeNull();
+    expect(dialog.querySelector(':scope > .modal-header')).not.toBeNull();
+    expect(dialog.querySelector(':scope > .modal-body')).not.toBeNull();
+    expect(dialog.querySelector(':scope > .modal-footer')).not.toBeNull();
   });
 
   it('uses the centralized API and emits the complete operation result', () => {

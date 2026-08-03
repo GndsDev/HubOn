@@ -27,17 +27,19 @@ export interface CollectionItem {
   ],
   template: `
     <app-page-header [kicker]="kicker" [title]="title" [description]="description">
-      <button
-        type="button"
-        class="ghost-button"
-        [class.future-action]="actionDisabled"
-        [disabled]="actionDisabled"
-        [attr.title]="actionTitle || null"
-        (click)="action.emit()"
-      >
-        <i [class]="actionIcon"></i>
-        {{ actionLabel }}
-      </button>
+      <div page-actions class="page-header-actions">
+        <button
+          type="button"
+          class="secondary-button"
+          [class.future-action]="actionDisabled"
+          [disabled]="actionDisabled"
+          [attr.title]="actionTitle || null"
+          (click)="action.emit()"
+        >
+          <i [class]="actionIcon"></i>
+          {{ actionLabel }}
+        </button>
+      </div>
     </app-page-header>
 
     <app-section-card [eyebrow]="sectionEyebrow" [title]="sectionTitle">

@@ -113,6 +113,8 @@ describe('ProductsPageComponent', () => {
     const layout = dialog.querySelector('.variant-manager-layout') as HTMLElement;
 
     expect(dialog.querySelector('.product-management-header')).not.toBeNull();
+    expect(dialog.querySelector(':scope > .modal-body.product-management-body')).not.toBeNull();
+    expect(dialog.querySelector(':scope > .modal-footer')).not.toBeNull();
     expect(dialog.querySelector('.product-manager-tabs')).not.toBeNull();
     expect(dialog.querySelector('.product-management-content')).not.toBeNull();
     expect(layout.children).toHaveLength(2);
@@ -122,6 +124,17 @@ describe('ProductsPageComponent', () => {
     expect(dialog.textContent).not.toContain('Limpar');
     expect(document.querySelector('.nested-modal')).toBeNull();
     expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth);
+  });
+
+  it('keeps the registration wizard inside the shared modal shell', () => {
+    fixture.componentInstance.openRegistration();
+    fixture.detectChanges();
+
+    const dialog = document.querySelector('.product-wizard-panel') as HTMLElement;
+    expect(dialog.querySelector(':scope > .modal-header')).not.toBeNull();
+    expect(dialog.querySelector(':scope > .modal-body.product-wizard-body')).not.toBeNull();
+    expect(dialog.querySelector(':scope > .modal-footer')).not.toBeNull();
+    expect(dialog.querySelector('.wizard-progress')).not.toBeNull();
   });
 
   it('exposes a clear primary action and a keyboard-ready secondary menu for every variation', () => {

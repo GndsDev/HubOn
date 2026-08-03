@@ -30,10 +30,12 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
       title="Categorias"
       description="Organize produtos por grupos de venda e disponibilidade."
     >
-      <button type="button" class="primary-button" (click)="openCreate()">
-        <i class="pi pi-plus"></i>
-        Nova categoria
-      </button>
+      <div page-actions class="page-header-actions">
+        <button type="button" class="primary-button" (click)="openCreate()">
+          <i class="pi pi-plus"></i>
+          Nova categoria
+        </button>
+      </div>
     </app-page-header>
 
     <div class="categories-section">
@@ -119,33 +121,35 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
           (ngSubmit)="save()"
         >
           <div class="modal-header">
-            <div>
-              <span>Cardápio</span>
+            <div class="modal-heading">
+              <span class="modal-eyebrow">Cardápio</span>
               <h2 id="category-dialog-title">{{ editing() ? 'Editar categoria' : 'Nova categoria' }}</h2>
             </div>
             <button type="button" class="icon-button" aria-label="Fechar" (click)="closeForm()">
               <i class="pi pi-times"></i>
             </button>
           </div>
-          <div class="form-grid">
-            <label class="field full">
-              <span>Nome</span>
-              <input name="name" [(ngModel)]="form.name" maxlength="120" required autofocus />
-            </label>
-            <label class="field full">
-              <span>Descrição</span>
-              <textarea name="description" [(ngModel)]="form.description" maxlength="255"></textarea>
-            </label>
-            <label class="field">
-              <span>Ordem de exibição</span>
-              <input name="displayOrder" type="number" min="0" [(ngModel)]="form.displayOrder" />
-            </label>
-            <label class="toggle-field">
-              <input name="active" type="checkbox" [(ngModel)]="form.active" />
-              <span>Categoria ativa</span>
-            </label>
+          <div class="modal-body">
+            <div class="form-grid">
+              <label class="field full">
+                <span>Nome</span>
+                <input name="name" [(ngModel)]="form.name" maxlength="120" required autofocus />
+              </label>
+              <label class="field full">
+                <span>Descrição</span>
+                <textarea name="description" [(ngModel)]="form.description" maxlength="255"></textarea>
+              </label>
+              <label class="field">
+                <span>Ordem de exibição</span>
+                <input name="displayOrder" type="number" min="0" [(ngModel)]="form.displayOrder" />
+              </label>
+              <label class="toggle-field">
+                <input name="active" type="checkbox" [(ngModel)]="form.active" />
+                <span>Categoria ativa</span>
+              </label>
+            </div>
           </div>
-          <div class="modal-actions">
+          <div class="modal-footer modal-actions">
             <button type="button" class="ghost-button" (click)="closeForm()">Cancelar</button>
             <button type="submit" class="primary-button" [disabled]="saving()">
               <i class="pi pi-check"></i>
