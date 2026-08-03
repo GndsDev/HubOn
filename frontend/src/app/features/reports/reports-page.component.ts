@@ -24,7 +24,7 @@ import { monthlyProductsCsv, monthlySummaryCsv } from '../../shared/util/monthly
     </app-page-header>
 
     <section class="report-filters print-hidden" aria-label="Filtros do relatório">
-      <label class="field"><span>Mes</span><select [(ngModel)]="month" (ngModelChange)="load()">@for (item of months; track item.value) { <option [ngValue]="item.value">{{ item.label }}</option> }</select></label>
+      <label class="field"><span>Mês</span><select [(ngModel)]="month" (ngModelChange)="load()">@for (item of months; track item.value) { <option [ngValue]="item.value">{{ item.label }}</option> }</select></label>
       <label class="field"><span>Ano</span><select [(ngModel)]="year" (ngModelChange)="load()">@for (item of years; track item) { <option [ngValue]="item">{{ item }}</option> }</select></label>
       <div class="field"><span>Canal</span><div class="segmented-control">@for (item of channels; track item.value) { <button type="button" [class.active]="channel === item.value" (click)="setChannel(item.value)">{{ item.label }}</button> }</div></div>
     </section>
@@ -37,7 +37,7 @@ import { monthlyProductsCsv, monthlySummaryCsv } from '../../shared/util/monthly
       <div class="report-print-heading"><strong>HubOn</strong><span>{{ data.periodLabel }} · {{ channelLabel(data.channel) }}</span></div>
 
       <section class="report-metrics" aria-label="Indicadores mensais">
-        <article><span>Receita liquida</span><strong>{{ currency(data.summary.netRevenue) }}</strong><small>{{ comparisonText(data) }}</small></article>
+        <article><span>Receita líquida</span><strong>{{ currency(data.summary.netRevenue) }}</strong><small>{{ comparisonText(data) }}</small></article>
         <article><span>Receita bruta</span><strong>{{ currency(data.summary.grossRevenue) }}</strong><small>Antes de {{ currency(data.summary.discounts) }} em descontos</small></article>
         <article><span>Comandas fechadas</span><strong>{{ data.summary.closedTabs }}</strong><small>{{ data.summary.orders }} pedidos · {{ data.summary.itemsSold }} itens</small></article>
         <article><span>Recebido</span><strong>{{ currency(data.summary.receivedAmount) }}</strong><small>Ticket médio de {{ currency(data.summary.averageTicket) }}</small></article>
@@ -80,7 +80,7 @@ import { monthlyProductsCsv, monthlySummaryCsv } from '../../shared/util/monthly
         </app-section-card>
 
         <div class="report-grid">
-          <app-section-card eyebrow="Cardapio" title="Categorias">
+          <app-section-card eyebrow="Cardápio" title="Categorias">
             <div class="report-ranking">@for (item of data.categories; track item.categoryName) { <article><div><strong>{{ item.categoryName }}</strong><small>{{ item.quantity }} itens · {{ percentage(item.revenueSharePercentage) }}</small></div><b>{{ currency(item.salesAmount) }}</b></article> }</div>
           </app-section-card>
           <app-section-card eyebrow="Recebimentos" title="Formas de pagamento">
@@ -88,7 +88,7 @@ import { monthlyProductsCsv, monthlySummaryCsv } from '../../shared/util/monthly
           </app-section-card>
         </div>
 
-        <section class="report-cancellations"><div><i class="pi pi-times-circle"></i><span>Cancelamentos no mes</span></div><strong>{{ data.cancellations.cancelledOrders }} pedidos · {{ data.cancellations.cancelledItems }} itens · {{ currency(data.cancellations.cancelledAmount) }}</strong></section>
+        <section class="report-cancellations"><div><i class="pi pi-times-circle"></i><span>Cancelamentos no mês</span></div><strong>{{ data.cancellations.cancelledOrders }} pedidos · {{ data.cancellations.cancelledItems }} itens · {{ currency(data.cancellations.cancelledAmount) }}</strong></section>
         @if (data.cancellations.mainReasons.length) { <div class="report-cancellation-reasons">@for (reason of data.cancellations.mainReasons; track reason.reason) { <span>{{ reason.reason }} <b>{{ reason.occurrences }}</b></span> }</div> }
       }
     }

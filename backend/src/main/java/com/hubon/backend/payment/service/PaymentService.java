@@ -1,15 +1,26 @@
 package com.hubon.backend.payment.service;
 
 import com.hubon.backend.auth.service.AuthenticatedUserProvider;
+import com.hubon.backend.cash.domain.CashShift;
+import com.hubon.backend.cash.domain.CashShiftStatus;
+import com.hubon.backend.cash.repository.CashShiftRepository;
 import com.hubon.backend.payment.domain.Payment;
 import com.hubon.backend.payment.dto.PaymentRequest;
+import com.hubon.backend.payment.dto.PaymentFinancialState;
+import com.hubon.backend.payment.dto.PaymentNextAction;
+import com.hubon.backend.payment.dto.PaymentOperationResponse;
 import com.hubon.backend.payment.dto.PaymentResponse;
 import com.hubon.backend.payment.dto.PaymentSummaryResponse;
 import com.hubon.backend.payment.repository.PaymentRepository;
+import com.hubon.backend.order.domain.OrderItemStatus;
+import com.hubon.backend.order.dto.RestaurantOrderResponse;
+import com.hubon.backend.order.service.OrderPreparationWorkflowService;
+import com.hubon.backend.order.service.RestaurantOrderService;
 import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.shared.exception.ResourceNotFoundException;
 import com.hubon.backend.tab.domain.Tab;
 import com.hubon.backend.tab.domain.TabStatus;
+import com.hubon.backend.tab.domain.TabType;
 import com.hubon.backend.tab.repository.TabRepository;
 import com.hubon.backend.tab.service.TabAccountingService;
 import com.hubon.backend.user.domain.User;
@@ -26,13 +37,16 @@ import java.util.List;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final CashShiftRepository cashShiftRepository;
     private final TabRepository tabRepository;
     private final UserRepository userRepository;
     private final TabAccountingService accountingService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final OrderPreparationWorkflowService preparationWorkflowService;
+    private final RestaurantOrderService orderService;
 
     @Transactional
-    public PaymentResponse create(PaymentRequest request) {
+    public PaymentOperationResponse create(PaymentRequest request) {
         Tab tab = tabRepository.findByIdForUpdate(request.tabId())
                 .orElseThrow(() -> new ResourceNotFoundException("Comanda não encontrada"));
         User receivedByUser = authenticatedUserProvider.currentUser()
@@ -56,14 +70,33 @@ public class PaymentService {
             throw new BusinessException("Soma dos pagamentos não pode ultrapassar o valor final da comanda");
         }
 
-        Payment payment = Payment.builder()
+        CashShift cashShift = cashShiftRepository.findByStatusForUpdate(CashShiftStatus.OPEN).orElse(null);
+        Payment payment = paymentRepository.save(Payment.builder()
                 .tab(tab)
+                .cashShift(cashShift)
                 .method(request.method())
                 .amount(request.amount())
                 .receivedByUser(receivedByUser)
-                .build();
+                .build());
 
-        return toResponse(paymentRepository.save(payment));
+        BigDecimal paidAfterPayment = paidAmount.add(request.amount());
+        BigDecimal remainingAfterPayment = tab.getFinalAmount()
+                .subtract(paidAfterPayment)
+                .max(BigDecimal.ZERO);
+        if (tab.getType() == TabType.COUNTER && remainingAfterPayment.signum() == 0) {
+            preparationWorkflowService.startEligibleCounterItems(tab);
+        }
+
+        List<RestaurantOrderResponse> orders = orderService.listByTabId(tab.getId());
+        return new PaymentOperationResponse(
+                toResponse(payment),
+                tab.getFinalAmount(),
+                paidAfterPayment,
+                remainingAfterPayment,
+                financialState(paidAfterPayment, remainingAfterPayment),
+                orders,
+                nextAction(tab, remainingAfterPayment, orders)
+        );
     }
 
     @Transactional(readOnly = true)
@@ -99,6 +132,35 @@ public class PaymentService {
                 payment.getReceivedByUser().getId(),
                 payment.getReceivedByUser().getName()
         );
+    }
+
+    private PaymentFinancialState financialState(BigDecimal paidAmount, BigDecimal remainingAmount) {
+        if (paidAmount.signum() == 0) return PaymentFinancialState.UNPAID;
+        if (remainingAmount.signum() > 0) return PaymentFinancialState.PARTIALLY_PAID;
+        return PaymentFinancialState.PAID;
+    }
+
+    private PaymentNextAction nextAction(
+            Tab tab,
+            BigDecimal remainingAmount,
+            List<RestaurantOrderResponse> orders
+    ) {
+        if (remainingAmount.signum() > 0) return PaymentNextAction.COMPLETE_PAYMENT;
+        if (tab.getType() == TabType.TABLE) return PaymentNextAction.RETURN_TO_TAB;
+
+        List<OrderItemStatus> statuses = orders.stream()
+                .flatMap(order -> order.items().stream())
+                .filter(item -> item.status() != OrderItemStatus.CANCELED)
+                .map(item -> item.status())
+                .toList();
+        if (statuses.stream().anyMatch(status -> status == OrderItemStatus.WAITING_PREPARATION
+                || status == OrderItemStatus.IN_PREPARATION)) {
+            return PaymentNextAction.FOLLOW_PREPARATION;
+        }
+        if (statuses.stream().anyMatch(status -> status == OrderItemStatus.READY)) {
+            return PaymentNextAction.DELIVER;
+        }
+        return PaymentNextAction.FINALIZE;
     }
 
     private User findRequestedUser(Long userId) {

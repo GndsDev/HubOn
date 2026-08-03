@@ -28,11 +28,16 @@ Use esta lista antes de criar uma versão do HubOn.
 
 ## Fluxo operacional
 
-- [ ] Usuario autenticado aparece corretamente como responsavel operacional.
+- [ ] Usuário autenticado aparece corretamente como responsável operacional.
 - [ ] Mesa livre abre uma comanda.
 - [ ] Mesa ocupada não abre segunda comanda.
 - [ ] Pedido é criado com produto ativo.
-- [ ] Cozinha percorre a sequência válida.
+- [ ] Pedidos e Balcão mostram os estados individuais de preparo.
+- [ ] A sidebar não mostra uma tela exclusiva de Cozinha.
+- [ ] Pagamento parcial de Balcão não inicia preparo.
+- [ ] Pagamento integral de Balcão inicia automaticamente apenas itens elegíveis.
+- [ ] Caixa abre turno, registra sangria/suprimento e fecha com conferência.
+- [ ] Caixa e Pedidos não exibem formulário próprio de pagamento.
 - [ ] Pedido entregue não pode ser cancelado.
 - [ ] Pagamento válido reduz o saldo.
 - [ ] Pagamento zero ou excedente é rejeitado.

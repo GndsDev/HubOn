@@ -12,7 +12,10 @@ import { DashboardApiService } from './core/services/dashboard-api.service';
 const dashboardSummary = {
   todaySales: 0,
   openTabs: 0,
+  activeCounterSales: 0,
   ordersInPreparation: 0,
+  readyOrders: 0,
+  pendingPayments: 0,
   averageTicket: 0,
   bestSellingProducts: [],
   tableSummary: { available: 0, occupied: 0, reserved: 0, disabled: 0, total: 0 },
@@ -145,5 +148,19 @@ describe('App', () => {
     fixture.componentInstance.toggleSidebar();
     fixture.detectChanges();
     expect(counterLink.querySelector('.nav-counter-status')).toBeTruthy();
+  });
+
+  it('should keep the old kitchen URL functional without exposing a kitchen screen', async () => {
+    authenticated.set(true);
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+
+    await router.navigateByUrl('/cozinha');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(router.url).toBe('/pedidos');
+    expect(fixture.nativeElement.querySelector('a[href="/cozinha"]')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Abrir cozinha');
   });
 });

@@ -64,12 +64,17 @@ export class App {
       label: 'Operação',
       items: [
         { path: '/dashboard', label: 'Dashboard', icon: 'pi pi-chart-line', roles: ['OWNER', 'ADMIN'] },
-        { path: '/balcao', label: 'Balcão', icon: 'pi pi-shopping-bag', roles: ['OWNER', 'ADMIN', 'CASHIER'] },
         { path: '/mesas', label: 'Mesas', icon: 'pi pi-table', roles: ['OWNER', 'ADMIN', 'WAITER'] },
         { path: '/comandas', label: 'Comandas', icon: 'pi pi-receipt', roles: ['OWNER', 'ADMIN', 'WAITER', 'CASHIER'] },
-        { path: '/pedidos', label: 'Pedidos', icon: 'pi pi-shopping-cart', roles: ['OWNER', 'ADMIN', 'WAITER', 'CASHIER'] },
-        { path: '/cozinha', label: 'Cozinha', icon: 'pi pi-send', roles: ['OWNER', 'ADMIN', 'KITCHEN'] },
+        { path: '/pedidos', label: 'Pedidos', icon: 'pi pi-shopping-cart', roles: ['OWNER', 'ADMIN', 'WAITER', 'CASHIER', 'KITCHEN'] },
+        { path: '/balcao', label: 'Balcão', icon: 'pi pi-shopping-bag', roles: ['OWNER', 'ADMIN', 'CASHIER'] },
+      ],
+    },
+    {
+      label: 'Gestão financeira',
+      items: [
         { path: '/caixa', label: 'Caixa', icon: 'pi pi-wallet', roles: ['OWNER', 'ADMIN', 'CASHIER'] },
+        { path: '/relatorios', label: 'Relatórios', icon: 'pi pi-chart-bar', roles: ['OWNER', 'ADMIN'] },
       ],
     },
     {
@@ -83,7 +88,6 @@ export class App {
       label: 'Gestão',
       items: [
         { path: '/stock', label: 'Estoque', icon: 'pi pi-warehouse', roles: ['OWNER', 'ADMIN', 'CASHIER', 'WAITER'] },
-        { path: '/relatorios', label: 'Relatórios', icon: 'pi pi-chart-bar', roles: ['OWNER', 'ADMIN'] },
         { path: '/usuarios', label: 'Usuários', icon: 'pi pi-users', roles: ['OWNER', 'ADMIN'] },
       ],
     },
@@ -143,7 +147,7 @@ export class App {
       OWNER: 'Dono',
       ADMIN: 'Admin',
       WAITER: 'Garçom',
-      KITCHEN: 'Cozinha',
+      KITCHEN: 'Preparo',
       CASHIER: 'Caixa',
     };
 

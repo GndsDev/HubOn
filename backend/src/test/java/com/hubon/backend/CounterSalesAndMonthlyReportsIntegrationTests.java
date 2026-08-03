@@ -11,7 +11,10 @@ import com.hubon.backend.order.dto.OrderStatusRequest;
 import com.hubon.backend.order.dto.RestaurantOrderRequest;
 import com.hubon.backend.order.dto.RestaurantOrderResponse;
 import com.hubon.backend.order.service.RestaurantOrderService;
+import com.hubon.backend.order.service.OrderPreparationWorkflowService;
 import com.hubon.backend.payment.domain.PaymentMethod;
+import com.hubon.backend.payment.dto.PaymentNextAction;
+import com.hubon.backend.payment.dto.PaymentOperationResponse;
 import com.hubon.backend.payment.dto.PaymentRequest;
 import com.hubon.backend.payment.service.PaymentService;
 import com.hubon.backend.report.domain.ReportChannel;
@@ -73,6 +76,7 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
     @Autowired private TabService tabService;
     @Autowired private CounterSaleService counterSaleService;
     @Autowired private RestaurantOrderService orderService;
+    @Autowired private OrderPreparationWorkflowService preparationWorkflowService;
     @Autowired private PaymentService paymentService;
     @Autowired private MonthlyReportService reportService;
     @Autowired private EntityManager entityManager;
@@ -206,6 +210,50 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
     }
 
     @Test
+    void counterPreparationCannotBeStartedManually() {
+        TabResponse tab = openCounter(null);
+        RestaurantOrderResponse order = orderService.confirm(
+                createOrder(tab.id(), List.of(item(preparationProductId, preparationVariantId, 1))).id()
+        );
+        Long itemId = order.items().getFirst().id();
+
+        assertThatThrownBy(() -> orderService.updateStatus(
+                order.id(), new OrderStatusRequest(OrderStatus.PREPARING)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("automaticamente");
+        assertThatThrownBy(() -> orderService.updateItemStatus(
+                order.id(), itemId, new OrderItemStatusRequest(OrderItemStatus.IN_PREPARATION)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("automaticamente");
+        assertThat(orderService.getById(order.id()).items()).singleElement()
+                .satisfies(item -> assertThat(item.status()).isEqualTo(OrderItemStatus.WAITING_PREPARATION));
+    }
+
+    @Test
+    void counterItemsCannotBeDeliveredBeforeFullPayment() {
+        TabResponse tab = openCounter(null);
+        RestaurantOrderResponse order = orderService.confirm(
+                createOrder(tab.id(), List.of(item(directProductId, directVariantId, 1))).id()
+        );
+        Long itemId = order.items().getFirst().id();
+
+        assertThatThrownBy(() -> orderService.updateItemStatus(
+                order.id(), itemId, new OrderItemStatusRequest(OrderItemStatus.DELIVERED)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Quite a venda");
+        assertThatThrownBy(() -> orderService.updateStatus(
+                order.id(), new OrderStatusRequest(OrderStatus.DELIVERED)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Quite a venda");
+
+        TabResponse amount = tabService.getById(tab.id());
+        paymentService.create(new PaymentRequest(tab.id(), PaymentMethod.PIX, amount.finalAmount(), null));
+        RestaurantOrderResponse delivered = orderService.updateItemStatus(
+                order.id(), itemId, new OrderItemStatusRequest(OrderItemStatus.DELIVERED));
+        assertThat(delivered.status()).isEqualTo(OrderStatus.DELIVERED);
+    }
+
+    @Test
     void paidPreparationSaleRemainsUpdatableByKitchenUntilDelivery() {
         TabResponse tab = openCounter(null);
         RestaurantOrderResponse order = orderService.confirm(
@@ -213,14 +261,19 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
         );
         assertThat(order.status()).isEqualTo(OrderStatus.SENT_TO_KITCHEN);
         TabResponse amount = tabService.getById(tab.id());
-        paymentService.create(new PaymentRequest(tab.id(), PaymentMethod.CREDIT_CARD, amount.finalAmount(), null));
+        PaymentOperationResponse payment = paymentService.create(
+                new PaymentRequest(tab.id(), PaymentMethod.CREDIT_CARD, amount.finalAmount(), null));
 
         Long itemId = order.items().getFirst().id();
-        RestaurantOrderResponse preparing = orderService.updateItemStatus(
-                order.id(), itemId, new OrderItemStatusRequest(OrderItemStatus.IN_PREPARATION));
+        assertThat(payment.remainingAmount()).isZero();
+        assertThat(payment.nextAction()).isEqualTo(PaymentNextAction.FOLLOW_PREPARATION);
+        assertThat(payment.orders()).singleElement().satisfies(updated -> {
+            assertThat(updated.status()).isEqualTo(OrderStatus.PREPARING);
+            assertThat(updated.items()).singleElement()
+                    .satisfies(item -> assertThat(item.status()).isEqualTo(OrderItemStatus.IN_PREPARATION));
+        });
         RestaurantOrderResponse ready = orderService.updateItemStatus(
                 order.id(), itemId, new OrderItemStatusRequest(OrderItemStatus.READY));
-        assertThat(preparing.status()).isEqualTo(OrderStatus.PREPARING);
         assertThat(ready.status()).isEqualTo(OrderStatus.READY);
 
         orderService.updateStatus(order.id(), new OrderStatusRequest(OrderStatus.DELIVERED));
@@ -238,15 +291,17 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
         assertThat(order.items()).extracting(item -> item.status())
                 .containsExactly(OrderItemStatus.READY, OrderItemStatus.WAITING_PREPARATION);
         assertThat(order.status()).isEqualTo(OrderStatus.SENT_TO_KITCHEN);
-        paymentService.create(new PaymentRequest(
+        PaymentOperationResponse payment = paymentService.create(new PaymentRequest(
                 tab.id(), PaymentMethod.DEBIT_CARD, tabService.getById(tab.id()).finalAmount(), null));
+        assertThat(payment.orders()).singleElement().satisfies(updated -> assertThat(updated.items())
+                .extracting(item -> item.status())
+                .containsExactly(OrderItemStatus.READY, OrderItemStatus.IN_PREPARATION));
 
         assertThatThrownBy(() -> orderService.updateItemStatus(
                 order.id(), order.items().getFirst().id(), new OrderItemStatusRequest(OrderItemStatus.IN_PREPARATION)))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("entrega direta");
+                .hasMessageContaining("Transição de preparo");
         Long preparedItem = order.items().get(1).id();
-        orderService.updateItemStatus(order.id(), preparedItem, new OrderItemStatusRequest(OrderItemStatus.IN_PREPARATION));
         RestaurantOrderResponse ready = orderService.updateItemStatus(
                 order.id(), preparedItem, new OrderItemStatusRequest(OrderItemStatus.READY));
         assertThat(ready.status()).isEqualTo(OrderStatus.READY);
@@ -292,18 +347,29 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
         )).id());
 
         CounterSaleDetailResponse waiting = counterSaleService.getById(tab.id());
-        assertThat(waiting.summary().preparationState()).isEqualTo(CounterPreparationState.PARTIALLY_READY);
+        assertThat(waiting.summary().preparationState()).isEqualTo(CounterPreparationState.WAITING_PAYMENT);
         assertThat(waiting.summary().readyItemCount()).isEqualTo(1);
         assertThat(waiting.summary().waitingItemCount()).isEqualTo(1);
-        assertThat(waiting.summary().nextAction()).isEqualTo(CounterNextAction.FOLLOW_PREPARATION);
+        assertThat(waiting.summary().nextAction()).isEqualTo(CounterNextAction.REGISTER_PAYMENT);
 
         BigDecimal total = tabService.getById(tab.id()).finalAmount();
-        paymentService.create(new PaymentRequest(tab.id(), PaymentMethod.PIX, total.divide(BigDecimal.valueOf(2)), null));
-        assertThat(counterSaleService.getById(tab.id()).summary().financialState())
-                .isEqualTo(CounterFinancialState.PARTIALLY_PAID);
-        paymentService.create(new PaymentRequest(tab.id(), PaymentMethod.PIX, total.divide(BigDecimal.valueOf(2)), null));
+        PaymentOperationResponse partialPayment = paymentService.create(
+                new PaymentRequest(tab.id(), PaymentMethod.PIX, total.divide(BigDecimal.valueOf(2)), null));
+        CounterSaleDetailResponse partiallyPaid = counterSaleService.getById(tab.id());
+        assertThat(partiallyPaid.summary().financialState()).isEqualTo(CounterFinancialState.PARTIALLY_PAID);
+        assertThat(partiallyPaid.summary().preparationState()).isEqualTo(CounterPreparationState.WAITING_PAYMENT);
+        assertThat(partiallyPaid.summary().nextAction()).isEqualTo(CounterNextAction.COMPLETE_PAYMENT);
+        assertThat(partialPayment.orders()).flatExtracting(RestaurantOrderResponse::items)
+                .filteredOn(item -> item.preparationFlow().name().equals("REQUIRES_PREPARATION"))
+                .singleElement()
+                .satisfies(item -> assertThat(item.status()).isEqualTo(OrderItemStatus.WAITING_PREPARATION));
+
+        PaymentOperationResponse fullPayment = paymentService.create(
+                new PaymentRequest(tab.id(), PaymentMethod.PIX, total.divide(BigDecimal.valueOf(2)), null));
         CounterSaleDetailResponse paidAndWaiting = counterSaleService.getById(tab.id());
         assertThat(paidAndWaiting.summary().financialState()).isEqualTo(CounterFinancialState.PAID);
+        assertThat(paidAndWaiting.summary().preparationState()).isEqualTo(CounterPreparationState.IN_PREPARATION);
+        assertThat(fullPayment.nextAction()).isEqualTo(PaymentNextAction.FOLLOW_PREPARATION);
         assertThat(counterSaleService.listActive()).extracting(item -> item.id()).contains(tab.id());
 
         Long preparationItemId = confirmed.items().stream()
@@ -311,7 +377,6 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
                 .findFirst()
                 .orElseThrow()
                 .id();
-        orderService.updateItemStatus(confirmed.id(), preparationItemId, new OrderItemStatusRequest(OrderItemStatus.IN_PREPARATION));
         orderService.updateItemStatus(confirmed.id(), preparationItemId, new OrderItemStatusRequest(OrderItemStatus.READY));
         CounterSaleDetailResponse ready = counterSaleService.getById(tab.id());
         assertThat(ready.summary().preparationState()).isEqualTo(CounterPreparationState.READY);
@@ -326,6 +391,46 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
         counterSaleService.finish(tab.id());
         assertThat(counterSaleService.listActive()).extracting(item -> item.id()).doesNotContain(tab.id());
         assertThat(counterSaleService.listFinishedToday()).extracting(item -> item.id()).contains(tab.id());
+    }
+
+    @Test
+    void fullPaymentStartsOnlyEligibleItemsAndAutomaticTransitionIsIdempotent() {
+        TabResponse tab = openCounter(null);
+        RestaurantOrderResponse confirmed = orderService.confirm(createOrder(tab.id(), List.of(
+                item(preparationProductId, preparationVariantId, 1),
+                item(preparationProductId, preparationVariantId, 1)
+        )).id());
+        Long cancelledItemId = confirmed.items().getLast().id();
+        orderService.cancelItem(confirmed.id(), cancelledItemId, new OrderCancellationRequest("Item removido"));
+
+        PaymentOperationResponse payment = paymentService.create(new PaymentRequest(
+                tab.id(), PaymentMethod.CASH, tabService.getById(tab.id()).finalAmount(), null));
+        assertThat(payment.orders()).singleElement().satisfies(order -> assertThat(order.items())
+                .extracting(item -> item.status())
+                .containsExactlyInAnyOrder(OrderItemStatus.IN_PREPARATION, OrderItemStatus.CANCELED));
+
+        assertThat(preparationWorkflowService.startEligibleCounterItems(tabService.findEntityById(tab.id()))).isFalse();
+        RestaurantOrderResponse unchanged = orderService.listByTabId(tab.id()).getFirst();
+        assertThat(unchanged.items()).extracting(item -> item.status())
+                .containsExactlyInAnyOrder(OrderItemStatus.IN_PREPARATION, OrderItemStatus.CANCELED);
+    }
+
+    @Test
+    void tablePaymentKeepsPreparationWaitingForExistingTableWorkflow() {
+        TabResponse tableTab = tabService.open(new OpenTabRequest(tableId, null, BigDecimal.ZERO, BigDecimal.ZERO));
+        RestaurantOrderResponse confirmed = orderService.confirm(createOrder(
+                tableTab.id(), List.of(item(preparationProductId, preparationVariantId, 1))).id());
+
+        PaymentOperationResponse payment = paymentService.create(new PaymentRequest(
+                tableTab.id(), PaymentMethod.PIX, tabService.getById(tableTab.id()).finalAmount(), null));
+
+        assertThat(payment.nextAction()).isEqualTo(PaymentNextAction.RETURN_TO_TAB);
+        assertThat(payment.orders()).singleElement().satisfies(order -> {
+            assertThat(order.status()).isEqualTo(OrderStatus.SENT_TO_KITCHEN);
+            assertThat(order.items()).singleElement()
+                    .satisfies(item -> assertThat(item.status()).isEqualTo(OrderItemStatus.WAITING_PREPARATION));
+        });
+        assertThat(confirmed.status()).isEqualTo(OrderStatus.SENT_TO_KITCHEN);
     }
 
     @Test

@@ -240,14 +240,14 @@ export class UsersPageComponent implements OnInit {
       return [
         { value: 'ADMIN', label: 'Administrador' },
         { value: 'WAITER', label: 'Garçom' },
-        { value: 'KITCHEN', label: 'Cozinha' },
+        { value: 'KITCHEN', label: 'Preparo' },
         { value: 'CASHIER', label: 'Caixa' },
       ];
     }
     if (roles.includes('ADMIN')) {
       return [
         { value: 'WAITER', label: 'Garçom' },
-        { value: 'KITCHEN', label: 'Cozinha' },
+        { value: 'KITCHEN', label: 'Preparo' },
         { value: 'CASHIER', label: 'Caixa' },
       ];
     }
@@ -263,7 +263,7 @@ export class UsersPageComponent implements OnInit {
       OWNER: 'Dono',
       ADMIN: 'Administrador',
       WAITER: 'Garçom',
-      KITCHEN: 'Cozinha',
+      KITCHEN: 'Preparo',
       CASHIER: 'Caixa',
     }[role] ?? role;
   }

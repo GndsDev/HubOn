@@ -50,7 +50,7 @@ Perfis disponíveis:
 - `OWNER`: dono ou responsável máximo.
 - `ADMIN`: gerente ou administrador operacional.
 - `WAITER`: garçom e atendimento.
-- `KITCHEN`: cozinha.
+- `KITCHEN`: perfil legado de preparo, direcionado à visão filtrada de Pedidos.
 - `CASHIER`: caixa.
 
 Acesso por módulo:
@@ -60,8 +60,7 @@ Acesso por módulo:
 | Dashboard | `OWNER`, `ADMIN` |
 | Mesas | `OWNER`, `ADMIN`, `WAITER` |
 | Comandas | `OWNER`, `ADMIN`, `WAITER`, `CASHIER` |
-| Pedidos | `OWNER`, `ADMIN`, `WAITER`, `CASHIER` |
-| Cozinha | `OWNER`, `ADMIN`, `KITCHEN`; a cozinha acessa somente a fila dedicada |
+| Pedidos | `OWNER`, `ADMIN`, `WAITER`, `CASHIER`; `KITCHEN` acessa somente a fila filtrada e marca item pronto |
 | Caixa | `OWNER`, `ADMIN`, `CASHIER` |
 | Categorias | `OWNER`, `ADMIN` |
 | Produtos | `OWNER`, `ADMIN` |

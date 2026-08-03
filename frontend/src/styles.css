@@ -1203,6 +1203,7 @@ app-section-card {
 
 .section-card {
   display: grid;
+  min-width: 0;
   gap: var(--space-md);
   padding: var(--space-md);
 }
@@ -3882,31 +3883,102 @@ app-categories-page {
   width: 5rem;
 }
 
+.product-management-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(76rem, 100%);
+  max-height: calc(100dvh - 3rem);
+  overflow: hidden;
+}
+
+.product-management-header,
+.product-manager-tabs,
+.product-management-actions {
+  flex: 0 0 auto;
+}
+
+.product-management-header,
+.product-management-actions {
+  position: static;
+}
+
+.product-management-content {
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-xs) var(--space-xs) var(--space-xs) 0;
+  scrollbar-gutter: stable;
+}
+
+.product-information-form,
+.variant-manager-section,
+.variant-manager-list,
+.choice-manager-list {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-md);
+}
+
+.content-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.content-heading > div {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.content-heading span {
+  color: var(--color-text-strong);
+  font-weight: 800;
+}
+
+.content-heading small,
+.variant-detail > small,
+.variant-stock-state > small,
+.variant-stock-state > span {
+  color: var(--color-text-muted);
+}
+
+.content-count {
+  display: grid;
+  min-width: 2rem;
+  min-height: 2rem;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle-bg);
+}
+
 .variant-manager-layout,
 .choice-manager-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(17rem, 0.7fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: var(--space-xl);
 }
 
-.variant-manager-list {
-  display: grid;
-  gap: var(--space-sm);
-}
-
 .variant-manager-row {
   display: grid;
-  grid-template-columns: minmax(8rem, 1fr) auto auto minmax(8rem, 0.8fr) auto;
+  grid-template-columns: minmax(9rem, 1fr) minmax(6rem, 0.45fr) minmax(8.5rem, 0.65fr) minmax(10rem, 0.8fr) auto;
   align-items: center;
   gap: var(--space-md);
+  min-width: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--surface-row-bg);
+  box-shadow: var(--shadow-row);
   padding: var(--space-md);
 }
 
-.variant-manager-row > div:first-child,
+.variant-identity,
+.variant-detail,
+.variant-stock-state,
 .variant-editor,
 .managed-choice-head > div:first-child,
 .preparation-item > div,
@@ -3925,15 +3997,71 @@ app-categories-page {
   color: var(--color-text-strong);
 }
 
-.variant-editor {
-  gap: var(--space-md);
-  border-left: 1px solid var(--color-border-soft);
-  padding-left: var(--space-xl);
+.variant-stock-state {
+  min-width: 0;
 }
 
-.variant-editor h3 {
-  margin: 0;
-  font-size: 1rem;
+.variant-stock-state strong,
+.variant-stock-state span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.variant-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  min-width: max-content;
+}
+
+.variant-editor {
+  gap: var(--space-lg);
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle-bg);
+  padding: var(--space-lg);
+}
+
+.variant-editor-fields,
+.variant-stock-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.variant-stock-editor {
+  display: grid;
+  gap: var(--space-md);
+  border-top: 1px solid var(--color-border-soft);
+  padding-top: var(--space-md);
+}
+
+.variant-stock-editor > .toggle-field {
+  align-self: start;
+}
+
+@media (min-width: 100rem) {
+  .variant-manager-layout,
+  .choice-manager-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem);
+  }
+
+  .variant-manager-row {
+    grid-template-columns: minmax(7rem, 1fr) minmax(5rem, 0.45fr) minmax(8.5rem, 0.7fr) auto;
+  }
+
+  .variant-manager-row > .variant-stock-state {
+    grid-column: 1 / 4;
+    grid-row: 2;
+  }
+
+  .variant-manager-row > .variant-row-actions {
+    grid-column: 4;
+    grid-row: 1 / span 2;
+  }
 }
 
 .managed-choice-group {
@@ -4336,6 +4464,247 @@ app-categories-page {
   border-color: rgba(245, 158, 11, 0.28);
   background: rgba(120, 53, 15, 0.2);
   color: #fde68a;
+}
+
+.order-filters {
+  width: 100%;
+  max-width: none;
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.order-filters button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.order-filters button > span {
+  display: inline-grid;
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  margin-left: var(--space-xs);
+  place-items: center;
+  border-radius: var(--radius-xs);
+  background: var(--surface-subtle-bg);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.order-filters button.active > span {
+  background: var(--surface-selected-bg);
+  color: var(--color-primary-strong);
+}
+
+.order-flow-group {
+  display: grid;
+  gap: var(--space-xs);
+  border-top: 1px solid var(--color-border-soft);
+  padding-top: var(--space-sm);
+}
+
+.order-flow-group h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: var(--font-size-sm);
+}
+
+.order-item-side {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.cash-control-layout,
+.cash-closed-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(20rem, 0.65fr);
+  align-items: start;
+  gap: var(--space-xl);
+}
+
+.cash-shift-headline {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  align-items: center;
+  gap: var(--space-lg);
+  border-bottom: 1px solid var(--color-border-soft);
+  padding-bottom: var(--space-lg);
+}
+
+.cash-shift-headline > div,
+.cash-last-closing,
+.cash-audit-summary span,
+.cash-history-list article > span,
+.cash-difference-preview {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.cash-shift-headline span,
+.payment-method-grid span,
+.cash-audit-summary small,
+.cash-history-list small,
+.cash-last-closing span,
+.cash-difference-preview span,
+.cash-movement-row small {
+  color: var(--color-text-muted);
+}
+
+.cash-shift-headline strong,
+.payment-method-grid strong,
+.cash-audit-summary strong,
+.cash-history-list strong,
+.cash-last-closing strong,
+.cash-difference-preview strong,
+.cash-movement-row strong {
+  color: var(--color-text-strong);
+}
+
+.payment-method-grid,
+.cash-audit-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.payment-method-grid > div,
+.cash-audit-summary > span {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-row-bg);
+  padding: var(--space-md);
+}
+
+.cash-audit-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.cash-shift-actions,
+.cash-open-form {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.cash-open-form .field {
+  flex: 1 1 12rem;
+}
+
+.pending-payment-list,
+.cash-history-list {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.pending-payment-list article,
+.cash-history-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  border-bottom: 1px solid var(--color-border-soft);
+  padding: var(--space-md) 0;
+}
+
+.pending-payment-list article > div,
+.cash-history-list article > div,
+.cash-movement-row > div {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-xs);
+}
+
+.cash-movement-table {
+  display: grid;
+  min-width: 0;
+}
+
+.cash-movement-head,
+.cash-movement-row {
+  display: grid;
+  grid-template-columns: minmax(5rem, 0.5fr) minmax(12rem, 1.4fr) minmax(7rem, 0.7fr) minmax(9rem, 0.8fr) minmax(9rem, 0.8fr) minmax(7rem, 0.6fr);
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.cash-movement-head {
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  padding: 0 var(--space-md) var(--space-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.cash-movement-row {
+  border-bottom: 1px solid var(--color-border-soft);
+  padding: var(--space-md);
+}
+
+.cash-movement-row > strong,
+.cash-movement-row > span:last-of-type {
+  overflow-wrap: anywhere;
+}
+
+.negative {
+  color: var(--color-danger-strong) !important;
+}
+
+.cash-closed-state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  color: var(--color-text);
+}
+
+.cash-closed-state > i {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle-bg);
+  color: var(--color-icon);
+  font-size: 1.25rem;
+}
+
+.cash-closed-state p {
+  margin: var(--space-xs) 0 0;
+  color: var(--color-text-muted);
+}
+
+.cash-last-closing {
+  grid-template-columns: minmax(8rem, 1fr) minmax(10rem, auto);
+}
+
+.cash-history-list article {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) auto minmax(8rem, 0.45fr) minmax(8rem, 0.45fr);
+}
+
+.cash-difference-preview {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle-bg);
+  padding: var(--space-md);
+}
+
+.payment-dialog-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
 }
 
 .cashier-selector {
@@ -5748,6 +6117,15 @@ app-categories-page {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .cash-control-layout,
+  .cash-closed-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-method-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .row-actions {
     justify-content: flex-end;
   }
@@ -5761,22 +6139,20 @@ app-categories-page {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .variant-manager-layout,
-  .choice-manager-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .variant-editor {
-    border-top: 1px solid var(--color-border-soft);
-    border-left: 0;
-    padding-top: var(--space-xl);
-    padding-left: 0;
-  }
 }
 
 @media (max-width: 1450px) {
   .stats-grid:not(.stock-stats-grid) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detailed-order-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .order-item-side {
+    justify-content: flex-start;
   }
 }
 
@@ -5787,6 +6163,46 @@ app-categories-page {
 }
 
 @media (max-width: 860px) {
+  .variant-manager-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .variant-row-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .variant-editor-fields,
+  .variant-stock-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .cash-audit-summary,
+  .cash-history-list article {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cash-movement-head {
+    display: none;
+  }
+
+  .cash-movement-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cash-movement-row > div {
+    grid-column: 1 / -1;
+  }
+
+  .detailed-order-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .order-item-side {
+    justify-content: flex-start;
+  }
+
   .hub-shell {
     grid-template-columns: 1fr;
   }
@@ -6127,6 +6543,40 @@ app-categories-page {
 }
 
 @media (max-width: 520px) {
+  .variant-manager-row {
+    grid-template-columns: 1fr;
+  }
+
+  .variant-row-actions {
+    grid-column: auto;
+  }
+
+  .variant-row-actions .ghost-button {
+    flex: 1;
+  }
+
+  .payment-method-grid,
+  .cash-audit-summary,
+  .cash-shift-headline,
+  .cash-history-list article,
+  .cash-movement-row,
+  .payment-dialog-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .pending-payment-list article,
+  .cash-shift-actions,
+  .cash-open-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pending-payment-list article .ghost-button,
+  .cash-shift-actions button,
+  .cash-open-form button {
+    width: 100%;
+  }
+
   .table-icon-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

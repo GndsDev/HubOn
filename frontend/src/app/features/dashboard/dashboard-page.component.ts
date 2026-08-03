@@ -17,7 +17,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
   standalone: true,
   imports: [CommonModule, RouterLink, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent],
   template: `
-    <app-page-header kicker="Visão do turno" title="Operação em tempo real" description="Vendas, ocupação, produção e caixa do turno atual.">
+    <app-page-header kicker="Visão do turno" title="Operação em tempo real" description="Vendas, ocupação, preparo e caixa do turno atual.">
       <button type="button" class="ghost-button" (click)="load()"><i class="pi pi-refresh"></i>Atualizar dados</button>
     </app-page-header>
 
@@ -144,7 +144,7 @@ export class DashboardPageComponent implements OnInit {
     return [
       { label: 'Vendas hoje', value: this.currency(data.todaySales), detail: `Ticket médio de ${this.currency(data.averageTicket)}`, icon: 'pi pi-chart-line', tone: 'blue', trend: 'Abrir relatório', route: '/relatorios' },
       { label: 'Balcão ativo', value: `${data.activeCounterSales}`, detail: 'Vendas abertas e retomáveis', icon: 'pi pi-shopping-bag', tone: 'purple', trend: 'Abrir atendimentos', route: '/balcao' },
-      { label: 'Cozinha', value: `${data.ordersInPreparation}`, detail: `${data.readyOrders} pedidos prontos`, icon: 'pi pi-send', tone: 'amber', trend: 'Acompanhar preparo', route: '/cozinha' },
+      { label: 'Pedidos em preparo', value: `${data.ordersInPreparation}`, detail: `${data.readyOrders} pedidos prontos`, icon: 'pi pi-receipt', tone: 'amber', trend: 'Acompanhar pedidos', route: '/pedidos' },
       { label: 'Pagamentos pendentes', value: `${data.pendingPayments}`, detail: `${data.openTabs} comandas abertas`, icon: 'pi pi-wallet', tone: 'emerald', trend: 'Abrir caixa', route: '/caixa' },
     ];
   }
@@ -156,7 +156,7 @@ export class DashboardPageComponent implements OnInit {
       { label: 'Desativadas', value: data.tableSummary.disabled, tone: 'disabled' },
     ];
   }
-  orderStatus(status: string): string { return { CREATED: 'Criado', SENT_TO_KITCHEN: 'Recebido', PREPARING: 'Em preparo', READY: 'Pronto', DELIVERED: 'Entregue', CANCELLED: 'Cancelado' }[status] || status; }
+  orderStatus(status: string): string { return { CREATED: 'Criado', SENT_TO_KITCHEN: 'Aguardando preparo', PREPARING: 'Em preparo', READY: 'Pronto', DELIVERED: 'Entregue', CANCELLED: 'Cancelado' }[status] || status; }
   orderTone(status: string): string { return status === 'READY' || status === 'DELIVERED' ? 'success' : status === 'PREPARING' ? 'warning' : status === 'CANCELLED' ? 'danger' : 'info'; }
   currency(value: number): string { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
   dateTime(value: string): string { return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }

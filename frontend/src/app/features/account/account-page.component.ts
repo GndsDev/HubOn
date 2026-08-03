@@ -179,7 +179,7 @@ export class AccountPageComponent implements OnInit {
       OWNER: 'Dono',
       ADMIN: 'Admin',
       WAITER: 'Garçom',
-      KITCHEN: 'Cozinha',
+      KITCHEN: 'Preparo',
       CASHIER: 'Caixa',
     };
 

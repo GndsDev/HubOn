@@ -24,3 +24,16 @@ export interface PaymentSummary {
   remainingAmount: number;
   payments: Payment[];
 }
+
+export type PaymentFinancialState = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
+export type PaymentNextAction = 'COMPLETE_PAYMENT' | 'FOLLOW_PREPARATION' | 'DELIVER' | 'FINALIZE' | 'RETURN_TO_TAB';
+
+export interface PaymentOperation {
+  payment: Payment;
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  financialState: PaymentFinancialState;
+  orders: import('./order.model').RestaurantOrder[];
+  nextAction: PaymentNextAction;
+}

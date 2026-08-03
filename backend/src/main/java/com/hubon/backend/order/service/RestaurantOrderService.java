@@ -60,6 +60,7 @@ public class RestaurantOrderService {
     private final TabAccountingService accountingService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final InventoryMovementService inventoryMovementService;
+    private final OrderPreparationWorkflowService preparationWorkflowService;
 
     @Transactional(readOnly = true)
     public List<RestaurantOrderResponse> listAll() {
@@ -198,7 +199,7 @@ public class RestaurantOrderService {
                         : OrderItemStatus.WAITING_PREPARATION
         ));
         order.setConfirmedAt(LocalDateTime.now());
-        refreshOrderStatus(order, items);
+        preparationWorkflowService.refreshOrderStatus(order, items);
         accountingService.refreshAmounts(order.getTab());
         return toResponse(order, items);
     }
@@ -214,21 +215,30 @@ public class RestaurantOrderService {
         ensureOrderTabOpen(order);
         OrderItem item = orderItemRepository.findByIdAndOrderId(itemId, orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Item do pedido não encontrado"));
-        if (item.getPreparationFlowSnapshot() != PreparationFlow.REQUIRES_PREPARATION) {
-            throw new BusinessException("Item de entrega direta não pertence à fila de preparo");
-        }
-
         OrderItemStatus expected = switch (item.getStatus()) {
             case WAITING_PREPARATION -> OrderItemStatus.IN_PREPARATION;
             case IN_PREPARATION -> OrderItemStatus.READY;
+            case READY -> OrderItemStatus.DELIVERED;
             default -> null;
         };
         if (expected == null || request.status() != expected) {
             throw new BusinessException("Transição de preparo do item não permitida");
         }
+        if ((request.status() == OrderItemStatus.IN_PREPARATION || request.status() == OrderItemStatus.READY)
+                && item.getPreparationFlowSnapshot() != PreparationFlow.REQUIRES_PREPARATION) {
+            throw new BusinessException("Item de entrega direta não pertence à fila de preparo");
+        }
+        if (order.getTab().getType() == TabType.COUNTER
+                && request.status() == OrderItemStatus.IN_PREPARATION) {
+            throw new BusinessException("No balcão, o preparo começa automaticamente após o pagamento integral");
+        }
+        ensureItemTransitionAccess(order, request.status());
+        if (request.status() == OrderItemStatus.DELIVERED) {
+            ensureCounterPaidBeforeDelivery(order.getTab());
+        }
         item.setStatus(request.status());
         List<OrderItem> items = orderItemRepository.findAllByOrderId(orderId);
-        refreshOrderStatus(order, items);
+        preparationWorkflowService.refreshOrderStatus(order, items);
         return toResponse(order, items);
     }
 
@@ -245,11 +255,15 @@ public class RestaurantOrderService {
         if (order.getStatus() == OrderStatus.CANCELLED) {
             throw new BusinessException("Pedido cancelado não pode ter status alterado");
         }
+        if (order.getTab().getType() == TabType.COUNTER && request.status() == OrderStatus.PREPARING) {
+            throw new BusinessException("No balcão, o preparo começa automaticamente após o pagamento integral");
+        }
         List<OrderItem> items = orderItemRepository.findAllByOrderId(order.getId());
         switch (request.status()) {
             case PREPARING -> transitionAll(items, OrderItemStatus.WAITING_PREPARATION, OrderItemStatus.IN_PREPARATION);
             case READY -> transitionAll(items, OrderItemStatus.IN_PREPARATION, OrderItemStatus.READY);
             case DELIVERED -> {
+                ensureCounterPaidBeforeDelivery(order.getTab());
                 if (items.stream().anyMatch(item -> item.getStatus() == OrderItemStatus.WAITING_PREPARATION
                         || item.getStatus() == OrderItemStatus.IN_PREPARATION
                         || item.getStatus() == OrderItemStatus.DRAFT)) {
@@ -259,7 +273,7 @@ public class RestaurantOrderService {
             }
             default -> throw new BusinessException("Transição de status do pedido não permitida");
         }
-        refreshOrderStatus(order, items);
+        preparationWorkflowService.refreshOrderStatus(order, items);
         return toResponse(order, items);
     }
 
@@ -307,7 +321,7 @@ public class RestaurantOrderService {
             cancelItemState(item, reason, currentUser());
         }
         List<OrderItem> items = orderItemRepository.findAllByOrderId(orderId);
-        refreshOrderStatus(order, items);
+        preparationWorkflowService.refreshOrderStatus(order, items);
         if (order.getStatus() == OrderStatus.CANCELLED) {
             order.setCancellationReason(reason);
             order.setCancelledByUser(currentUser());
@@ -359,24 +373,6 @@ public class RestaurantOrderService {
         List<OrderItem> applicable = items.stream().filter(item -> item.getStatus() == current).toList();
         if (applicable.isEmpty()) throw new BusinessException("Pedido não possui itens nesta etapa");
         applicable.forEach(item -> item.setStatus(next));
-    }
-
-    private void refreshOrderStatus(RestaurantOrder order, List<OrderItem> items) {
-        List<OrderItemStatus> statuses = items.stream().map(OrderItem::getStatus).toList();
-        if (statuses.isEmpty() || statuses.stream().allMatch(status -> status == OrderItemStatus.CANCELED)) {
-            order.setStatus(OrderStatus.CANCELLED);
-        } else if (statuses.stream().anyMatch(status -> status == OrderItemStatus.DRAFT)) {
-            order.setStatus(OrderStatus.CREATED);
-        } else if (statuses.stream().anyMatch(status -> status == OrderItemStatus.IN_PREPARATION)) {
-            order.setStatus(OrderStatus.PREPARING);
-        } else if (statuses.stream().anyMatch(status -> status == OrderItemStatus.WAITING_PREPARATION)) {
-            order.setStatus(OrderStatus.SENT_TO_KITCHEN);
-        } else if (statuses.stream().filter(status -> status != OrderItemStatus.CANCELED)
-                .allMatch(status -> status == OrderItemStatus.DELIVERED)) {
-            order.setStatus(OrderStatus.DELIVERED);
-        } else {
-            order.setStatus(OrderStatus.READY);
-        }
     }
 
     private void cancelItemState(OrderItem item, String reason, User actor) {
@@ -434,6 +430,28 @@ public class RestaurantOrderService {
                 && authenticatedUserProvider.currentUser().isPresent()
                 && !authenticatedUserProvider.currentUserHasAnyRole("OWNER", "ADMIN", "CASHIER")) {
             throw new AccessDeniedException("Acesso ao atendimento de balcão não permitido");
+        }
+    }
+
+    private void ensureItemTransitionAccess(RestaurantOrder order, OrderItemStatus target) {
+        boolean kitchenOnly = authenticatedUserProvider.currentUserHasAnyRole("KITCHEN")
+                && !authenticatedUserProvider.currentUserHasAnyRole("OWNER", "ADMIN");
+        if (kitchenOnly && target != OrderItemStatus.READY) {
+            throw new AccessDeniedException("O perfil de preparo pode somente marcar itens em preparo como prontos");
+        }
+        if (order.getTab().getType() == TabType.COUNTER
+                && !kitchenOnly
+                && authenticatedUserProvider.currentUser().isPresent()
+                && !authenticatedUserProvider.currentUserHasAnyRole("OWNER", "ADMIN", "CASHIER")) {
+            throw new AccessDeniedException("Acesso ao atendimento de balcão não permitido");
+        }
+    }
+
+    private void ensureCounterPaidBeforeDelivery(Tab tab) {
+        if (tab.getType() != TabType.COUNTER) return;
+        accountingService.refreshAmounts(tab);
+        if (accountingService.remainingAmount(tab).signum() > 0) {
+            throw new BusinessException("Quite a venda de balcão antes de marcar itens como entregues");
         }
     }
 

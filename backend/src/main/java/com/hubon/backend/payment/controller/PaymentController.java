@@ -1,7 +1,7 @@
 package com.hubon.backend.payment.controller;
 
 import com.hubon.backend.payment.dto.PaymentRequest;
-import com.hubon.backend.payment.dto.PaymentResponse;
+import com.hubon.backend.payment.dto.PaymentOperationResponse;
 import com.hubon.backend.payment.dto.PaymentSummaryResponse;
 import com.hubon.backend.payment.service.PaymentService;
 import jakarta.validation.Valid;
@@ -24,7 +24,7 @@ public class PaymentController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public PaymentResponse create(@Valid @RequestBody PaymentRequest request) {
+    public PaymentOperationResponse create(@Valid @RequestBody PaymentRequest request) {
         return paymentService.create(request);
     }
 

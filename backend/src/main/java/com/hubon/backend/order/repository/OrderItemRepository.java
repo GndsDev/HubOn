@@ -26,6 +26,15 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
     @EntityGraph(attributePaths = {"product", "product.category", "productVariant", "productVariant.product", "options", "options.productOption"})
     Optional<OrderItem> findByIdAndOrderId(Long id, Long orderId);
 
+    @EntityGraph(attributePaths = {
+            "order", "order.tab", "order.tab.restaurantTable", "cancelledByUser"
+    })
+    List<OrderItem> findAllByStatusAndCancelledAtGreaterThanEqualAndCancelledAtLessThanEqualOrderByCancelledAtAsc(
+            OrderItemStatus status,
+            java.time.LocalDateTime start,
+            java.time.LocalDateTime end
+    );
+
     @EntityGraph(attributePaths = {"order", "order.tab", "order.tab.restaurantTable", "order.createdByUser", "product", "productVariant", "options"})
     List<OrderItem> findAllByPreparationFlowSnapshotAndStatusInOrderByCreatedAtAsc(
             PreparationFlow preparationFlow,

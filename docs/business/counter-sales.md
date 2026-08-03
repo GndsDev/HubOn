@@ -24,7 +24,7 @@ A rota `/balcao/:counterTabId` abre diretamente um atendimento existente. Ela po
 2. O primeiro item cria um pedido `CREATED`; alterações posteriores atualizam esse mesmo rascunho.
 3. Itens, quantidades, variações, escolhas e observações são salvos no backend durante a montagem.
 4. Um rascunho vazio continua representado pela comanda persistida.
-5. A confirmação continua sendo a fronteira transacional para preço, disponibilidade, estoque, idempotência e encaminhamento ao preparo.
+5. A confirmação continua sendo a fronteira transacional para preço, disponibilidade, estoque e idempotência. Itens preparados ficam aguardando pagamento.
 
 O componente não usa `sessionStorage` nem estado local como fonte de verdade. O estado local serve somente para edição da tela e sempre é reconstruído pela API.
 
@@ -44,6 +44,7 @@ Os estados são calculados a partir da comanda, dos pedidos, dos itens e dos pag
 ### Preparo
 
 - Sem preparo;
+- Aguardando pagamento;
 - Aguardando preparo;
 - Em preparo;
 - Parcialmente pronto;
@@ -64,18 +65,19 @@ Em uma venda mista, as quantidades por estado continuam visíveis. Por exemplo, 
 1. O operador inicia uma venda e recebe imediatamente o número do Balcão.
 2. Monta o pedido com produtos, variações, escolhas, quantidades e observações.
 3. Confirma o pedido uma única vez.
-4. Itens de entrega direta ficam prontos; itens preparados entram na Cozinha.
-5. O pagamento pode ser parcial ou total e pode ocorrer antes do fim do preparo.
-6. Quando todos os itens ativos estiverem prontos, o operador marca o pedido como entregue.
-7. Somente depois da entrega e da quitação a ação **Finalizar venda** fecha a comanda.
+4. Itens de entrega direta ficam prontos; itens preparados ficam **Aguardando pagamento**.
+5. Pagamento parcial mantém os itens preparados aguardando.
+6. O pagamento integral inicia automaticamente os itens preparados elegíveis, na mesma transação do backend.
+7. Cada item preparado é marcado como pronto e cada item pronto é marcado como entregue.
+8. Somente depois da entrega e da quitação a ação **Finalizar venda** fecha a comanda.
 
 O pagamento nunca remove uma venda ainda em preparo da lista de ativos. A atualização ocorre depois das ações e por consulta periódica controlada, sem WebSocket.
 
 ## Integrações
 
 - **Balcão:** visão operacional completa e ponto principal para retomar a venda.
-- **Caixa:** pagamentos pendentes ou parciais, vendas pagas aguardando entrega e vendas prontas para fechamento.
-- **Cozinha:** somente itens `REQUIRES_PREPARATION`, identificados pelo número do Balcão e pelo cliente opcional.
+- **Caixa:** turno, valores recebidos, métodos, sangrias, suprimentos, conferência e histórico; pagamentos pendentes são apenas links para a origem.
+- **Pedidos:** visão operacional dos itens preparados e diretos, sem formulário próprio de pagamento.
 - **Estoque:** baixas automáticas continuam ocorrendo uma vez na confirmação e estornos uma vez no cancelamento permitido.
 - **Relatório mensal:** inclui vendas de balcão fechadas na data comercial e preserva o canal `COUNTER`.
 
@@ -100,8 +102,10 @@ As regras existentes permanecem: pedido entregue ou com pagamento não pode ser 
 - `OWNER` e `ADMIN`: operação completa;
 - `CASHIER`: criar, confirmar, pagar, entregar, cancelar conforme as regras e finalizar;
 - `WAITER`: sem acesso ao Balcão, inclusive por URL ou API direta;
-- `KITCHEN`: somente fila e transição dos itens preparados, sem acesso financeiro.
+- `KITCHEN`: versão filtrada de Pedidos, somente com itens preparados e a ação **Marcar como pronto**, sem acesso financeiro.
 
 ## Decisão de banco
 
-Não foi necessária migration V8. Todas as informações novas são derivadas de dados já persistidos nas migrations V1 a V7.
+Os estados do Balcão continuam derivados. A migration V8 foi criada somente para
+persistir turnos e movimentações de Caixa e associar cada pagamento ao turno
+aberto em que foi recebido.

@@ -2,7 +2,7 @@ import { chromium } from 'playwright-core';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const baseUrl = process.env.HUBON_AUDIT_URL ?? 'http://127.0.0.1:4300';
+const baseUrl = process.env.HUBON_AUDIT_URL ?? 'http://127.0.0.1:4200';
 const browserPath = process.env.HUBON_BROWSER_PATH
   ?? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const outputDir = path.resolve('dist/visual-audit');
@@ -86,20 +86,28 @@ const counterItems = [
 const counterOrder = { id: 88, tabId: 104, tabStatus: 'OPEN', tabType: 'COUNTER', tabDisplayLabel: 'Balcão #104 - Ana', tableId: null, tableNumber: null, status: 'PREPARING', type: 'COUNTER', createdByUserId: 1, createdByUserName: 'Gabriel Owner', notes: null, confirmedAt: now, cancellationReason: null, createdAt: now, updatedAt: now, items: counterItems };
 const draftItems = [{ ...orderItems[1], id: 603, status: 'DRAFT', quantity: 1, subtotal: 5, notes: 'Bem gelada' }];
 const draftOrder = { id: 89, tabId: 105, tabStatus: 'OPEN', tabType: 'COUNTER', tabDisplayLabel: 'Balcão #105', tableId: null, tableNumber: null, status: 'CREATED', type: 'COUNTER', createdByUserId: 1, createdByUserName: 'Gabriel Owner', notes: null, confirmedAt: null, cancellationReason: null, createdAt: now, updatedAt: now, items: draftItems };
-const orders = [tableOrder, counterOrder, draftOrder];
+const partialItems = [
+  { ...orderItems[0], id: 604, status: 'WAITING_PREPARATION' },
+  { ...orderItems[1], id: 605, quantity: 1, subtotal: 5 },
+];
+const partialOrder = { id: 90, tabId: 106, tabStatus: 'OPEN', tabType: 'COUNTER', tabDisplayLabel: 'Balcão #106 - Bruno', tableId: null, tableNumber: null, status: 'SENT_TO_KITCHEN', type: 'COUNTER', createdByUserId: 1, createdByUserName: 'Gabriel Owner', notes: null, confirmedAt: now, cancellationReason: null, createdAt: now, updatedAt: now, items: partialItems };
+const orders = [tableOrder, counterOrder, partialOrder, draftOrder];
 const queue = [{ ...tableOrder, items: [orderItems[0]] }, { ...counterOrder, items: [counterItems[0]] }];
 const tableTab = { id: 9, type: 'TABLE', tableId: 4, tableNumber: 12, tableName: 'Setor 4', customerName: null, customerPhone: null, identificationNote: null, displayLabel: 'Mesa 12', status: 'OPEN', openedByUserId: 1, openedByUserName: 'Gabriel Owner', openedAt: now, closedAt: null, totalAmount: 35, serviceFee: 0, discountAmount: 0, finalAmount: 35, paidAmount: 0, remainingAmount: 35, createdAt: now, updatedAt: now };
 const counterTab = { id: 104, type: 'COUNTER', tableId: null, tableNumber: null, tableName: null, customerName: 'Ana', customerPhone: '11999999999', identificationNote: 'Retirada no balcão', displayLabel: 'Balcão #104 - Ana', status: 'OPEN', openedByUserId: 1, openedByUserName: 'Gabriel Owner', openedAt: now, closedAt: null, totalAmount: 30, serviceFee: 0, discountAmount: 0, finalAmount: 30, paidAmount: 30, remainingAmount: 0, createdAt: now, updatedAt: now };
 const draftTab = { id: 105, type: 'COUNTER', tableId: null, tableNumber: null, tableName: null, customerName: null, customerPhone: null, identificationNote: null, displayLabel: 'Balcão #105', status: 'OPEN', openedByUserId: 1, openedByUserName: 'Gabriel Owner', openedAt: now, closedAt: null, totalAmount: 0, serviceFee: 0, discountAmount: 0, finalAmount: 0, paidAmount: 0, remainingAmount: 0, createdAt: now, updatedAt: now };
-const tabs = [tableTab, counterTab, draftTab];
+const partialTab = { id: 106, type: 'COUNTER', tableId: null, tableNumber: null, tableName: null, customerName: 'Bruno', customerPhone: null, identificationNote: null, displayLabel: 'Balcão #106 - Bruno', status: 'OPEN', openedByUserId: 1, openedByUserName: 'Gabriel Owner', openedAt: now, closedAt: null, totalAmount: 30, serviceFee: 0, discountAmount: 0, finalAmount: 30, paidAmount: 10, remainingAmount: 20, createdAt: now, updatedAt: now };
+const tabs = [tableTab, counterTab, draftTab, partialTab];
 const activeCounterSales = [
   { id: 104, number: 104, displayLabel: 'Balcão #104 - Ana', customerName: 'Ana', openedAt: now, closedAt: null, openedByUserName: 'Gabriel Owner', tabStatus: 'OPEN', totalAmount: 30, paidAmount: 30, remainingAmount: 0, itemCount: 2, draftItemCount: 0, waitingItemCount: 0, inPreparationItemCount: 1, readyItemCount: 1, deliveredItemCount: 0, attendanceState: 'IN_PROGRESS', preparationState: 'PARTIALLY_READY', financialState: 'PAID', nextAction: 'FOLLOW_PREPARATION', cancellationAllowed: false },
   { id: 105, number: 105, displayLabel: 'Balcão #105', customerName: null, openedAt: now, closedAt: null, openedByUserName: 'Gabriel Owner', tabStatus: 'OPEN', totalAmount: 0, paidAmount: 0, remainingAmount: 0, itemCount: 1, draftItemCount: 1, waitingItemCount: 0, inPreparationItemCount: 0, readyItemCount: 0, deliveredItemCount: 0, attendanceState: 'ASSEMBLING', preparationState: 'NOT_APPLICABLE', financialState: 'UNPAID', nextAction: 'CONFIRM_ORDER', cancellationAllowed: true },
+  { id: 106, number: 106, displayLabel: 'Balcão #106 - Bruno', customerName: 'Bruno', openedAt: now, closedAt: null, openedByUserName: 'Gabriel Owner', tabStatus: 'OPEN', totalAmount: 30, paidAmount: 10, remainingAmount: 20, itemCount: 2, draftItemCount: 0, waitingItemCount: 1, inPreparationItemCount: 0, readyItemCount: 1, deliveredItemCount: 0, attendanceState: 'CONFIRMED', preparationState: 'WAITING_PAYMENT', financialState: 'PARTIALLY_PAID', nextAction: 'COMPLETE_PAYMENT', cancellationAllowed: false },
 ];
 const finishedCounterSales = [{ ...activeCounterSales[0], id: 103, number: 103, displayLabel: 'Balcão #103 - Carlos', customerName: 'Carlos', tabStatus: 'CLOSED', closedAt: now, attendanceState: 'FINISHED', preparationState: 'DELIVERED', readyItemCount: 0, deliveredItemCount: 2, nextAction: 'VIEW', cancellationAllowed: false }];
 const counterDetails = {
   104: { summary: activeCounterSales[0], customerPhone: counterTab.customerPhone, identificationNote: counterTab.identificationNote, orders: [counterOrder] },
   105: { summary: activeCounterSales[1], customerPhone: null, identificationNote: null, orders: [draftOrder] },
+  106: { summary: activeCounterSales[2], customerPhone: null, identificationNote: null, orders: [partialOrder] },
   103: { summary: finishedCounterSales[0], customerPhone: null, identificationNote: null, orders: [{ ...counterOrder, tabId: 103, tabStatus: 'CLOSED', tabDisplayLabel: 'Balcão #103 - Carlos', status: 'DELIVERED', items: counterItems.map((item) => ({ ...item, status: 'DELIVERED' })) }] },
 };
 const tables = Array.from({ length: 8 }, (_, index) => ({
@@ -114,7 +122,7 @@ const tables = Array.from({ length: 8 }, (_, index) => ({
 const users = [
   { id: 1, name: 'Gabriel Owner', email: 'gabriel.owner@hubon.local', active: true, roles: ['OWNER'] },
   { id: 2, name: 'Operador com nome extenso para validar o aproveitamento horizontal', email: 'operador.nome.extenso@hubon.local', active: true, roles: ['WAITER'] },
-  { id: 3, name: 'Equipe da cozinha', email: 'cozinha@hubon.local', active: true, roles: ['KITCHEN'] },
+  { id: 3, name: 'Equipe de preparo', email: 'preparo@hubon.local', active: true, roles: ['KITCHEN'] },
 ];
 const paymentSummary = {
   tabId: 9,
@@ -134,6 +142,32 @@ const movements = [
   { id: 1, ingredientId: 31, ingredientName: 'Coca-Cola Lata', type: 'SALE', quantity: 2, previousStock: 10, resultingStock: 8, reason: 'Baixa automática na confirmação do pedido #77', originType: 'ORDER_ITEM', orderId: 77, orderItemId: 502, originReference: 'ORDER-77/ITEM-502', userId: 1, userName: 'Gabriel Owner', createdAt: now },
   { id: 2, ingredientId: 35, ingredientName: 'Ingrediente de preparo 1', type: 'ENTRY', quantity: 4, previousStock: 2, resultingStock: 6, reason: 'Compra do dia', originType: 'MANUAL', orderId: null, orderItemId: null, originReference: null, userId: 1, userName: 'Gabriel Owner', createdAt: now },
 ];
+const cashShift = {
+  id: 7,
+  status: 'OPEN',
+  openedByUserId: 1,
+  openedByUserName: 'Gabriel Owner',
+  openedAt: now,
+  openingBalance: 100,
+  closedByUserId: null,
+  closedByUserName: null,
+  closedAt: null,
+  receivedTotal: 75,
+  receivedByMethod: { CASH: 25, PIX: 20, DEBIT_CARD: 10, CREDIT_CARD: 15, VOUCHER: 5 },
+  cancellationAmount: 0,
+  refundAmount: 0,
+  supplyAmount: 20,
+  withdrawalAmount: 5,
+  expectedCash: 140,
+  countedCash: null,
+  differenceAmount: null,
+  closingNote: null,
+  movements: [
+    { id: 'cash-1', type: 'PAYMENT', origin: 'Balcão #104', amount: 25, method: 'CASH', responsible: 'Gabriel Owner', reference: 'Pagamento #35', observation: null, occurredAt: now },
+    { id: 'cash-2', type: 'SUPPLY', origin: 'Suprimento', amount: 20, method: null, responsible: 'Gabriel Owner', reference: 'Caixa #7', observation: 'Troco adicional', occurredAt: now },
+    { id: 'cash-3', type: 'WITHDRAWAL', origin: 'Sangria', amount: 5, method: null, responsible: 'Gabriel Owner', reference: 'Caixa #7', observation: 'Retirada de segurança', occurredAt: now },
+  ],
+};
 const monthlyReport = {
   year: 2026, month: 7, periodLabel: 'julho de 2026', channel: 'ALL',
   summary: { grossRevenue: 8420, serviceFees: 320, discounts: 180, netRevenue: 8240, receivedAmount: 8240, closedTabs: 186, orders: 194, itemsSold: 438, averageTicket: 44.3 },
@@ -180,6 +214,19 @@ async function mockApi(page) {
     if (apiPath === '/tabs/counter' && method === 'POST') return json(route, draftTab, 201);
     if (apiPath === '/tabs/open') return json(route, tabs);
     if (apiPath === '/reports/monthly') return json(route, monthlyReport);
+    if (apiPath === '/cash-shifts/current' && method === 'GET') return json(route, cashShift);
+    if (apiPath === '/cash-shifts/history' && method === 'GET') return json(route, []);
+    if (/^\/cash-shifts\/\d+\/(movements|close)$/.test(apiPath) && method === 'POST') return json(route, cashShift);
+    if (apiPath === '/cash-shifts' && method === 'POST') return json(route, cashShift, 201);
+    if (apiPath === '/payments' && method === 'POST') return json(route, {
+      payment: { id: 99, tabId: 106, method: 'PIX', amount: 20, paidAt: now, receivedByUserId: 1, receivedByUserName: 'Gabriel Owner' },
+      totalAmount: 30,
+      paidAmount: 30,
+      remainingAmount: 0,
+      financialState: 'PAID',
+      orders: [{ ...partialOrder, status: 'PREPARING', items: partialItems.map((item) => item.preparationFlow === 'REQUIRES_PREPARATION' ? { ...item, status: 'IN_PREPARATION' } : item) }],
+      nextAction: 'FOLLOW_PREPARATION',
+    }, 201);
     if (apiPath === '/payments/tab/104') return json(route, counterPaymentSummary);
     if (apiPath.startsWith('/payments/tab/')) return json(route, paymentSummary);
     if (apiPath === '/users' && method === 'GET') return json(route, users);
@@ -219,6 +266,13 @@ async function viewportChecks(page, screen, viewport, theme) {
     const clippedFlowBadges = Array.from(document.querySelectorAll('.flow-status-badge .status-chip'))
       .filter((element) => element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1)
       .length;
+    const clippedOrderElements = Array.from(document.querySelectorAll('.order-card button, .order-card a, .order-card .status-chip, .order-filters button'))
+      .filter((element) => {
+        const style = getComputedStyle(element);
+        const box = element.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden' && box.width > 0
+          && (box.left < -1 || box.right > innerWidth + 1);
+      }).length;
     return {
       screen,
       viewport,
@@ -233,7 +287,12 @@ async function viewportChecks(page, screen, viewport, theme) {
       stockHeightDelta: stockCards.length ? Math.max(...stockCards.map((box) => box.height)) - Math.min(...stockCards.map((box) => box.height)) : 0,
       tableOverflow,
       clippedFlowBadges,
+      clippedOrderElements,
+      orderFiltersOverflow: Math.max(0, (document.querySelector('.order-filters')?.scrollWidth ?? 0) - (document.querySelector('.order-filters')?.clientWidth ?? 0)),
       overlaps: document.querySelectorAll('.modal-panel').length > 1,
+      kitchenNavigationLinks: Array.from(document.querySelectorAll('a')).filter((link) => link.textContent?.trim() === 'Cozinha').length,
+      startPreparationActions: Array.from(document.querySelectorAll('button, a')).filter((element) => element.textContent?.includes('Iniciar preparo')).length,
+      paymentActionCount: Array.from(document.querySelectorAll('button')).filter((button) => /Registrar pagamento|Completar pagamento/.test(button.textContent ?? '')).length,
     };
   }, { screen, viewport, theme });
 }
@@ -303,11 +362,12 @@ const routes = [
   ['/dashboard', 'dashboard'],
   ['/balcao', 'counter'],
   ['/balcao/105', 'counter-detail'],
+  ['/balcao/106', 'counter-partial'],
+  ['/balcao/104', 'counter-preparation'],
   ['/mesas', 'tables'],
   ['/comandas', 'tabs'],
   ['/produtos', 'products'],
   ['/pedidos', 'orders'],
-  ['/cozinha', 'kitchen'],
   ['/caixa', 'cashier'],
   ['/categorias', 'categories'],
   ['/stock', 'stock'],
@@ -355,14 +415,83 @@ for (const theme of ['dark', 'light']) {
         results.push({ screen: `${screen}-menu-last`, viewport: viewport.label, theme, overlay: await overlayBounds(page, menuSelector) });
         await page.keyboard.press('Escape');
       }
+      if (screen === 'products') {
+        const productTriggers = page.locator('.catalog-product-table .actions-trigger');
+        await productTriggers.nth(1).click();
+        await waitForOverlay(page, '.product-action-menu');
+        await page.getByRole('menuitem', { name: 'Gerenciar produto' }).click();
+        await page.getByRole('button', { name: 'Variações e estoque' }).click();
+        await page.locator('.variant-manager-row').first().waitFor();
+        await screenshot(page, `product-variants-new-${theme}-${viewport.label}`);
+        results.push(await page.evaluate(({ viewport, theme }) => {
+          const dialog = document.querySelector('.product-management-dialog');
+          const content = document.querySelector('.product-management-content');
+          const footer = document.querySelector('.product-management-actions');
+          const editor = document.querySelector('.variant-editor');
+          const editorBox = editor?.getBoundingClientRect();
+          const rowBoxes = Array.from(document.querySelectorAll('.variant-manager-row')).map((row) => row.getBoundingClientRect());
+          const overlapArea = editorBox ? Math.max(0, ...rowBoxes.map((row) => Math.max(0, Math.min(row.right, editorBox.right) - Math.max(row.left, editorBox.left)) * Math.max(0, Math.min(row.bottom, editorBox.bottom) - Math.max(row.top, editorBox.top)))) : -1;
+          const dialogBox = dialog?.getBoundingClientRect();
+          const footerBox = footer?.getBoundingClientRect();
+          return {
+            screen: 'product-variants-new',
+            viewport,
+            theme,
+            variantCount: rowBoxes.length,
+            overlapArea,
+            modalHorizontalOverflow: content ? content.scrollWidth - content.clientWidth : -1,
+            dialogInsideViewport: !!dialogBox && dialogBox.left >= 0 && dialogBox.top >= 0 && dialogBox.right <= innerWidth && dialogBox.bottom <= innerHeight,
+            footerVisible: !!footerBox && footerBox.top >= 0 && footerBox.bottom <= innerHeight,
+            saveVisible: !!document.querySelector('button[form="variant-editor-form"]'),
+          };
+        }, { viewport: viewport.label, theme }));
+
+        const variantTriggers = page.locator('.variant-manager-row .actions-trigger');
+        await variantTriggers.first().click();
+        await waitForOverlay(page, '.variant-action-menu');
+        await screenshot(page, `product-variant-menu-first-${theme}-${viewport.label}`);
+        results.push({ screen: 'product-variant-menu-first', viewport: viewport.label, theme, overlay: await overlayBounds(page, '.variant-action-menu') });
+        await page.keyboard.press('Escape');
+        await variantTriggers.last().scrollIntoViewIfNeeded();
+        await variantTriggers.last().click();
+        await waitForOverlay(page, '.variant-action-menu');
+        await screenshot(page, `product-variant-menu-last-${theme}-${viewport.label}`);
+        results.push({ screen: 'product-variant-menu-last', viewport: viewport.label, theme, overlay: await overlayBounds(page, '.variant-action-menu') });
+        await page.keyboard.press('Escape');
+        await page.locator('.variant-manager-row .ghost-button').first().click();
+        await screenshot(page, `product-variants-edit-${theme}-${viewport.label}`);
+        results.push({
+          screen: 'product-variants-edit',
+          viewport: viewport.label,
+          theme,
+          title: await page.locator('#variant-editor-title').textContent(),
+          saveVisible: await page.getByRole('button', { name: 'Salvar variação' }).isVisible(),
+        });
+        await page.keyboard.press('Escape');
+      }
       if (screen === 'stock') {
         results.push(await sidebarAfterScroll(page, viewport.label, theme));
         await screenshot(page, `stock-scrolled-${theme}-${viewport.label}`);
         await page.evaluate(() => scrollTo(0, 0));
       }
     }
+    await page.goto(`${baseUrl}/cozinha`, { waitUntil: 'networkidle' });
+    await page.locator('h1').waitFor();
+    results.push({
+      screen: 'kitchen-redirect',
+      viewport: viewport.label,
+      theme,
+      redirectedToOrders: new URL(page.url()).pathname === '/pedidos',
+      visibleKitchenNavigation: await page.locator('a', { hasText: /^Cozinha$/ }).count(),
+      heading: await page.locator('h1').textContent(),
+    });
     await context.close();
   }
+}
+
+async function waitForDialogCleanup(page) {
+  await page.waitForFunction(() => document.querySelectorAll('[role="dialog"], [role="alertdialog"], .modal-backdrop').length === 0
+    && !document.body.classList.contains('hubon-overlay-open'));
 }
 
 for (const theme of ['dark', 'light']) {
@@ -416,44 +545,48 @@ for (const theme of ['dark', 'light']) {
   await page.getByRole('button', { name: /Continuar/ }).click();
   await screenshot(page, `product-wizard-step3-${theme}`);
   await page.keyboard.press('Escape');
-
-  await productTriggers.first().click();
-  await page.getByRole('menuitem', { name: /Gerenciar produto/ }).click();
-  await screenshot(page, `product-edit-${theme}`);
-  results.push(await page.locator('select[name="editFlow"]').evaluate((element, theme) => ({
-    screen: 'product-edit-flow',
-    theme,
-    width: element.getBoundingClientRect().width,
-    clipped: element.scrollWidth > element.clientWidth + 1,
-  }), theme));
-  await page.getByRole('button', { name: /Variações e estoque/ }).click();
-  await screenshot(page, `product-variants-${theme}`);
-  await page.getByTitle('Estoque').first().click();
-  await screenshot(page, `product-stock-link-${theme}`);
-  results.push({
-    screen: 'product-stock-link', theme,
-    openDialogs: await page.locator('[role="dialog"]').count(),
-    overlay: await overlayBounds(page, '.modal-panel'),
-  });
-  await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Escolhas' }).click();
-  await screenshot(page, `product-choices-${theme}`);
-  await page.keyboard.press('Escape');
+  await waitForDialogCleanup(page);
 
   await page.goto(`${baseUrl}/pedidos`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Novo pedido' }).click();
+  results.push({ screen: 'orders-payment-duplication', theme, paymentActions: await page.getByRole('button', { name: /Registrar pagamento|Completar pagamento/ }).count() });
+  await page.getByRole('button', { name: 'Novo pedido de mesa' }).click();
   await screenshot(page, `order-builder-${theme}`);
   await page.keyboard.press('Escape');
+  await waitForDialogCleanup(page);
   await page.locator('.order-card .actions-trigger').first().click();
   await waitForOverlay(page, '.order-action-menu');
   await page.getByRole('menuitem', { name: 'Cancelar pedido' }).click();
   await screenshot(page, `order-cancel-${theme}`);
   await page.keyboard.press('Escape');
 
+  await page.goto(`${baseUrl}/comandas`, { waitUntil: 'networkidle' });
+  await page.locator('.collection-card-button').first().click();
+  await page.getByRole('button', { name: 'Registrar pagamento' }).click();
+  await screenshot(page, `table-payment-${theme}`);
+  results.push({ screen: 'table-payment', theme, overlay: await overlayBounds(page, '.payment-dialog') });
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+
+  await page.goto(`${baseUrl}/balcao/106`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Completar pagamento' }).click();
+  await screenshot(page, `counter-partial-payment-${theme}`);
+  results.push({ screen: 'counter-partial-payment', theme, overlay: await overlayBounds(page, '.payment-dialog') });
+  await page.keyboard.press('Escape');
+
   await page.goto(`${baseUrl}/balcao/105`, { waitUntil: 'networkidle' });
   await page.locator('.counter-product').first().click();
   await screenshot(page, `counter-product-options-${theme}`);
   results.push({ screen: 'counter-product-options', theme, overlay: await overlayBounds(page, '.modal-panel') });
+  await page.keyboard.press('Escape');
+
+  await page.goto(`${baseUrl}/caixa`, { waitUntil: 'networkidle' });
+  results.push({ screen: 'cashier-payment-duplication', theme, paymentActions: await page.getByRole('button', { name: /Registrar pagamento|Completar pagamento/ }).count() });
+  await page.getByRole('button', { name: 'Registrar sangria' }).click();
+  await screenshot(page, `cashier-withdrawal-${theme}`);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Fechar caixa' }).click();
+  await screenshot(page, `cashier-closing-${theme}`);
+  results.push({ screen: 'cashier-closing', theme, overlay: await overlayBounds(page, '.modal-panel') });
   await page.keyboard.press('Escape');
 
   await page.goto(`${baseUrl}/relatorios`, { waitUntil: 'networkidle' });
@@ -489,7 +622,16 @@ const failures = results.filter((result) => result.horizontalOverflow > 1
   || result.overlaps
   || result.openDialogs > 1
   || result.overlay?.insideViewport === false
+  || result.kitchenNavigationLinks > 0
+  || result.startPreparationActions > 0
+  || ((result.screen === 'orders' || result.screen === 'cashier') && result.paymentActionCount > 0)
+  || ((result.screen === 'orders-payment-duplication' || result.screen === 'cashier-payment-duplication') && result.paymentActions > 0)
+  || (result.screen === 'kitchen-redirect' && (!result.redirectedToOrders || result.visibleKitchenNavigation > 0 || result.heading?.trim() !== 'Pedidos'))
+  || (result.screen === 'product-variants-new' && (result.variantCount < 2 || result.overlapArea > 1 || result.modalHorizontalOverflow > 1 || !result.dialogInsideViewport || !result.footerVisible || !result.saveVisible))
+  || (result.screen === 'product-variants-edit' && (result.title?.trim() !== 'Editar variação' || !result.saveVisible))
   || result.clippedFlowBadges > 0
+  || result.clippedOrderElements > 0
+  || result.orderFiltersOverflow > 1
   || result.clippedLabels > 0
   || result.clipped
   || result.modalOverflow > 1

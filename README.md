@@ -3,16 +3,16 @@
 Sistema local para gerenciamento da operação de restaurantes, cobrindo o fluxo
 completo de atendimento:
 
-**Mesa → Comanda → Pedido → Itens do pedido → Pagamento**
+**Atendimento → Pedido → Pagamento → Preparo → Entrega → Fechamento**
 
 O projeto foi construído como um MVP funcional e estudável, com frontend e
 backend integrados em um monorepo.
 
 ## Objetivo
 
-Centralizar a operação do salão, cozinha e caixa em uma interface única. O
-HubOn permite acompanhar mesas, comandas, pedidos, produção e pagamentos sem
-depender de serviços externos.
+Centralizar a operação diária do estabelecimento sem duplicar responsabilidades.
+O Balcão conclui vendas diretas, Comandas concluem vendas de mesa, Pedidos
+acompanha a operação e o Caixa controla o turno e o dinheiro.
 
 ## Stack
 
@@ -43,8 +43,13 @@ depender de serviços externos.
 - Gestão de mesas livres, reservadas, ocupadas e desativadas.
 - Abertura, consulta, fechamento e cancelamento de comandas.
 - Criação de pedidos com snapshots de nome e preço.
-- Fluxo de cozinha em etapas.
-- Registro de pagamentos e cálculo do saldo da comanda.
+- Central persistente de vendas de balcão, com retomada por URL.
+- Fluxo de preparo por item acompanhado em Pedidos e Balcão.
+- Pagamento parcial ou integral compartilhado entre Balcão e Comandas.
+- Início automático do preparo após pagamento integral de vendas `COUNTER`.
+- Turno de Caixa com abertura, suprimento, sangria, conferência e fechamento.
+- Estoque híbrido, baixa automática, vínculo por variação e estornos.
+- Relatório mensal por canal, impressão e exportação CSV.
 - Login JWT com roles `OWNER`, `ADMIN`, `WAITER`, `KITCHEN` e `CASHIER`.
 - Página Minha Conta com dados do usuário autenticado e alteração de senha.
 - Autoria das operações pelo usuário autenticado.
@@ -63,13 +68,8 @@ depender de serviços externos.
 
 ![Mapa de mesas do HubOn](docs/media/screenshots/02-mesas.png)
 
-### Cozinha
-
-![Kanban de produção da cozinha](docs/media/screenshots/07-cozinha.png)
-
-### Caixa
-
-![Resumo e registro de pagamento no caixa](docs/media/screenshots/08-caixa.png)
+O produto atual não possui uma tela exclusiva de Cozinha. O preparo é
+acompanhado em Pedidos e Balcão; o Caixa é exclusivamente financeiro.
 
 [Assistir à demonstração navegável em WebM](docs/media/videos/hubon-demo.webm)
 
@@ -175,8 +175,9 @@ Frontend:
 
 ```powershell
 cd frontend
-npm test -- --watch=false
+npm test
 npm run build
+npm run visual:audit
 ```
 
 Para validar o produto manualmente, siga
@@ -201,19 +202,17 @@ Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
 - Delivery e integrações com marketplaces.
 - WhatsApp e QR Code.
 - Nota fiscal e integração com maquininha.
-- Estoque inteligente por insumos, receitas e baixa automática (planejado para
-  o pós-MVP).
+- Ficha técnica completa por receita, compras e fornecedores.
 - Aplicativo mobile.
 - Multiempresa e multiunidade.
 - WebSocket.
-- Exportação de relatórios e impressão parcial.
+- Integração fiscal e conciliação com adquirentes.
 
 ## Roadmap pós-MVP
 
 O roadmap oficial do produto está em [ROADMAP.md](docs/product/ROADMAP.md).
 
-1. Implementar o Estoque Inteligente em fases: estoque base, receitas e baixa
-   automática, capacidade de produção, compras e fornecedores.
+1. Evoluir o estoque híbrido com receitas, compras e fornecedores.
 2. Adicionar refresh token, recuperação de senha e política de tentativas.
 3. Isolar ambientes de teste com banco dedicado.
 4. Ampliar testes do frontend e adicionar testes end-to-end.

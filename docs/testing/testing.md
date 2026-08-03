@@ -60,6 +60,22 @@ Flyway e executa as suítes JUnit.
 - Rejeição de fechamento com pagamento incompleto ou excedente.
 - Fechamento com pagamento exato e liberação da mesa.
 
+`PaymentPreparationRollbackIntegrationTests`
+
+- Pagamento parcial de `COUNTER` não inicia preparo.
+- Pagamento integral inicia apenas itens preparados elegíveis.
+- Venda mista preserva item direto pronto.
+- Transição repetida não regride itens nem duplica efeito.
+- Falha no início do preparo desfaz o pagamento inteiro.
+
+`CashShiftIntegrationTests`
+
+- Abertura única, saldo inicial e operador autenticado.
+- Associação de pagamentos ao turno aberto.
+- Sangria, suprimento e saldo esperado.
+- Conferência, diferença, observação obrigatória e fechamento.
+- Fechamento sem alterar estados operacionais.
+
 `OperationalConsistencyIntegrationTests`
 
 - Bloqueio de `OCCUPIED` em cadastro e edição manual de mesa.
@@ -72,10 +88,10 @@ Flyway e executa as suítes JUnit.
 
 - `401` para endpoint protegido sem token.
 - `403` para token válido com perfil inadequado.
-- `KITCHEN` acessa somente a fila e a transição do item de preparo.
+- `KITCHEN` acessa somente a fila e a transição de item em preparo para pronto.
 - `KITCHEN` recebe `403` ao listar pedidos, acessar estoque ou criar, confirmar,
   cancelar e alterar globalmente um pedido.
-- Itens `DIRECT_SERVICE` não aceitam transições da cozinha.
+- Itens `DIRECT_SERVICE` não aceitam transições do perfil de preparo.
 - `OWNER` e `ADMIN` preservam seus acessos administrativos.
 - Login inválido rejeitado.
 - Consulta de `/api/auth/me` exige autenticação e não expõe senha.
@@ -103,7 +119,7 @@ Flyway e executa as suítes JUnit.
 
 - Itens legados `DIRECT_SERVICE` presos em preparo são corrigidos para `READY`.
 - Pedido somente direto é liberado quando não restam itens pendentes.
-- Pedido misto continua em preparo enquanto houver item da cozinha pendente.
+- Pedido misto continua em preparo enquanto houver item preparado pendente.
 - Itens e pedidos cancelados ou entregues permanecem inalterados.
 - Flyway registra a migration V6 como aplicada.
 
@@ -163,6 +179,9 @@ npm test
 
 O build garante que interceptor, guards de rotas e templates compilam.
 
+Na validação de 31/07/2026, o frontend concluiu 73 testes em 21 arquivos sem
+falhas.
+
 Em ambientes de sandbox muito restritivos, o runner Angular pode falhar ao
 resolver arquivos locais com mensagens de acesso negado. Nesse caso, valide em
 um terminal normal do Windows, rode `npx tsc -p tsconfig.spec.json --noEmit`
@@ -185,6 +204,7 @@ Scripts disponíveis:
 | `npm start` | Servidor de desenvolvimento em localhost. |
 | `npm run start:network` | Servidor acessível pela rede local. |
 | `npm run build` | Build otimizado de produção. |
+| `npm run visual:audit` | Auditoria automatizada no Microsoft Edge. |
 | `npm run watch` | Build de desenvolvimento em modo observação. |
 | `npm test` | Testes Angular em modo observação. |
 
@@ -241,8 +261,8 @@ Valide também permissões por perfil:
 - `OWNER`: acessar Dashboard, Usuários, Categorias e Produtos.
 - `WAITER`: acessar Mesas e Pedidos, mas não Usuários, Categorias ou Produtos.
 - `ADMIN`: confirmar que não consegue criar `OWNER` nem outro `ADMIN`.
-- `KITCHEN`: acessar apenas o fluxo permitido de Cozinha.
-- `CASHIER`: acessar Caixa e Comandas conforme a regra.
+- `KITCHEN`: entrar em Pedidos, ver apenas itens preparados e marcar somente como pronto.
+- `CASHIER`: acessar Balcão, Comandas, Pedidos e o turno financeiro do Caixa.
 - Logout: confirmar retorno ao login.
 
 ## Testes recomendados para a próxima versão
@@ -251,7 +271,7 @@ Valide também permissões por perfil:
 - Testes HTTP dos controllers e do formato de erros.
 - Testes unitários para cálculos de comanda.
 - Testes de acessibilidade dos modais e navegação por teclado.
-- Testes de componentes para Mesas, Cozinha e Caixa.
+- Testes de componentes para Mesas e estados de erro mais amplos.
 - Testes end-to-end do fluxo completo.
 - Testes de CORS e perfis `local`/`prod`.
 - Testes de carga para pedidos, Dashboard e pagamentos concorrentes.
@@ -262,6 +282,6 @@ Valide também permissões por perfil:
 
 ## Balcão, relatório e overlays
 
-`CounterSalesAndMonthlyReportsIntegrationTests` cobre comanda sem mesa, rascunho vazio ou com itens, retomada em nova requisição, venda direta, preparada e mista, estoque idempotente, pagamento parcial e total, pagamento antes do preparo, atualização da cozinha, entrega, finalização, histórico, cancelamento, estorno e agregações mensais. `SecurityAuthorizationIntegrationTests` cobre 401/403, acesso por URL direta e os perfis dos endpoints. Todo teste de integração mantém `IntegrationTestDatabaseGuard` e o perfil `test`, apontado exclusivamente para `hubon_test`.
+`CounterSalesAndMonthlyReportsIntegrationTests` cobre comanda sem mesa, rascunho vazio ou com itens, retomada em nova requisição, venda direta, preparada e mista, estoque idempotente, pagamento parcial e total, preparo automático, entrega, finalização, histórico, cancelamento, estorno e agregações mensais. `CashShiftIntegrationTests`, `PaymentPreparationRollbackIntegrationTests` e `SecurityAuthorizationIntegrationTests` completam turno, atomicidade, 401/403, URL direta e perfis. Todo teste de integração mantém `IntegrationTestDatabaseGuard` e o perfil `test`, apontado exclusivamente para `hubon_test`.
 
-No frontend, as suítes de `counter-page`, `counter-activity`, `counter-workflow`, `monthly-report-csv`, `overlay-stack` e `accessible-dialog` cobrem criação persistente, retomada pela URL, edição do rascunho, pagamento parcial, preparo após pagamento, entrega e finalização separadas, histórico, indicador global, próxima ação contextual, exportação, raiz única de overlay, ESC, foco, Tab/Shift+Tab e restauração de foco. Os cenários de viewport e temas permanecem na auditoria visual automatizada.
+No frontend, as suítes de `counter-page`, `cashier-page`, `orders-page`, `tabs-page`, `products-page`, `payment-dialog`, `counter-activity`, `counter-workflow`, `monthly-report-csv`, `overlay-stack` e `accessible-dialog` cobrem persistência, pagamento compartilhado, ausência de duplicação no Caixa e em Pedidos, perfil `KITCHEN`, modal estrutural de Produtos, exportação, ESC, foco e teclado. Os quatro viewports e os temas claro/escuro permanecem na auditoria visual automatizada com Microsoft Edge.

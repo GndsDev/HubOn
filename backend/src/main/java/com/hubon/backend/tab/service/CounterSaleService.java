@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
 
@@ -126,19 +127,39 @@ public class CounterSaleService {
         int itemCount = items.stream().mapToInt(this::quantity).sum();
         int confirmed = itemCount - draft;
         int pendingPreparation = waiting + preparing;
-        boolean hasPreparation = items.stream()
-                .anyMatch(item -> item.status() != OrderItemStatus.DRAFT
-                        && item.preparationFlow() == PreparationFlow.REQUIRES_PREPARATION);
+        List<OrderItemResponse> preparationItems = items.stream()
+                .filter(item -> item.status() != OrderItemStatus.DRAFT)
+                .filter(item -> item.preparationFlow() == PreparationFlow.REQUIRES_PREPARATION)
+                .toList();
+        int preparationWaiting = quantity(preparationItems, OrderItemStatus.WAITING_PREPARATION);
+        int preparationPreparing = quantity(preparationItems, OrderItemStatus.IN_PREPARATION);
+        int preparationReady = quantity(preparationItems, OrderItemStatus.READY);
+        int preparationDelivered = quantity(preparationItems, OrderItemStatus.DELIVERED);
+        int preparationConfirmed = preparationItems.stream().mapToInt(this::quantity).sum();
+        boolean hasPreparation = preparationConfirmed > 0;
         boolean allConfirmedDelivered = confirmed > 0 && delivered == confirmed;
+        BigDecimal displayTotal = response.finalAmount();
+        BigDecimal displayRemaining = response.remainingAmount();
+        if (confirmed == 0 && draft > 0) {
+            displayTotal = items.stream()
+                    .filter(item -> item.status() == OrderItemStatus.DRAFT)
+                    .map(OrderItemResponse::subtotal)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                    .add(response.serviceFee())
+                    .subtract(response.discountAmount())
+                    .max(BigDecimal.ZERO);
+            displayRemaining = displayTotal;
+        }
 
         CounterFinancialState financialState = financialState(response);
         CounterPreparationState preparationState = preparationState(
                 hasPreparation,
-                confirmed,
-                pendingPreparation,
-                preparing,
-                ready,
-                delivered
+                response.remainingAmount(),
+                preparationConfirmed,
+                preparationWaiting,
+                preparationPreparing,
+                preparationReady,
+                preparationDelivered
         );
         CounterAttendanceState attendanceState = attendanceState(
                 response,
@@ -155,7 +176,8 @@ public class CounterSaleService {
                 confirmed,
                 pendingPreparation,
                 ready,
-                allConfirmedDelivered
+                allConfirmedDelivered,
+                response.paidAmount()
         );
 
         return new CounterSaleSummaryResponse(
@@ -167,9 +189,9 @@ public class CounterSaleService {
                 response.closedAt(),
                 response.openedByUserName(),
                 response.status(),
-                response.finalAmount(),
+                displayTotal,
                 response.paidAmount(),
-                response.remainingAmount(),
+                displayRemaining,
                 itemCount,
                 draft,
                 waiting,
@@ -195,17 +217,21 @@ public class CounterSaleService {
 
     private CounterPreparationState preparationState(
             boolean hasPreparation,
-            int confirmed,
-            int pendingPreparation,
+            BigDecimal remainingAmount,
+            int preparationConfirmed,
+            int waiting,
             int preparing,
             int ready,
             int delivered
     ) {
         if (!hasPreparation) return CounterPreparationState.NOT_APPLICABLE;
-        if (confirmed > 0 && delivered == confirmed) return CounterPreparationState.DELIVERED;
-        if (pendingPreparation > 0 && ready + delivered > 0) return CounterPreparationState.PARTIALLY_READY;
+        if (preparationConfirmed > 0 && delivered == preparationConfirmed) return CounterPreparationState.DELIVERED;
+        if (remainingAmount.signum() > 0 && waiting > 0 && preparing == 0) {
+            return CounterPreparationState.WAITING_PAYMENT;
+        }
+        if (waiting + preparing > 0 && ready + delivered > 0) return CounterPreparationState.PARTIALLY_READY;
         if (preparing > 0) return CounterPreparationState.IN_PREPARATION;
-        if (pendingPreparation > 0) return CounterPreparationState.WAITING;
+        if (waiting > 0) return CounterPreparationState.WAITING;
         return CounterPreparationState.READY;
     }
 
@@ -236,21 +262,23 @@ public class CounterSaleService {
             int confirmed,
             int pendingPreparation,
             int ready,
-            boolean allConfirmedDelivered
+            boolean allConfirmedDelivered,
+            BigDecimal paidAmount
     ) {
         if (tab.status() != TabStatus.OPEN) return CounterNextAction.VIEW;
         if (itemCount == 0) return CounterNextAction.ADD_ITEMS;
         if (draft > 0) return CounterNextAction.CONFIRM_ORDER;
+        if (tab.remainingAmount().signum() > 0) {
+            return paidAmount.signum() > 0
+                    ? CounterNextAction.COMPLETE_PAYMENT
+                    : CounterNextAction.REGISTER_PAYMENT;
+        }
         if (pendingPreparation > 0) return CounterNextAction.FOLLOW_PREPARATION;
         if (allConfirmedDelivered) {
-            return tab.remainingAmount().signum() > 0
-                    ? CounterNextAction.REGISTER_PAYMENT
-                    : CounterNextAction.FINALIZE;
+            return CounterNextAction.FINALIZE;
         }
         if (confirmed > 0 && ready > 0) {
-            return tab.remainingAmount().signum() > 0
-                    ? CounterNextAction.REGISTER_PAYMENT
-                    : CounterNextAction.DELIVER;
+            return CounterNextAction.DELIVER;
         }
         return CounterNextAction.VIEW;
     }

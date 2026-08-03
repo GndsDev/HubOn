@@ -339,7 +339,7 @@ type ManualMovementType = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
               </label>
               <datalist id="stock-exit-reasons">
                 <option value="Consumo do dia"></option>
-                <option value="Uso na producao"></option>
+                <option value="Uso na produção"></option>
                 <option value="Quebra operacional"></option>
                 <option value="Correcao de fechamento"></option>
                 <option value="Outro"></option>

@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { finalize, forkJoin } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { FeedbackService } from '../../core/services/feedback.service';
@@ -14,13 +15,14 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
+import { PaymentDialogComponent } from '../../shared/components/payment-dialog/payment-dialog.component';
 
 @Component({
   selector: 'app-tabs-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent, AccessibleDialogDirective],
+  imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent, AccessibleDialogDirective, PaymentDialogComponent],
   template: `
-    <app-page-header kicker="Atendimento" title="Comandas" description="Acompanhe comandas abertas, pagamentos e responsáveis do salão.">
+    <app-page-header kicker="Atendimento de mesas" title="Comandas" description="Atenda, receba e conclua as vendas das mesas em um único lugar.">
       <button type="button" class="primary-button" (click)="openForm()"><i class="pi pi-plus"></i>Abrir comanda</button>
     </app-page-header>
 
@@ -118,6 +120,8 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
             }
             @if (tab.remainingAmount === 0) {
               <button type="button" class="primary-button" (click)="close(tab)"><i class="pi pi-check-circle"></i>Fechar comanda</button>
+            } @else if (canReceivePayment()) {
+              <button type="button" class="primary-button" (click)="paymentOpen.set(true)"><i class="pi pi-wallet"></i>{{ tab.paidAmount > 0 ? 'Completar pagamento' : 'Registrar pagamento' }}</button>
             }
           </div>
         </section>
@@ -133,11 +137,24 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
         </section>
       </div>
     }
+
+    @if (paymentOpen() && selected(); as tab) {
+      <app-payment-dialog
+        [tabId]="tab.id"
+        [originLabel]="tab.displayLabel"
+        [totalAmount]="tab.finalAmount"
+        [paidAmount]="tab.paidAmount"
+        [remainingAmount]="tab.remainingAmount"
+        (dismissed)="paymentOpen.set(false)"
+        (completed)="onPaymentCompleted(tab.id)"
+      />
+    }
   `,
 })
 export class TabsPageComponent implements OnInit {
   private readonly api = inject(TabApiService);
   private readonly tableApi = inject(TableApiService);
+  private readonly route = inject(ActivatedRoute);
   private readonly auth = inject(AuthService);
   private readonly feedback = inject(FeedbackService);
 
@@ -149,6 +166,7 @@ export class TabsPageComponent implements OnInit {
   readonly formOpen = signal(false);
   readonly selected = signal<Tab | null>(null);
   readonly pendingCancel = signal<Tab | null>(null);
+  readonly paymentOpen = signal(false);
   form = { tableId: 0, serviceFee: 0, discountAmount: 0 };
 
   ngOnInit(): void { this.load(); }
@@ -160,7 +178,14 @@ export class TabsPageComponent implements OnInit {
     forkJoin({ tabs: this.api.getOpen(), tables: this.tableApi.getAll() })
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: ({ tabs, tables }) => { this.tabs.set(tabs); this.tables.set(tables); },
+        next: ({ tabs, tables }) => {
+          const tableTabs = tabs.filter((tab) => tab.type === 'TABLE');
+          this.tabs.set(tableTabs);
+          this.tables.set(tables);
+          const requestedId = Number(this.route.snapshot.queryParamMap.get('tab'));
+          const requested = tableTabs.find((tab) => tab.id === requestedId);
+          if (requested) this.showDetails(requested);
+        },
         error: (error) => this.error.set(apiErrorMessage(error)),
       });
   }
@@ -189,7 +214,21 @@ export class TabsPageComponent implements OnInit {
   }
 
   showDetails(tab: Tab): void {
+    this.paymentOpen.set(false);
     this.api.getById(tab.id).subscribe({ next: (detail) => this.selected.set(detail), error: (error) => this.feedback.error(apiErrorMessage(error)) });
+  }
+
+  canReceivePayment(): boolean { return this.auth.hasAnyRole(['OWNER', 'ADMIN', 'CASHIER']); }
+
+  onPaymentCompleted(tabId: number): void {
+    this.paymentOpen.set(false);
+    this.api.getById(tabId).subscribe({
+      next: (detail) => {
+        this.selected.set(detail);
+        this.tabs.update((tabs) => tabs.map((tab) => tab.id === detail.id ? detail : tab));
+      },
+      error: (error) => this.feedback.error(apiErrorMessage(error)),
+    });
   }
 
   close(tab: Tab): void {

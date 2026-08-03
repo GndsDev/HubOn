@@ -1,5 +1,6 @@
 package com.hubon.backend.payment.domain;
 
+import com.hubon.backend.cash.domain.CashShift;
 import com.hubon.backend.tab.domain.Tab;
 import com.hubon.backend.user.domain.User;
 import jakarta.persistence.*;
@@ -24,6 +25,10 @@ public class Payment {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tab_id", nullable = false)
     private Tab tab;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cash_shift_id")
+    private CashShift cashShift;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
