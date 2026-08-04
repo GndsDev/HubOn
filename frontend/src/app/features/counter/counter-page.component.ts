@@ -205,12 +205,26 @@ type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
                   <i class="pi pi-search"></i>
                   <input type="search" placeholder="Buscar produto" aria-label="Buscar produto" [(ngModel)]="searchTerm" />
                 </label>
-                <div class="segmented-control counter-category-filter" aria-label="Filtrar por categoria">
-                  <button type="button" [class.active]="categoryFilter === 'ALL'" (click)="categoryFilter = 'ALL'">Todos</button>
-                  @for (category of categories(); track category) {
-                    <button type="button" [class.active]="categoryFilter === category" (click)="categoryFilter = category">{{ category }}</button>
-                  }
-                </div>
+                <nav class="counter-category-filter-shell" aria-label="Filtrar produtos por categoria">
+                  <div class="segmented-control counter-category-filter">
+                    <button
+                      type="button"
+                      title="Todos"
+                      [class.active]="categoryFilter === 'ALL'"
+                      [attr.aria-pressed]="categoryFilter === 'ALL'"
+                      (click)="selectCategory('ALL', $event)"
+                    >Todos</button>
+                    @for (category of categories(); track category) {
+                      <button
+                        type="button"
+                        [title]="category"
+                        [class.active]="categoryFilter === category"
+                        [attr.aria-pressed]="categoryFilter === category"
+                        (click)="selectCategory(category, $event)"
+                      >{{ category }}</button>
+                    }
+                  </div>
+                </nav>
               </div>
 
               @if (filteredProducts.length === 0) {
@@ -533,6 +547,12 @@ export class CounterPageComponent implements OnInit {
       (this.categoryFilter === 'ALL' || product.categoryName === this.categoryFilter)
       && (!term || `${product.name} ${product.categoryName}`.toLocaleLowerCase('pt-BR').includes(term)),
     );
+  }
+
+  selectCategory(category: string, event?: MouseEvent): void {
+    this.categoryFilter = category;
+    const button = event?.currentTarget as HTMLElement | null;
+    button?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   }
 
   openProduct(product: Product): void {

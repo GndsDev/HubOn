@@ -2798,8 +2798,40 @@ app-categories-page {
   gap: var(--space-sm);
 }
 
+.counter-category-filter-shell {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
 .counter-category-filter {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  touch-action: pan-x;
+}
+
+.counter-category-filter::-webkit-scrollbar {
+  display: block;
+  height: 0.35rem;
+}
+
+.counter-category-filter button {
+  width: max-content;
+  max-width: none;
+  min-height: 2.25rem;
+  flex: 0 0 auto;
+  overflow: visible;
+  padding-inline: var(--space-md);
+  text-overflow: clip;
+  white-space: nowrap;
+  scroll-snap-align: center;
 }
 
 .counter-product-grid {
@@ -3496,7 +3528,7 @@ app-categories-page {
 
 .report-filters {
   display: grid;
-  grid-template-columns: minmax(11rem, 0.6fr) minmax(9rem, 0.45fr) minmax(8rem, 0.4fr) minmax(18rem, 1fr);
+  grid-template-columns: minmax(15rem, 0.75fr) minmax(22rem, 1.1fr) minmax(18rem, 1fr);
   align-items: end;
   gap: var(--space-md);
   border-bottom: 1px solid var(--color-border);
@@ -3504,7 +3536,29 @@ app-categories-page {
 }
 
 .report-channel-filter {
-  grid-column: -2 / -1;
+  min-width: 0;
+}
+
+.report-period-filter,
+.report-reference-filter {
+  min-width: 0;
+}
+
+.report-reference-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.report-reference-controls input,
+.report-reference-controls select {
+  min-width: 0;
+  flex: 1 1 8rem;
+}
+
+.report-reference-controls .icon-button {
+  flex: 0 0 var(--button-height);
 }
 
 .report-export-menu {
@@ -3581,6 +3635,41 @@ app-categories-page {
   grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 0.5fr);
 }
 
+.report-insights {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-block: 1px solid var(--color-border);
+  padding-block: var(--space-sm);
+}
+
+.report-insights > div {
+  display: grid;
+  gap: var(--space-2xs);
+  min-width: 0;
+  border-right: 1px solid var(--color-border-soft);
+  padding-inline: var(--space-md);
+}
+
+.report-insights > div:first-child {
+  padding-left: 0;
+}
+
+.report-insights > div:last-child {
+  border-right: 0;
+  padding-right: 0;
+}
+
+.report-insights span,
+.report-sales-count {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.report-insights strong {
+  color: var(--color-text-strong);
+  font-size: 1rem;
+}
+
 .report-bars,
 .report-ranking,
 .report-variant-list {
@@ -3642,6 +3731,66 @@ app-categories-page {
 
 .report-table {
   display: grid;
+}
+
+.report-sales-count {
+  white-space: nowrap;
+}
+
+.report-sales-table {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.report-sales-table table {
+  width: 100%;
+  min-width: 62rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.report-sales-table th {
+  color: var(--color-text-muted);
+  padding: var(--space-sm);
+  font-size: 0.72rem;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.report-sales-table td {
+  border-top: 1px solid var(--color-border-soft);
+  color: var(--color-text);
+  padding: var(--space-sm);
+  font-size: 0.82rem;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.report-sales-table td strong,
+.report-sales-table td small {
+  display: block;
+}
+
+.report-sales-table td small {
+  margin-top: var(--space-2xs);
+  color: var(--color-text-muted);
+}
+
+.report-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  border-top: 1px solid var(--color-border-soft);
+  padding-top: var(--space-sm);
+}
+
+.report-pagination span {
+  min-width: 7rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  text-align: center;
 }
 
 .report-table-head,
@@ -3829,6 +3978,19 @@ app-report-product-sort {
     grid-column: 1 / -1;
   }
 
+  .report-insights {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-insights > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .report-insights > div:nth-child(n + 3) {
+    border-top: 1px solid var(--color-border-soft);
+    padding-top: var(--space-sm);
+  }
+
   .report-grid,
   .report-grid-primary {
     grid-template-columns: 1fr;
@@ -3852,6 +4014,29 @@ app-report-product-sort {
 
   .report-channel-filter {
     grid-column: auto;
+  }
+
+  .report-reference-controls {
+    flex-wrap: wrap;
+  }
+
+  .report-reference-controls input,
+  .report-reference-controls select {
+    flex-basis: calc(50% - 3rem);
+  }
+
+  .report-insights {
+    grid-template-columns: 1fr;
+  }
+
+  .report-insights > div {
+    border-top: 1px solid var(--color-border-soft);
+    border-right: 0;
+    padding: var(--space-sm) 0;
+  }
+
+  .report-insights > div:first-child {
+    border-top: 0;
   }
 
   .report-table-head,

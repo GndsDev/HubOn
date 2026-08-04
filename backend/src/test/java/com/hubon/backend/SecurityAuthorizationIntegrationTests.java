@@ -167,6 +167,7 @@ class SecurityAuthorizationIntegrationTests {
     @Test
     void reportsShouldAllowOwnerAndAdminButRejectOperationalRoles() throws Exception {
         for (String endpoint : List.of(
+                "/api/reports/daily?date=2026-07-10",
                 "/api/reports/monthly?year=2026&month=7",
                 "/api/reports/annual?year=2026"
         )) {
@@ -187,6 +188,18 @@ class SecurityAuthorizationIntegrationTests {
                 .andExpect(header().string("Content-Disposition", containsString("hubon-relatorio-anual-2026.pdf")));
         mockMvc.perform(get("/api/reports/annual/pdf?year=2026")
                         .header("Authorization", bearer(tokenFor(waiterEmail))))
+                .andExpect(status().isForbidden());
+
+        MediaType xlsx = MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        mockMvc.perform(get("/api/reports/daily/xlsx?date=2026-07-10")
+                        .header("Authorization", bearer(tokenFor(ownerEmail))))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(xlsx))
+                .andExpect(header().string(
+                        "Content-Disposition", containsString("hubon-relatorio-diario-2026-07-10.xlsx")));
+        mockMvc.perform(get("/api/reports/daily/xlsx?date=2026-07-10")
+                        .header("Authorization", bearer(tokenFor(cashierEmail))))
                 .andExpect(status().isForbidden());
     }
 

@@ -2,124 +2,212 @@
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8" />
-  <title th:text="${report.reportTitle + ' · ' + report.periodLabel}">Relatório HubOn</title>
+  <title th:text="${report.reportTitle + ' - ' + report.periodLabel}">Relatório HubOn</title>
   <style>
-    @page { size: A4; margin: 18mm 16mm 16mm; }
+    @page {
+      size: A4 landscape;
+      margin: 13mm 10mm 15mm;
+      @bottom-left {
+        content: "HubOn - Relatórios";
+        color: #7b8596;
+        font-size: 7pt;
+      }
+      @bottom-right {
+        content: "Página " counter(page) " de " counter(pages);
+        color: #7b8596;
+        font-size: 7pt;
+      }
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; color: #172033; font-family: sans-serif; font-size: 9.5pt; line-height: 1.42; }
-    h1, h2, p { margin: 0; }
-    .header { border-bottom: 2px solid #3156e8; padding-bottom: 12px; }
-    .brand { color: #3156e8; font-size: 11pt; font-weight: bold; }
-    .title { margin-top: 5px; font-size: 22pt; }
-    .meta { margin-top: 5px; color: #5e6a7d; }
-    .generated { margin-top: 3px; color: #7b8596; font-size: 8pt; }
-    .summary { width: 100%; margin-top: 16px; border-collapse: separate; border-spacing: 6px; }
-    .summary td { width: 25%; border: 1px solid #dce1ea; border-radius: 5px; background: #f6f8fc; padding: 9px; vertical-align: top; }
-    .summary span { display: block; color: #667085; font-size: 7.5pt; text-transform: uppercase; }
-    .summary strong { display: block; margin-top: 4px; color: #111827; font-size: 13pt; }
-    .comparison { margin: 8px 6px 0; color: #3f4d63; font-size: 8.5pt; }
-    .section { margin-top: 18px; page-break-inside: auto; }
-    .section h2 { border-bottom: 1px solid #dce1ea; padding-bottom: 6px; font-size: 13pt; }
-    table.data { width: 100%; border-collapse: collapse; margin-top: 6px; }
-    table.data th { background: #edf1f8; color: #526075; padding: 6px 7px; font-size: 7.5pt; text-align: left; text-transform: uppercase; }
-    table.data td { border-bottom: 1px solid #e5e9f0; padding: 7px; vertical-align: top; }
+    body { margin: 0; color: #172033; font-family: Arial, sans-serif; font-size: 8.2pt; line-height: 1.35; }
+    h1, h2, h3, p { margin: 0; }
+    .document-header { border-bottom: 2px solid #3156e8; padding-bottom: 8px; }
+    .brand { color: #3156e8; font-size: 10pt; font-weight: bold; }
+    .document-title { margin-top: 3px; font-size: 20pt; line-height: 1.1; }
+    .meta { margin-top: 4px; color: #526075; }
+    .generated { margin-top: 2px; color: #7b8596; font-size: 7.2pt; }
+    .summary { width: 100%; margin-top: 12px; border-collapse: separate; border-spacing: 5px; }
+    .summary td { width: 20%; border: 1px solid #dce1ea; background: #f6f8fc; padding: 7px 8px; vertical-align: top; }
+    .summary td.primary { border-color: #97abf6; background: #eef2ff; }
+    .summary span { display: block; color: #667085; font-size: 6.5pt; text-transform: uppercase; }
+    .summary strong { display: block; margin-top: 3px; color: #111827; font-size: 11.5pt; }
+    .operation-summary { width: 100%; margin-top: 4px; border-collapse: collapse; }
+    .operation-summary td { border-right: 1px solid #dce1ea; padding: 4px 8px; text-align: center; }
+    .operation-summary td:last-child { border-right: 0; }
+    .operation-summary strong { display: block; font-size: 11pt; }
+    .operation-summary span { color: #667085; font-size: 7pt; }
+    .comparison { margin-top: 7px; border-left: 3px solid #3156e8; background: #f6f8fc; color: #3f4d63; padding: 6px 8px; }
+    .section { margin-top: 13px; }
+    .section-title { border-bottom: 1px solid #cdd5e2; padding-bottom: 4px; font-size: 11pt; }
+    .section-subtitle { margin-top: 3px; color: #667085; font-size: 7.2pt; }
+    .page-break { page-break-before: always; }
+    table.data { width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed; -fs-table-paginate: paginate; }
+    table.data thead { display: table-header-group; }
+    table.data th { background: #3156e8; color: #ffffff; padding: 5px 4px; font-size: 6.3pt; text-align: left; text-transform: uppercase; }
+    table.data td { border-bottom: 1px solid #e2e7ef; padding: 4px; vertical-align: top; word-wrap: break-word; }
+    table.data tbody tr:nth-child(even) { background: #f8fafc; }
     table.data th.number, table.data td.number { text-align: right; white-space: nowrap; }
     tr { page-break-inside: avoid; }
+    .evolution { font-size: 6.7pt; }
+    .sales { font-size: 5.8pt; line-height: 1.25; }
+    .sales th, .sales td { padding: 3px !important; }
     .product-name { font-weight: bold; }
-    .product-meta, .variant { color: #667085; font-size: 8pt; }
-    .variant { margin-top: 3px; }
-    .empty { margin-top: 8px; border: 1px solid #dce1ea; background: #f8fafc; color: #667085; padding: 12px; }
-    .two-columns { width: 100%; border-collapse: separate; border-spacing: 8px; margin-top: 12px; }
-    .two-columns > tbody > tr > td { width: 50%; border: 1px solid #dce1ea; border-radius: 5px; padding: 10px; vertical-align: top; }
-    .ranking { width: 100%; border-collapse: collapse; margin-top: 5px; }
-    .ranking td { border-bottom: 1px solid #edf0f5; padding: 5px 0; }
+    .product-meta, .variant { color: #667085; font-size: 7pt; }
+    .variant { margin-top: 2px; }
+    .empty { margin-top: 6px; border: 1px solid #dce1ea; background: #f8fafc; color: #667085; padding: 10px; }
+    .rankings { width: 100%; border-collapse: separate; border-spacing: 7px; margin-top: 8px; }
+    .rankings > tbody > tr > td { width: 33.333%; border: 1px solid #dce1ea; padding: 8px; vertical-align: top; }
+    .rankings h3 { font-size: 9pt; }
+    .ranking { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    .ranking td { border-bottom: 1px solid #edf0f5; padding: 4px 0; }
     .ranking td:last-child { text-align: right; white-space: nowrap; font-weight: bold; }
     .ranking small { display: block; color: #667085; }
-    .cancellations { margin-top: 16px; border: 1px solid #efc5c5; border-radius: 5px; background: #fff7f7; color: #8a2f2f; padding: 10px; }
-    .footer { margin-top: 18px; border-top: 1px solid #dce1ea; color: #7b8596; padding-top: 7px; font-size: 7.5pt; }
+    .cancellation-summary { width: 100%; margin-top: 8px; border-collapse: collapse; background: #fff7f7; color: #8a2f2f; }
+    .cancellation-summary td { border: 1px solid #efc5c5; padding: 7px; text-align: center; }
+    .cancellation-summary strong { display: block; font-size: 10pt; }
+    .cancellation-summary span { font-size: 7pt; }
+    .closing-note { margin-top: 12px; border-top: 1px solid #dce1ea; color: #7b8596; padding-top: 6px; font-size: 7pt; }
   </style>
 </head>
 <body>
-  <header class="header">
+  <header class="document-header">
     <div class="brand">HubOn</div>
-    <h1 class="title" th:text="${report.reportTitle}">Relatório mensal</h1>
-    <p class="meta"><span th:text="${report.periodLabel}">Julho de 2026</span> · <span th:text="${report.channelLabel}">Todos os canais</span></p>
+    <h1 class="document-title" th:text="${report.reportTitle}">Relatório mensal</h1>
+    <p class="meta"><span th:text="${report.periodLabel}">Julho de 2026</span> - <span th:text="${report.channelLabel}">Todos os canais</span></p>
     <p class="generated" th:text="${'Gerado em ' + report.generatedAt}">Gerado em 01/01/2026 às 12:00</p>
   </header>
 
   <table class="summary">
-    <tbody>
-      <tr>
-        <td><span>Receita líquida</span><strong th:text="${report.summary.netRevenue}">R$ 0,00</strong></td>
-        <td><span>Receita bruta</span><strong th:text="${report.summary.grossRevenue}">R$ 0,00</strong></td>
-        <td><span>Recebido</span><strong th:text="${report.summary.receivedAmount}">R$ 0,00</strong></td>
-        <td><span>Ticket médio</span><strong th:text="${report.summary.averageTicket}">R$ 0,00</strong></td>
-      </tr>
-      <tr>
-        <td><span>Comandas fechadas</span><strong th:text="${report.summary.closedTabs}">0</strong></td>
-        <td><span>Pedidos</span><strong th:text="${report.summary.orders}">0</strong></td>
-        <td><span>Itens vendidos</span><strong th:text="${report.summary.itemsSold}">0</strong></td>
-        <td><span>Descontos</span><strong th:text="${report.summary.discounts}">R$ 0,00</strong></td>
-      </tr>
-    </tbody>
+    <tbody><tr>
+      <td class="primary"><span>Receita líquida</span><strong th:text="${report.summary.netRevenue}">R$ 0,00</strong></td>
+      <td><span>Receita bruta</span><strong th:text="${report.summary.grossRevenue}">R$ 0,00</strong></td>
+      <td><span>Valor recebido</span><strong th:text="${report.summary.receivedAmount}">R$ 0,00</strong></td>
+      <td><span>Ticket médio</span><strong th:text="${report.summary.averageTicket}">R$ 0,00</strong></td>
+      <td><span>Descontos</span><strong th:text="${report.summary.discounts}">R$ 0,00</strong></td>
+    </tr></tbody>
   </table>
+
+  <table class="operation-summary"><tbody><tr>
+    <td><strong th:text="${report.summary.closedTabs}">0</strong><span>comandas fechadas</span></td>
+    <td><strong th:text="${report.summary.tableSales}">0</strong><span>vendas em mesas</span></td>
+    <td><strong th:text="${report.summary.counterSales}">0</strong><span>vendas no balcão</span></td>
+    <td><strong th:text="${report.summary.orders}">0</strong><span>pedidos</span></td>
+    <td><strong th:text="${report.summary.itemsSold}">0</strong><span>itens vendidos</span></td>
+    <td><strong th:text="${report.summary.serviceFees}">R$ 0,00</strong><span>taxa de serviço</span></td>
+  </tr></tbody></table>
   <p class="comparison" th:text="${report.comparisonText}">Sem base comparável no período anterior</p>
 
   <section class="section">
-    <h2 th:text="${report.seriesTitle}">Receita por período</h2>
-    <table class="data">
-      <thead><tr><th>Período</th><th class="number">Comandas</th><th class="number">Receita líquida</th></tr></thead>
+    <h2 class="section-title" th:text="${report.seriesTitle}">Desempenho por período</h2>
+    <p class="section-subtitle">Receitas e volumes seguem a data de fechamento da comanda.</p>
+    <table class="data evolution">
+      <thead><tr>
+        <th>Período</th><th class="number">Comandas</th><th class="number">Pedidos</th><th class="number">Itens</th>
+        <th class="number">Bruta</th><th class="number">Serviço</th><th class="number">Descontos</th>
+        <th class="number">Líquida</th><th class="number">Recebido</th><th class="number">Ticket</th>
+      </tr></thead>
       <tbody>
         <tr th:each="row : ${report.series}">
           <td th:text="${row.label}">01/07</td>
           <td class="number" th:text="${row.closedTabs}">0</td>
+          <td class="number" th:text="${row.orders}">0</td>
+          <td class="number" th:text="${row.itemsSold}">0</td>
+          <td class="number" th:text="${row.grossRevenue}">R$ 0,00</td>
+          <td class="number" th:text="${row.serviceFees}">R$ 0,00</td>
+          <td class="number" th:text="${row.discounts}">R$ 0,00</td>
           <td class="number" th:text="${row.netRevenue}">R$ 0,00</td>
+          <td class="number" th:text="${row.receivedAmount}">R$ 0,00</td>
+          <td class="number" th:text="${row.averageTicket}">R$ 0,00</td>
         </tr>
       </tbody>
     </table>
   </section>
 
-  <section class="section">
-    <h2>Produtos e variações</h2>
+  <section class="section page-break">
+    <h2 class="section-title">Vendas detalhadas</h2>
+    <p class="section-subtitle">Comandas válidas fechadas no período, em ordem de fechamento.</p>
+    <table class="data sales" th:if="${!#lists.isEmpty(report.sales)}">
+      <thead><tr>
+        <th style="width: 4%">ID</th><th style="width: 7%">Origem</th><th style="width: 9%">Abertura</th>
+        <th style="width: 9%">Fechamento</th><th style="width: 6%">Duração</th><th style="width: 9%">Responsável</th>
+        <th class="number" style="width: 5%">Pedidos</th><th class="number" style="width: 4%">Itens</th>
+        <th class="number" style="width: 8%">Bruta</th><th class="number" style="width: 7%">Descontos</th>
+        <th class="number" style="width: 8%">Final</th><th class="number" style="width: 8%">Recebido</th>
+        <th style="width: 16%">Pagamentos</th>
+      </tr></thead>
+      <tbody>
+        <tr th:each="sale : ${report.sales}">
+          <td th:text="${sale.id}">1</td><td th:text="${sale.origin}">Mesa 1</td>
+          <td th:text="${sale.openedAt}">01/07/2026 12:00</td><td th:text="${sale.closedAt}">01/07/2026 13:00</td>
+          <td th:text="${sale.duration}">1h 0min</td><td th:text="${sale.responsible}">Responsável</td>
+          <td class="number" th:text="${sale.orders}">0</td><td class="number" th:text="${sale.items}">0</td>
+          <td class="number" th:text="${sale.grossRevenue}">R$ 0,00</td><td class="number" th:text="${sale.discounts}">R$ 0,00</td>
+          <td class="number" th:text="${sale.finalAmount}">R$ 0,00</td><td class="number" th:text="${sale.receivedAmount}">R$ 0,00</td>
+          <td th:text="${sale.paymentMethods}">PIX</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="empty" th:if="${#lists.isEmpty(report.sales)}">Nenhuma venda válida fechada no período.</p>
+  </section>
+
+  <section class="section page-break">
+    <h2 class="section-title">Produtos e variações</h2>
     <table class="data" th:if="${!#lists.isEmpty(report.products)}">
-      <thead><tr><th>Produto</th><th class="number">Quantidade</th><th class="number">Valor dos itens</th></tr></thead>
+      <thead><tr><th>Produto</th><th>Categoria</th><th class="number">Quantidade</th><th class="number">Valor dos itens</th><th class="number">Participação</th></tr></thead>
       <tbody>
         <tr th:each="product : ${report.products}">
           <td>
             <div class="product-name" th:text="${product.productName}">Produto</div>
-            <div class="product-meta"><span th:text="${product.categoryName}">Categoria</span> · <span th:text="${product.revenueShare}">0%</span></div>
             <div class="variant" th:each="variant : ${product.variants}">
-              <span th:text="${variant.variantName}">Variação</span> ·
-              <span th:text="${variant.quantity + ' un.'}">0 un.</span> ·
+              <span th:text="${variant.variantName}">Variação</span> -
+              <span th:text="${variant.quantity + ' un.'}">0 un.</span> -
               <span th:text="${variant.salesAmount}">R$ 0,00</span>
             </div>
           </td>
+          <td th:text="${product.categoryName}">Categoria</td>
           <td class="number" th:text="${product.quantity}">0</td>
           <td class="number" th:text="${product.salesAmount}">R$ 0,00</td>
+          <td class="number" th:text="${product.revenueShare}">0%</td>
         </tr>
       </tbody>
     </table>
     <p class="empty" th:if="${#lists.isEmpty(report.products)}">Nenhum produto vendido no período.</p>
   </section>
 
-  <table class="two-columns">
-    <tbody><tr>
-      <td>
-        <h2>Categorias</h2>
-        <table class="ranking"><tbody>
-          <tr th:each="row : ${report.categories}"><td><strong th:text="${row.label}">Categoria</strong><small th:text="${row.detail}">0 itens</small></td><td th:text="${row.value}">R$ 0,00</td></tr>
-        </tbody></table>
-      </td>
-      <td>
-        <h2>Formas de pagamento</h2>
-        <table class="ranking"><tbody>
-          <tr th:each="row : ${report.payments}"><td><strong th:text="${row.label}">Pagamento</strong><small th:text="${row.detail}">0 registros</small></td><td th:text="${row.value}">R$ 0,00</td></tr>
-        </tbody></table>
-      </td>
-    </tr></tbody>
-  </table>
+  <table class="rankings"><tbody><tr>
+    <td>
+      <h3>Categorias</h3>
+      <table class="ranking"><tbody>
+        <tr th:each="row : ${report.categories}"><td><strong th:text="${row.label}">Categoria</strong><small th:text="${row.detail}">0 itens</small></td><td th:text="${row.value}">R$ 0,00</td></tr>
+      </tbody></table>
+    </td>
+    <td>
+      <h3>Formas de pagamento</h3>
+      <table class="ranking"><tbody>
+        <tr th:each="row : ${report.payments}"><td><strong th:text="${row.label}">Pagamento</strong><small th:text="${row.detail}">0 registros</small></td><td th:text="${row.value}">R$ 0,00</td></tr>
+      </tbody></table>
+    </td>
+    <td>
+      <h3>Canais</h3>
+      <table class="ranking"><tbody>
+        <tr th:each="row : ${report.channels}"><td><strong th:text="${row.label}">Canal</strong><small th:text="${row.detail}">0 comandas</small></td><td th:text="${row.value}">R$ 0,00</td></tr>
+      </tbody></table>
+    </td>
+  </tr></tbody></table>
 
-  <div class="cancellations"><strong>Cancelamentos no período: </strong><span th:text="${report.cancellationSummary}">0 pedidos · 0 itens · R$ 0,00</span></div>
-  <footer class="footer">Documento gerado pelo HubOn. A ordenação de produtos é fixa por faturamento, quantidade e nome.</footer>
+  <section class="section">
+    <h2 class="section-title">Cancelamentos no período</h2>
+    <table class="cancellation-summary"><tbody><tr>
+      <td><strong th:text="${report.cancellations.cancelledOrders}">0</strong><span>pedidos cancelados</span></td>
+      <td><strong th:text="${report.cancellations.cancelledItems}">0</strong><span>itens cancelados</span></td>
+      <td><strong th:text="${report.cancellations.cancelledAmount}">R$ 0,00</strong><span>valor cancelado</span></td>
+    </tr></tbody></table>
+    <table class="data" th:if="${!#lists.isEmpty(report.cancellations.reasons)}">
+      <thead><tr><th>Principais motivos</th><th class="number">Ocorrências</th></tr></thead>
+      <tbody><tr th:each="reason : ${report.cancellations.reasons}"><td th:text="${reason.reason}">Motivo</td><td class="number" th:text="${reason.occurrences}">0</td></tr></tbody>
+    </table>
+  </section>
+
+  <p class="closing-note">Documento gerado pelo HubOn. Rascunhos, comandas canceladas, pedidos cancelados e itens cancelados não compõem a receita. Produtos usam os registros históricos preservados na venda.</p>
 </body>
 </html>

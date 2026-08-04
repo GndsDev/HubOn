@@ -19,6 +19,7 @@ import com.hubon.backend.payment.dto.PaymentRequest;
 import com.hubon.backend.payment.service.PaymentService;
 import com.hubon.backend.report.domain.ReportChannel;
 import com.hubon.backend.report.dto.AnnualReportResponse;
+import com.hubon.backend.report.dto.DailyReportResponse;
 import com.hubon.backend.report.dto.MonthlyReportResponse;
 import com.hubon.backend.report.service.MonthlyReportService;
 import com.hubon.backend.role.domain.Role;
@@ -52,6 +53,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -493,6 +495,11 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
         assertThat(report.summary().orders()).isEqualTo(2);
         assertThat(report.summary().itemsSold()).isEqualTo(3);
         assertThat(report.summary().averageTicket()).isEqualByComparingTo("77.50");
+        assertThat(report.summary().tableSales()).isEqualTo(1);
+        assertThat(report.summary().counterSales()).isEqualTo(1);
+        assertThat(report.summary().cancelledOrders()).isEqualTo(1);
+        assertThat(report.summary().cancelledItems()).isEqualTo(1);
+        assertThat(report.summary().cancelledAmount()).isEqualByComparingTo("30.00");
         assertThat(report.products()).hasSize(1);
         assertThat(report.products().getFirst().productName()).isEqualTo("Coca-Cola");
         assertThat(report.products().getFirst().variants()).extracting(MonthlyReportResponse.VariantPerformance::variantName)
@@ -505,7 +512,18 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
                 .containsExactly("PIX", "CASH");
         assertThat(report.channels()).extracting(MonthlyReportResponse.ChannelPerformance::channel)
                 .containsExactly("TABLE", "COUNTER");
-        assertThat(report.daily()).hasSize(2);
+        assertThat(report.daily()).hasSize(31);
+        assertThat(report.daily().get(4)).satisfies(day -> {
+            assertThat(day.date()).isEqualTo(LocalDate.of(2026, 7, 5));
+            assertThat(day.closedTabs()).isEqualTo(1);
+            assertThat(day.orders()).isEqualTo(1);
+            assertThat(day.itemsSold()).isEqualTo(2);
+            assertThat(day.netRevenue()).isEqualByComparingTo("105.00");
+        });
+        assertThat(report.sales()).hasSize(2);
+        assertThat(report.sales()).extracting(MonthlyReportResponse.SaleDetail::origin)
+                .anyMatch(origin -> origin.startsWith("Mesa "))
+                .anyMatch(origin -> origin.startsWith("Balcão #"));
         assertThat(report.comparison().previousMonthNetRevenue()).isEqualByComparingTo("100.00");
         assertThat(report.comparison().netRevenueDifference()).isEqualByComparingTo("55.00");
         assertThat(report.comparison().percentageChange()).isEqualByComparingTo("55.00");
@@ -514,6 +532,32 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
         assertThat(report.cancellations().cancelledAmount()).isEqualByComparingTo("30.00");
         assertThat(report.cancellations().mainReasons()).extracting(MonthlyReportResponse.CancellationReason::reason)
                 .contains("Cliente desistiu");
+    }
+
+    @Test
+    void dailyReportUsesBusinessDateAndBuildsCompleteHourlySeries() {
+        insertClosedSale("TABLE", LocalDateTime.of(2026, 7, 9, 12, 0), "100", "0", "0", "100", "Anterior", "Padrão", 1, "PIX");
+        insertClosedSale("COUNTER", LocalDateTime.of(2026, 7, 10, 18, 30), "50", "5", "0", "55", "Jantinha", "Completa", 2, "CASH");
+        insertCancellation(LocalDateTime.of(2026, 7, 10, 19, 0));
+
+        DailyReportResponse report = reportService.generateDaily(LocalDate.of(2026, 7, 10), ReportChannel.ALL);
+
+        assertThat(report.summary().netRevenue()).isEqualByComparingTo("55.00");
+        assertThat(report.summary().counterSales()).isEqualTo(1);
+        assertThat(report.comparison().previousDayNetRevenue()).isEqualByComparingTo("100.00");
+        assertThat(report.hourly()).hasSize(24);
+        assertThat(report.hourly().get(18)).satisfies(hour -> {
+            assertThat(hour.hourLabel()).isEqualTo("18:00-18:59");
+            assertThat(hour.closedTabs()).isEqualTo(1);
+            assertThat(hour.itemsSold()).isEqualTo(2);
+            assertThat(hour.netRevenue()).isEqualByComparingTo("55.00");
+        });
+        assertThat(report.sales()).singleElement().satisfies(sale -> {
+            assertThat(sale.origin()).startsWith("Balcão #");
+            assertThat(sale.durationMinutes()).isEqualTo(60);
+            assertThat(sale.paymentMethods()).isEqualTo("CASH");
+        });
+        assertThat(report.cancellations().cancelledAmount()).isEqualByComparingTo("30.00");
     }
 
     @Test
@@ -564,6 +608,11 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
         assertThat(report.monthly().getFirst().netRevenue()).isEqualByComparingTo("100.00");
         assertThat(report.monthly().get(1).netRevenue()).isZero();
         assertThat(report.monthly().get(6).netRevenue()).isEqualByComparingTo("200.00");
+        assertThat(report.monthly().get(6).receivedAmount()).isEqualByComparingTo("200.00");
+        assertThat(report.sales()).hasSize(2);
+        assertThat(report.indicators().bestMonthLabel()).isEqualTo("Julho");
+        assertThat(report.indicators().bestMonthNetRevenue()).isEqualByComparingTo("200.00");
+        assertThat(report.indicators().activeMonths()).isEqualTo(2);
         assertThat(report.products()).extracting(MonthlyReportResponse.ProductPerformance::productName)
                 .containsExactly("Jantinha", "Coca-Cola");
     }

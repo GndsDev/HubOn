@@ -219,6 +219,35 @@ describe('CounterPageComponent', () => {
     expect(component.customer.name).toBe('Ana');
   });
 
+  it('keeps long category buttons whole inside an accessible horizontal strip', () => {
+    productApi.getAll.mockReturnValue(of([
+      product,
+      { ...product, id: 11, name: 'Carreteiro', categoryName: 'Carreteiro Completo' },
+      { ...product, id: 12, name: 'Espetinho', categoryName: 'Espetinhos - Diversos' },
+    ]));
+    const fixture = createFixture(50);
+    const component = fixture.componentInstance;
+    const nativeElement = fixture.nativeElement as HTMLElement;
+    const shell = nativeElement.querySelector('.counter-category-filter-shell') as HTMLElement;
+    const buttons = Array.from(
+      nativeElement.querySelectorAll<HTMLButtonElement>('.counter-category-filter button'),
+    );
+
+    expect(shell.getAttribute('aria-label')).toBe('Filtrar produtos por categoria');
+    expect(buttons.map((button) => button.textContent?.trim())).toEqual([
+      'Todos',
+      'Bebidas',
+      'Carreteiro Completo',
+      'Espetinhos - Diversos',
+    ]);
+    expect(buttons[0].getAttribute('aria-pressed')).toBe('true');
+
+    buttons[2].click();
+    fixture.detectChanges();
+    expect(component.categoryFilter).toBe('Carreteiro Completo');
+    expect(buttons[2].getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('persists quantity changes and confirms the existing draft without recreating the sale', () => {
     const component = createComponent(50);
     const key = component.cart()[0].key;

@@ -10,10 +10,29 @@ const outputDir = path.resolve('dist/visual-audit');
 const now = '2026-07-27T14:00:00';
 const user = { id: 1, name: 'Gabriel Owner', email: 'owner@hubon.local', active: true, roles: ['OWNER'] };
 const session = { token: 'visual-audit-token', tokenType: 'Bearer', expiresAt: '2099-01-01T00:00:00Z', user };
-const categories = [
-  { id: 1, name: 'Pratos', description: 'Refeições', active: true, displayOrder: 0, createdAt: now, updatedAt: now },
-  { id: 2, name: 'Bebidas', description: 'Bebidas prontas', active: true, displayOrder: 1, createdAt: now, updatedAt: now },
+const categoryNames = [
+  'Bebidas Diversas',
+  'Caldos',
+  'Carreteiro Completo',
+  'Cervejas 600 ml',
+  'Drinks',
+  'Espetinhos - Carnes',
+  'Espetinhos - Diversos',
+  'Jantinha Completa',
+  'Long Neck',
+  'Petiscos',
+  'Porções',
+  'Sobremesas artesanais para compartilhar',
 ];
+const categories = categoryNames.map((name, index) => ({
+  id: index + 1,
+  name,
+  description: `Categoria ${name}`,
+  active: true,
+  displayOrder: index,
+  createdAt: now,
+  updatedAt: now,
+}));
 
 function option(id, groupId, name, additionalPrice = 0) {
   return { id, groupId, name, additionalPrice, displayOrder: id, active: true, createdAt: now, updatedAt: now };
@@ -54,10 +73,24 @@ const cocaVariants = [
 ];
 const riceVariants = [variant(31, 3, 'Porção de Arroz', 'Média', 14), variant(32, 3, 'Porção de Arroz', 'Grande', 20)];
 const products = [
-  product(1, 1, 'Pratos', jantinhaName, 'REQUIRES_PREPARATION', jantinhaVariants, jantinhaGroups),
-  product(2, 2, 'Bebidas', 'Coca-Cola', 'DIRECT_SERVICE', cocaVariants),
-  product(3, 1, 'Pratos', 'Porção de Arroz', 'REQUIRES_PREPARATION', riceVariants),
-  product(4, 2, 'Bebidas', 'Suco temporariamente indisponível', 'DIRECT_SERVICE', [], [], { available: false, complete: false }),
+  product(1, 8, 'Jantinha Completa', jantinhaName, 'REQUIRES_PREPARATION', jantinhaVariants, jantinhaGroups),
+  product(2, 1, 'Bebidas Diversas', 'Coca-Cola', 'DIRECT_SERVICE', cocaVariants),
+  product(3, 11, 'Porções', 'Porção de Arroz', 'REQUIRES_PREPARATION', riceVariants),
+  product(4, 1, 'Bebidas Diversas', 'Suco temporariamente indisponível', 'DIRECT_SERVICE', [], [], { available: false, complete: false }),
+  ...categoryNames
+    .filter((categoryName) => !['Bebidas Diversas', 'Jantinha Completa', 'Porções'].includes(categoryName))
+    .map((categoryName, index) => {
+      const productId = 20 + index;
+      const productName = `Produto de ${categoryName}`;
+      return product(
+        productId,
+        categories.find((category) => category.name === categoryName).id,
+        categoryName,
+        productName,
+        index % 2 === 0 ? 'DIRECT_SERVICE' : 'REQUIRES_PREPARATION',
+        [variant(200 + index, productId, productName, 'Padrão', 8 + index)],
+      );
+    }),
 ];
 
 const ingredients = Array.from({ length: 11 }, (_, index) => {
@@ -168,9 +201,63 @@ const cashShift = {
     { id: 'cash-3', type: 'WITHDRAWAL', origin: 'Sangria', amount: 5, method: null, responsible: 'Gabriel Owner', reference: 'Caixa #7', observation: 'Retirada de segurança', occurredAt: now },
   ],
 };
+
+function reportPerformance(index, netRevenue) {
+  const closedTabs = 8 + index % 5;
+  const grossRevenue = netRevenue + 24;
+  const serviceFees = 16;
+  const discounts = 8;
+  return {
+    closedTabs,
+    orders: closedTabs + 2,
+    itemsSold: closedTabs * 3,
+    grossRevenue,
+    serviceFees,
+    discounts,
+    netRevenue,
+    receivedAmount: netRevenue,
+    averageTicket: Number((netRevenue / closedTabs).toFixed(2)),
+  };
+}
+
+const reportSales = Array.from({ length: 45 }, (_, index) => {
+  const finalAmount = 32 + index * 1.75;
+  return {
+    id: 5000 + index,
+    origin: index % 3 === 0 ? `Balcão #${120 + index}` : `Mesa ${(index % 18) + 1}`,
+    openedAt: `2026-07-${String((index % 27) + 1).padStart(2, '0')}T${String(11 + index % 10).padStart(2, '0')}:00:00`,
+    closedAt: `2026-07-${String((index % 27) + 1).padStart(2, '0')}T${String(11 + index % 10).padStart(2, '0')}:37:00`,
+    durationMinutes: 37,
+    responsible: index % 2 === 0 ? 'Gabriel Owner' : 'Operador com nome extenso para validar a coluna',
+    orders: 1 + index % 3,
+    items: 2 + index % 6,
+    grossRevenue: finalAmount + 4,
+    serviceFees: 4,
+    discounts: 0,
+    finalAmount,
+    receivedAmount: finalAmount,
+    paymentMethods: index % 2 === 0 ? 'PIX' : 'Cartão de crédito + Dinheiro',
+  };
+});
+
 const monthlyReport = {
   year: 2026, month: 7, periodLabel: 'julho de 2026', channel: 'ALL',
-  summary: { grossRevenue: 8420, serviceFees: 320, discounts: 180, netRevenue: 8240, receivedAmount: 8240, closedTabs: 186, orders: 194, itemsSold: 438, averageTicket: 44.3 },
+  summary: {
+    grossRevenue: 8420,
+    serviceFees: 320,
+    discounts: 180,
+    netRevenue: 8240,
+    receivedAmount: 8240,
+    closedTabs: 186,
+    orders: 194,
+    itemsSold: 438,
+    averageTicket: 44.3,
+    tableSales: 144,
+    counterSales: 42,
+    cancelledOrders: 3,
+    cancelledItems: 5,
+    cancelledAmount: 145,
+  },
   comparison: { previousMonthNetRevenue: 7600, netRevenueDifference: 640, percentageChange: 8.42 },
   products: [
     'Combo executivo com acompanhamento especial',
@@ -209,12 +296,66 @@ const monthlyReport = {
   categories: [{ categoryName: 'Pratos', quantity: 310, salesAmount: 6200, revenueSharePercentage: 75.24 }, { categoryName: 'Bebidas', quantity: 128, salesAmount: 2040, revenueSharePercentage: 24.76 }],
   paymentMethods: [{ method: 'PIX', payments: 102, amount: 4500, receivedSharePercentage: 54.61 }, { method: 'CREDIT_CARD', payments: 56, amount: 2700, receivedSharePercentage: 32.77 }, { method: 'CASH', payments: 28, amount: 1040, receivedSharePercentage: 12.62 }],
   channels: [{ channel: 'TABLE', closedTabs: 144, netRevenue: 6900, averageTicket: 47.92 }, { channel: 'COUNTER', closedTabs: 42, netRevenue: 1340, averageTicket: 31.9 }],
-  daily: Array.from({ length: 18 }, (_, index) => ({ date: `2026-07-${String(index + 1).padStart(2, '0')}`, closedTabs: 8 + index % 5, netRevenue: 320 + index * 18, averageTicket: 42 })),
+  daily: Array.from({ length: 31 }, (_, index) => ({
+    date: `2026-07-${String(index + 1).padStart(2, '0')}`,
+    ...reportPerformance(index, 240 + index * 8),
+  })),
+  sales: reportSales,
   cancellations: { cancelledOrders: 3, cancelledItems: 5, cancelledAmount: 145, mainReasons: [{ reason: 'Cliente desistiu', occurrences: 3 }, { reason: 'Item indisponível', occurrences: 2 }] },
 };
+
+const dailyReport = {
+  date: '2026-07-27',
+  periodLabel: '27 de julho de 2026',
+  channel: 'ALL',
+  summary: {
+    grossRevenue: 492,
+    serviceFees: 18,
+    discounts: 10,
+    netRevenue: 482,
+    receivedAmount: 482,
+    closedTabs: 12,
+    orders: 15,
+    itemsSold: 38,
+    averageTicket: 40.17,
+    tableSales: 8,
+    counterSales: 4,
+    cancelledOrders: 1,
+    cancelledItems: 2,
+    cancelledAmount: 38,
+  },
+  comparison: { previousDayNetRevenue: 440, netRevenueDifference: 42, percentageChange: 9.55 },
+  products: monthlyReport.products,
+  categories: monthlyReport.categories,
+  paymentMethods: monthlyReport.paymentMethods,
+  channels: monthlyReport.channels,
+  hourly: Array.from({ length: 24 }, (_, hour) => ({
+    hour,
+    hourLabel: `${String(hour).padStart(2, '0')}:00`,
+    ...reportPerformance(hour, hour >= 11 && hour <= 22 ? 18 + hour * 2 : 0),
+  })),
+  sales: reportSales.slice(0, 18),
+  cancellations: { cancelledOrders: 1, cancelledItems: 2, cancelledAmount: 38, mainReasons: [{ reason: 'Item indisponível', occurrences: 2 }] },
+};
+
 const annualReport = {
   year: 2026, periodLabel: 'Ano de 2026', channel: 'ALL',
-  summary: { grossRevenue: 92400, serviceFees: 3280, discounts: 1940, netRevenue: 93740, receivedAmount: 93740, closedTabs: 2180, orders: 2260, itemsSold: 5124, averageTicket: 43 },
+  summary: {
+    grossRevenue: 92400,
+    serviceFees: 3280,
+    discounts: 1940,
+    netRevenue: 93740,
+    receivedAmount: 93740,
+    closedTabs: 2180,
+    orders: 2260,
+    itemsSold: 5124,
+    averageTicket: 43,
+    tableSales: 1700,
+    counterSales: 480,
+    cancelledOrders: 18,
+    cancelledItems: 23,
+    cancelledAmount: 620,
+  },
   comparison: { previousYearNetRevenue: 86400, netRevenueDifference: 7340, percentageChange: 8.5 },
   products: monthlyReport.products.map((product, index) => ({
     ...product,
@@ -231,10 +372,16 @@ const annualReport = {
   ].map(([monthLabel, netRevenue], index) => ({
     month: index + 1,
     monthLabel,
-    closedTabs: 160 + index * 4,
-    netRevenue,
-    averageTicket: 43,
+    ...reportPerformance(index, netRevenue),
+    cancelledAmount: 24 + index * 5,
   })),
+  sales: reportSales,
+  indicators: {
+    bestMonthLabel: 'Dezembro',
+    bestMonthNetRevenue: 10020,
+    averageMonthlyRevenue: 7811.67,
+    activeMonths: 12,
+  },
   cancellations: { cancelledOrders: 18, cancelledItems: 23, cancelledAmount: 620, mainReasons: [{ reason: 'Cliente desistiu', occurrences: 12 }] },
 };
 
@@ -244,6 +391,7 @@ function json(route, body, status = 200) {
 
 async function mockApi(page) {
   const state = {
+    dailyReport,
     monthlyReport,
     annualReport,
     reportDelayMs: 0,
@@ -273,6 +421,12 @@ async function mockApi(page) {
     if (apiPath === '/tabs/open') return json(route, tabs);
     if (/^\/tabs\/\d+$/.test(apiPath) && method === 'GET') {
       return json(route, tabs.find((item) => item.id === Number(apiPath.split('/').at(-1))) ?? tableTab);
+    }
+    if (apiPath === '/reports/daily') {
+      state.reportRequests += 1;
+      if (state.reportDelayMs) await new Promise((resolve) => setTimeout(resolve, state.reportDelayMs));
+      if (state.reportError) return json(route, { message: 'Não foi possível carregar o relatório de teste.' }, 500);
+      return json(route, state.dailyReport);
     }
     if (apiPath === '/reports/monthly') {
       state.reportRequests += 1;
@@ -336,6 +490,15 @@ async function viewportChecks(page, screen, viewport, theme) {
       .map((selector) => document.querySelector(selector))
       .filter(Boolean)
       .map((element) => ({ selector: element.className, overflow: element.scrollWidth - element.clientWidth }));
+    const categoryStrip = document.querySelector('.counter-category-filter');
+    const categoryButtons = Array.from(categoryStrip?.querySelectorAll('button') ?? []);
+    const categoryButtonBoxes = categoryButtons.map((button) => button.getBoundingClientRect());
+    const categoryOverlaps = categoryButtonBoxes.some((box, index) => categoryButtonBoxes.slice(index + 1).some((other) => (
+      Math.max(0, Math.min(box.right, other.right) - Math.max(box.left, other.left))
+      * Math.max(0, Math.min(box.bottom, other.bottom) - Math.max(box.top, other.top)) > 1
+    )));
+    const categoryStripBox = categoryStrip?.getBoundingClientRect();
+    const categoryStyle = categoryStrip ? getComputedStyle(categoryStrip) : null;
     const clippedFlowBadges = Array.from(document.querySelectorAll('.flow-status-badge .status-chip'))
       .filter((element) => element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1)
       .length;
@@ -372,6 +535,17 @@ async function viewportChecks(page, screen, viewport, theme) {
       stockRows,
       stockHeightDelta: stockCards.length ? Math.max(...stockCards.map((box) => box.height)) - Math.min(...stockCards.map((box) => box.height)) : 0,
       tableOverflow,
+      categoryStrip: categoryStrip ? {
+        buttonCount: categoryButtons.length,
+        contentOverflow: categoryStrip.scrollWidth - categoryStrip.clientWidth,
+        horizontalScrollEnabled: ['auto', 'scroll'].includes(categoryStyle?.overflowX),
+        verticalOverflow: categoryStrip.scrollHeight - categoryStrip.clientHeight,
+        insideViewport: !!categoryStripBox && categoryStripBox.left >= -1 && categoryStripBox.right <= innerWidth + 1,
+        overlaps: categoryOverlaps,
+        clippedButtons: categoryButtons.filter((button) => button.scrollWidth > button.clientWidth + 1 || button.scrollHeight > button.clientHeight + 1).length,
+        shrinkableButtons: categoryButtons.filter((button) => getComputedStyle(button).flexShrink !== '0').length,
+        wrappedButtons: categoryButtons.filter((button) => getComputedStyle(button).whiteSpace !== 'nowrap').length,
+      } : null,
       clippedFlowBadges,
       clippedOrderElements,
       orderFiltersOverflow: Math.max(0, (document.querySelector('.order-filters')?.scrollWidth ?? 0) - (document.querySelector('.order-filters')?.clientWidth ?? 0)),
@@ -389,6 +563,27 @@ async function viewportChecks(page, screen, viewport, theme) {
       } : null,
     };
   }, { screen, viewport, theme });
+}
+
+async function categoryScrollMetrics(page, viewport, theme) {
+  const strip = page.locator('.counter-category-filter');
+  const lastButton = strip.locator('button').last();
+  await lastButton.click();
+  await page.waitForTimeout(100);
+  return strip.evaluate((element, metadata) => {
+    const active = element.querySelector('button[aria-pressed="true"]');
+    const activeBox = active?.getBoundingClientRect();
+    const stripBox = element.getBoundingClientRect();
+    return {
+      screen: 'counter-category-scroll',
+      ...metadata,
+      scrollLeft: element.scrollLeft,
+      maxScrollLeft: element.scrollWidth - element.clientWidth,
+      activeCategory: active?.textContent?.trim() ?? '',
+      activeInsideStrip: !!activeBox && activeBox.left >= stripBox.left - 1 && activeBox.right <= stripBox.right + 1,
+      horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  }, { viewport, theme });
 }
 
 async function sidebarAfterScroll(page, viewport, theme) {
@@ -573,6 +768,10 @@ for (const theme of ['dark', 'light']) {
       const name = `${screen}-${theme}-${viewport.label}`;
       await openRoute(page, route, name);
       results.push(await viewportChecks(page, screen, viewport.label, theme));
+      if (screen === 'counter-detail') {
+        results.push(await categoryScrollMetrics(page, viewport.label, theme));
+        await screenshot(page, `counter-category-scrolled-${theme}-${viewport.label}`);
+      }
       if (screen === 'dashboard') {
         await page.locator('.sidebar-toggle').click();
         await page.waitForFunction(() => Math.abs((document.querySelector('.hub-sidebar')?.getBoundingClientRect().width ?? 0) - 72) < 1);
@@ -626,6 +825,15 @@ for (const theme of ['dark', 'light']) {
         await page.waitForFunction(() => document.querySelector('.report-sort-criteria button[aria-pressed="true"]')?.textContent?.trim() === 'Nome');
         results.push(await reportSortMetrics(page, 'report-sort-name-keyboard', viewport.label, theme, apiState.reportRequests - reportRequestsBeforeSort));
         await screenshot(page, `report-sort-name-${theme}-${viewport.label}`);
+
+        await page.getByRole('button', { name: 'Diário', exact: true }).click();
+        await page.getByRole('heading', { name: 'Relatório diário', exact: true }).waitFor({ state: 'visible' });
+        await page.waitForFunction(() => document.querySelector('.report-product-count')?.textContent?.includes('14 produtos'));
+        await page.waitForFunction(() => Array.from(document.querySelectorAll('.report-filters > .field:first-child button'))
+          .every((button) => button.getAnimations().every((animation) => animation.playState === 'finished')));
+        const reportRequestsBeforeDailySort = apiState.reportRequests;
+        results.push(await reportSortMetrics(page, 'report-sort-daily', viewport.label, theme, apiState.reportRequests - reportRequestsBeforeDailySort));
+        await screenshot(page, `report-sort-daily-${theme}-${viewport.label}`);
 
         await page.getByRole('button', { name: 'Anual', exact: true }).click();
         await page.getByRole('heading', { name: 'Relatório anual', exact: true }).waitFor({ state: 'visible' });
@@ -934,6 +1142,7 @@ function invalidReportSortResult(result) {
     'report-sort-quantity': { count: '14 produtos no período', controls: 3, active: 'Quantidade', direction: 'Decrescente', sort: 'QUANTITY', queryDirection: 'DESC' },
     'report-sort-direction': { count: '14 produtos no período', controls: 3, active: 'Quantidade', direction: 'Crescente', sort: 'QUANTITY', queryDirection: 'ASC' },
     'report-sort-name-keyboard': { count: '14 produtos no período', controls: 3, active: 'Nome', direction: 'Crescente', sort: 'NAME', queryDirection: 'ASC' },
+    'report-sort-daily': { count: '14 produtos no período', controls: 3, active: 'Nome', direction: 'Crescente', sort: 'NAME', queryDirection: 'ASC' },
     'report-sort-annual': { count: '14 produtos no período', controls: 3, active: 'Nome', direction: 'Crescente', sort: 'NAME', queryDirection: 'ASC' },
   }[result.screen];
   if (!expectations || result.countLabel !== expectations.count || result.criterionCount !== expectations.controls) return true;
@@ -947,6 +1156,12 @@ function invalidReportSortResult(result) {
   if (result.screen === 'report-sort-ties' && result.productNames.join('|') !== 'Açaí|Água|Bolo') return true;
   if (result.screen === 'report-sort-name-keyboard' && result.focusedControl !== 'Nome') return true;
   if (result.screen === 'report-sort-revenue' && result.periodOptions?.find((option) => option.label === 'Mensal')?.active !== true) return true;
+  if (result.screen === 'report-sort-daily') {
+    const daily = result.periodOptions?.find((option) => option.label === 'Diário');
+    const monthly = result.periodOptions?.find((option) => option.label === 'Mensal');
+    if (!daily?.active || daily.pressed !== 'true' || monthly?.active || monthly?.pressed !== 'false'
+      || daily.background !== result.activeChannelBackground) return true;
+  }
   if (result.screen === 'report-sort-annual') {
     const annual = result.periodOptions?.find((option) => option.label === 'Anual');
     const monthly = result.periodOptions?.find((option) => option.label === 'Mensal');
@@ -966,8 +1181,22 @@ const failures = results.filter((result) => result.horizontalOverflow > 1
     || result.pageActions.heightDelta > 1
     || result.pageActions.gaps.some((gap) => gap < 8 || gap > 13)))
   || (result.screen === 'reports-export-menu' && (!result.firstItemFocused
-    || result.menuItems?.join('|') !== 'Exportar resumo CSV|Exportar produtos CSV'))
+    || result.menuItems?.join('|') !== 'Resumo e evolução CSV|Produtos e variações CSV|Vendas detalhadas CSV|Excel completo XLSX'))
   || (result.screen === 'reports-export-focus-return' && !result.focusRestored)
+  || (result.screen === 'counter-detail' && (!result.categoryStrip
+    || result.categoryStrip.buttonCount !== 13
+    || result.categoryStrip.contentOverflow <= 1
+    || !result.categoryStrip.horizontalScrollEnabled
+    || result.categoryStrip.verticalOverflow > 1
+    || !result.categoryStrip.insideViewport
+    || result.categoryStrip.overlaps
+    || result.categoryStrip.clippedButtons > 0
+    || result.categoryStrip.shrinkableButtons > 0
+    || result.categoryStrip.wrappedButtons > 0))
+  || (result.screen === 'counter-category-scroll' && (result.maxScrollLeft <= 1
+    || result.scrollLeft <= 1
+    || result.activeCategory !== 'Sobremesas artesanais para compartilhar'
+    || !result.activeInsideStrip))
   || invalidReportSortResult(result)
   || (result.regionCount != null && (result.regionCount !== 3
     || !result.panelInsideViewport
