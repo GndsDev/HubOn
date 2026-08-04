@@ -3,10 +3,11 @@ package com.hubon.backend.report.dto;
 import com.hubon.backend.report.domain.ReportChannel;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
-public record AnnualReportResponse(
-        int year,
+public record DailyReportResponse(
+        LocalDate date,
         String periodLabel,
         ReportChannel channel,
         MonthlyReportResponse.Summary summary,
@@ -15,21 +16,20 @@ public record AnnualReportResponse(
         List<MonthlyReportResponse.CategoryPerformance> categories,
         List<MonthlyReportResponse.PaymentPerformance> paymentMethods,
         List<MonthlyReportResponse.ChannelPerformance> channels,
-        List<MonthPerformance> monthly,
+        List<HourlyPerformance> hourly,
         List<MonthlyReportResponse.SaleDetail> sales,
-        Indicators indicators,
         MonthlyReportResponse.CancellationSummary cancellations
 ) {
     public record Comparison(
-            BigDecimal previousYearNetRevenue,
+            BigDecimal previousDayNetRevenue,
             BigDecimal netRevenueDifference,
             BigDecimal percentageChange
     ) {
     }
 
-    public record MonthPerformance(
-            int month,
-            String monthLabel,
+    public record HourlyPerformance(
+            int hour,
+            String hourLabel,
             long closedTabs,
             long orders,
             long itemsSold,
@@ -38,16 +38,7 @@ public record AnnualReportResponse(
             BigDecimal discounts,
             BigDecimal netRevenue,
             BigDecimal receivedAmount,
-            BigDecimal cancelledAmount,
             BigDecimal averageTicket
-    ) {
-    }
-
-    public record Indicators(
-            String bestMonthLabel,
-            BigDecimal bestMonthNetRevenue,
-            BigDecimal averageMonthlyRevenue,
-            long activeMonths
     ) {
     }
 }
