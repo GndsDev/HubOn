@@ -40,15 +40,19 @@ export const routes: Routes = [
   },
   {
     path: 'mesas',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('./features/tables/tables-page.component').then(
-        (module) => module.TablesPageComponent,
-      ),
-    data: { label: 'Mesas', roles: ['OWNER', 'ADMIN', 'WAITER'] },
+    redirectTo: 'comandas',
   },
   {
     path: 'comandas',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/tabs/tabs-page.component').then(
+        (module) => module.TabsPageComponent,
+    ),
+    data: { label: 'Comandas', roles: ['OWNER', 'ADMIN', 'WAITER', 'CASHIER'] },
+  },
+  {
+    path: 'comandas/:tabId',
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/tabs/tabs-page.component').then(

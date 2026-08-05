@@ -38,6 +38,11 @@ public class RestaurantOrderController {
         return orderService.listPreparationQueue();
     }
 
+    @GetMapping("/tab/{tabId}")
+    public List<RestaurantOrderResponse> listByTab(@PathVariable Long tabId) {
+        return orderService.listByTabId(tabId);
+    }
+
     @GetMapping("/{id}")
     public RestaurantOrderResponse getById(@PathVariable Long id) {
         return orderService.getById(id);

@@ -146,16 +146,26 @@ public class DashboardService {
         return orders.stream()
                 .map(order -> new DashboardSummaryResponse.RecentOrder(
                         order.getId(),
-                        order.getTab().getRestaurantTable() == null
-                                ? null
-                                : order.getTab().getRestaurantTable().getNumber(),
+                        tableNumber(order.getTab()),
                         order.getTab().getType() == TabType.COUNTER
                                 ? "Balcão #" + order.getTab().getId()
-                                : "Mesa " + order.getTab().getRestaurantTable().getNumber(),
+                                : tableLabel(order.getTab()),
                         order.getStatus().name(),
                         amountByOrder.getOrDefault(order.getId(), BigDecimal.ZERO),
                         order.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
                 ))
                 .toList();
+    }
+
+    private Integer tableNumber(com.hubon.backend.tab.domain.Tab tab) {
+        if (tab.getTableNumber() != null) {
+            return tab.getTableNumber();
+        }
+        return tab.getRestaurantTable() == null ? null : tab.getRestaurantTable().getNumber();
+    }
+
+    private String tableLabel(com.hubon.backend.tab.domain.Tab tab) {
+        Integer number = tableNumber(tab);
+        return number == null ? "Mesa sem número" : "Mesa " + number;
     }
 }

@@ -256,7 +256,10 @@ public class CashShiftService {
 
     private String origin(Tab tab) {
         if (tab.getType() == TabType.COUNTER) return "Balcão #" + tab.getId();
-        return "Mesa " + tab.getRestaurantTable().getNumber();
+        Integer number = tab.getTableNumber() != null
+                ? tab.getTableNumber()
+                : tab.getRestaurantTable() == null ? null : tab.getRestaurantTable().getNumber();
+        return number == null ? "Mesa sem número" : "Mesa " + number;
     }
 
     private CashShift findById(Long id) {

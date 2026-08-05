@@ -70,7 +70,8 @@ public class PaymentService {
             throw new BusinessException("Soma dos pagamentos não pode ultrapassar o valor final da comanda");
         }
 
-        CashShift cashShift = cashShiftRepository.findByStatusForUpdate(CashShiftStatus.OPEN).orElse(null);
+        CashShift cashShift = cashShiftRepository.findByStatusForUpdate(CashShiftStatus.OPEN)
+                .orElseThrow(() -> new BusinessException("Abra o caixa antes de registrar pagamentos."));
         Payment payment = paymentRepository.save(Payment.builder()
                 .tab(tab)
                 .cashShift(cashShift)

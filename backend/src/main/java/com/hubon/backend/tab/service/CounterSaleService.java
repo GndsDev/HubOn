@@ -93,7 +93,7 @@ public class CounterSaleService {
 
     @Transactional
     public CounterSaleDetailResponse finish(Long id) {
-        tabService.close(id);
+        tabService.closeCounter(id);
         return toDetail(findCounter(id));
     }
 

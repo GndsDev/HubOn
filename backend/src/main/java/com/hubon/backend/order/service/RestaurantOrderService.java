@@ -144,7 +144,7 @@ public class RestaurantOrderService {
     public RestaurantOrderResponse updateDraft(Long id, RestaurantOrderRequest request) {
         RestaurantOrder order = findEntityByIdForUpdate(id);
         ensureCounterOperatorAccess(order.getTab());
-        ensureOrderTabOpen(order);
+        ensureTabCanReceiveOrder(order.getTab());
         if (order.getStatus() != OrderStatus.CREATED) {
             throw new BusinessException("Somente pedido em rascunho pode ser editado");
         }
@@ -166,7 +166,7 @@ public class RestaurantOrderService {
     public RestaurantOrderResponse confirm(Long id) {
         RestaurantOrder order = findEntityByIdForUpdate(id);
         ensureCounterOperatorAccess(order.getTab());
-        ensureOrderTabOpen(order);
+        ensureTabCanReceiveOrder(order.getTab());
         List<OrderItem> items = orderItemRepository.findAllByOrderId(order.getId());
 
         if (order.getStatus() != OrderStatus.CREATED) {
@@ -395,13 +395,23 @@ public class RestaurantOrderService {
     }
 
     private void ensureTabCanReceiveOrder(Tab tab) {
+        ensureTabOpen(tab);
+        if (tab.getType() == TabType.TABLE && paymentRepository.existsByTabId(tab.getId())) {
+            accountingService.refreshAmounts(tab);
+            if (accountingService.remainingAmount(tab).signum() == 0) {
+                throw new BusinessException("A comanda já foi paga. Não é possível adicionar novos pedidos.");
+            }
+        }
+    }
+
+    private void ensureTabOpen(Tab tab) {
         if (tab.getStatus() != TabStatus.OPEN) {
             throw new BusinessException("Comanda fechada ou cancelada não pode receber pedido");
         }
     }
 
     private void ensureOrderTabOpen(RestaurantOrder order) {
-        ensureTabCanReceiveOrder(order.getTab());
+        ensureTabOpen(order.getTab());
     }
 
     private RestaurantOrder findEntityById(Long id) {
@@ -463,7 +473,7 @@ public class RestaurantOrderService {
                 order.getTab().getType(),
                 tabDisplayLabel(order.getTab()),
                 order.getTab().getRestaurantTable() == null ? null : order.getTab().getRestaurantTable().getId(),
-                order.getTab().getRestaurantTable() == null ? null : order.getTab().getRestaurantTable().getNumber(),
+                tableNumber(order.getTab()),
                 order.getStatus(),
                 order.getType(),
                 order.getCreatedByUser().getId(),
@@ -486,7 +496,15 @@ public class RestaurantOrderService {
             String customer = normalizeOptional(tab.getCustomerName());
             return customer == null ? "Balcão #" + tab.getId() : "Balcão #" + tab.getId() + " - " + customer;
         }
-        return "Mesa " + tab.getRestaurantTable().getNumber();
+        Integer number = tableNumber(tab);
+        return number == null ? "Mesa sem número" : "Mesa " + number;
+    }
+
+    private Integer tableNumber(Tab tab) {
+        if (tab.getTableNumber() != null) {
+            return tab.getTableNumber();
+        }
+        return tab.getRestaurantTable() == null ? null : tab.getRestaurantTable().getNumber();
     }
 
     private OrderItemResponse toItemResponse(OrderItem item) {

@@ -4827,6 +4827,44 @@ app-report-product-sort {
   margin-right: auto;
 }
 
+.tab-detail-summary {
+  margin-bottom: var(--space-lg);
+}
+
+.tab-detail-toolbar,
+.tab-page-footer {
+  margin-top: var(--space-lg);
+}
+
+.tab-wide-note {
+  width: fit-content;
+  margin: 0 0 var(--space-lg);
+}
+
+.tab-order-list {
+  margin-top: var(--space-lg);
+}
+
+.closure-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+}
+
+.closure-reasons span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border-warning);
+  border-radius: var(--radius-sm);
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  padding: 0.45rem 0.65rem;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
 .form-section-title {
   justify-content: space-between;
   gap: 1rem;

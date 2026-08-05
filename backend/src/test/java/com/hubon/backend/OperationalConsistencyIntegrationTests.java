@@ -227,8 +227,8 @@ class OperationalConsistencyIntegrationTests {
                 "com.hubon.backend.tab.dto.OpenTabRequest"
         );
         return requestClass
-                .getConstructor(Long.class, Long.class, BigDecimal.class, BigDecimal.class)
-                .newInstance(tableId, userId, BigDecimal.ZERO, BigDecimal.ZERO);
+                .getConstructor(Long.class, Integer.class, Long.class, BigDecimal.class, BigDecimal.class)
+                .newInstance(tableId, null, userId, BigDecimal.ZERO, BigDecimal.ZERO);
     }
 
     private Object newRestaurantOrderRequest() throws Exception {
@@ -357,6 +357,7 @@ class OperationalConsistencyIntegrationTests {
                 """
                 insert into tabs (
                     restaurant_table_id,
+                    table_number,
                     status,
                     opened_by_user_id,
                     total_amount,
@@ -364,10 +365,11 @@ class OperationalConsistencyIntegrationTests {
                     discount_amount,
                     final_amount
                 )
-                values (?, 'OPEN', ?, 0, 0, 0, 0)
+                values (?, (select number from restaurant_tables where id = ?), 'OPEN', ?, 0, 0, 0, 0)
                 returning id
                 """,
                 Long.class,
+                tableId,
                 tableId,
                 userId
         );

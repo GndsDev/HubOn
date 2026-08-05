@@ -26,6 +26,10 @@ export class OrderApiService {
     return this.http.get<RestaurantOrder>(`${this.baseUrl}/${id}`);
   }
 
+  getByTab(tabId: number): Observable<RestaurantOrder[]> {
+    return this.http.get<RestaurantOrder[]>(`${this.baseUrl}/tab/${tabId}`);
+  }
+
   create(request: RestaurantOrderRequest): Observable<RestaurantOrder> {
     return this.http.post<RestaurantOrder>(this.baseUrl, request);
   }

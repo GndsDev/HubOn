@@ -30,7 +30,11 @@ public interface TabRepository extends JpaRepository<Tab, Long> {
 
     boolean existsByRestaurantTableIdAndStatus(Long restaurantTableId, TabStatus status);
 
+    boolean existsByTypeAndStatusAndTableNumber(TabType type, TabStatus status, Integer tableNumber);
+
     Optional<Tab> findFirstByRestaurantTableIdAndStatus(Long restaurantTableId, TabStatus status);
+
+    Optional<Tab> findFirstByTypeAndStatusAndTableNumber(TabType type, TabStatus status, Integer tableNumber);
 
     long countByStatus(TabStatus status);
 

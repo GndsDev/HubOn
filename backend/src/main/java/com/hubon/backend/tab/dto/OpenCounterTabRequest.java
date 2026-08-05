@@ -19,6 +19,8 @@ public record OpenCounterTabRequest(
         BigDecimal serviceFee,
 
         @DecimalMin(value = "0.00")
-        BigDecimal discountAmount
+        BigDecimal discountAmount,
+
+        Integer tableNumber
 ) {
 }

@@ -117,7 +117,7 @@ class CashShiftIntegrationTests {
     @Test
     void aggregatesPaymentsSupplyAndWithdrawalInTheOpenShift() {
         CashShiftResponse opened = cashShiftService.open(new OpenCashShiftRequest(new BigDecimal("100.00")));
-        TabResponse tab = tabService.open(new OpenTabRequest(tableId, null, BigDecimal.ZERO, BigDecimal.ZERO));
+        TabResponse tab = tabService.open(new OpenTabRequest(tableId, null, null, BigDecimal.ZERO, BigDecimal.ZERO));
         orderService.confirm(orderService.create(new RestaurantOrderRequest(
                 tab.id(), null, OrderType.TABLE, null,
                 List.of(new OrderItemRequest(productId, variantId, 1, null, List.of()))

@@ -596,7 +596,7 @@ public class MonthlyReportService {
                 """
                 SELECT tab.id,
                        CASE
-                           WHEN tab.type = 'TABLE' THEN 'Mesa ' || COALESCE(restaurant_table.number::TEXT, tab.id::TEXT)
+                           WHEN tab.type = 'TABLE' THEN 'Mesa ' || COALESCE(tab.table_number::TEXT, restaurant_table.number::TEXT, tab.id::TEXT)
                            ELSE 'Balcão #' || tab.id::TEXT
                        END AS origin,
                        tab.opened_at,

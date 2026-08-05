@@ -11,10 +11,10 @@
       const storedTheme = localStorage.getItem('hubon-theme');
       document.documentElement.setAttribute(
         'data-theme',
-        storedTheme === 'light' || storedTheme === 'dark' ? storedTheme : 'dark',
+        storedTheme === 'light' || storedTheme === 'dark' ? storedTheme : 'light',
       );
     } catch {
-      document.documentElement.setAttribute('data-theme', 'dark');
+      document.documentElement.setAttribute('data-theme', 'light');
     }
   </script>
 </head>
