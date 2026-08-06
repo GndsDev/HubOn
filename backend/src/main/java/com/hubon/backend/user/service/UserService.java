@@ -31,18 +31,6 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
-    private static final Set<RoleName> OWNER_CREATABLE_ROLES = EnumSet.of(
-            RoleName.ADMIN,
-            RoleName.WAITER,
-            RoleName.KITCHEN,
-            RoleName.CASHIER
-    );
-    private static final Set<RoleName> ADMIN_CREATABLE_ROLES = EnumSet.of(
-            RoleName.WAITER,
-            RoleName.KITCHEN,
-            RoleName.CASHIER
-    );
-
     @Transactional(readOnly = true)
     public List<UserResponse> listAll() {
         return userRepository.findAll(Sort.by("name"))
@@ -54,84 +42,162 @@ public class UserService {
     @Transactional(readOnly = true)
     public User findEntityById(Long id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException(
+                                "Usuário não encontrado"
+                        )
+                );
     }
 
     @Transactional
     public UserResponse create(UserRequest request) {
         User creator = authenticatedUserProvider.currentUser()
-                .orElseThrow(() -> new BusinessException("Usuário autenticado é obrigatório para criar usuários"));
-        Set<RoleName> requestedRoles = normalizeRoleNames(request.roles());
-        validateUserCreation(creator, requestedRoles);
+                .orElseThrow(
+                        () -> new BusinessException(
+                                "Usuário autenticado é obrigatório para criar usuários"
+                        )
+                );
 
-        String email = request.email().trim().toLowerCase();
+        Set<RoleName> requestedRoles =
+                normalizeRoleNames(request.roles());
+
+        validateUserCreation(
+                creator,
+                requestedRoles
+        );
+
+        String email = request.email()
+                .trim()
+                .toLowerCase();
+
         if (userRepository.existsByEmail(email)) {
-            throw new BusinessException("E-mail já está cadastrado");
+            throw new BusinessException(
+                    "E-mail já está cadastrado"
+            );
         }
 
         Set<Role> roles = requestedRoles.stream()
-                .map(roleName -> roleRepository.findByName(roleName.name())
-                        .orElseThrow(() -> new ResourceNotFoundException("Perfil não encontrado: " + roleName.name())))
-                .collect(Collectors.toCollection(HashSet::new));
+                .map(roleName ->
+                        roleRepository.findByName(
+                                        roleName.name()
+                                )
+                                .orElseThrow(() ->new ResourceNotFoundException("Perfil não encontrado: " + roleName.name()))
+                )
+                .collect(Collectors.toCollection(HashSet::new)
+                );
 
         User user = User.builder()
                 .name(request.name().trim())
                 .email(email)
-                .password(passwordEncoder.encode(request.password()))
-                .active(request.active() == null || request.active())
+                .password(
+                        passwordEncoder.encode(
+                                request.password()
+                        )
+                )
+                .active(
+                        request.active() == null ||
+                                request.active()
+                )
                 .roles(roles)
                 .build();
 
-        return toResponse(userRepository.save(user));
+        return toResponse(
+                userRepository.save(user)
+        );
     }
 
     public UserResponse toResponse(User user) {
         Set<String> roles = user.getRoles()
                 .stream()
-                .map(role -> role.getName())
+                .map(Role::getName)
                 .collect(Collectors.toSet());
 
-        return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getActive(), roles);
+        return new UserResponse(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getActive(),
+                roles
+        );
     }
 
-    private Set<RoleName> normalizeRoleNames(Set<String> roles) {
+    private Set<RoleName> normalizeRoleNames(
+            Set<String> roles
+    ) {
+        if (roles == null || roles.isEmpty()) {
+            throw new BusinessException(
+                    "É obrigatório informar um perfil"
+            );
+        }
+
         return roles.stream()
-                .map(role -> role.trim().toUpperCase())
+                .map(role -> {
+                    if (role == null || role.isBlank()) {
+                        throw new BusinessException(
+                                "Perfil inválido"
+                        );
+                    }
+
+                    return role.trim().toUpperCase();
+                })
                 .map(role -> {
                     try {
                         return RoleName.valueOf(role);
-                    } catch (IllegalArgumentException exception) {
-                        throw new BusinessException("Perfil inválido: " + role);
+                    } catch (
+                            IllegalArgumentException exception
+                    ) {
+                        throw new BusinessException(
+                                "Perfil inválido: " + role
+                        );
                     }
                 })
-                .collect(Collectors.toCollection(() -> EnumSet.noneOf(RoleName.class)));
+                .collect(Collectors.toCollection(() ->EnumSet.noneOf(RoleName.class))
+                );
     }
 
-    private void validateUserCreation(User creator, Set<RoleName> requestedRoles) {
-        Set<RoleName> creatorRoles = normalizeRoleNames(
-                creator.getRoles()
-                        .stream()
-                        .map(Role::getName)
-                        .collect(Collectors.toSet())
-        );
+    private void validateUserCreation(
+            User creator,
+            Set<RoleName> requestedRoles
+    ) {
+        Set<RoleName> creatorRoles =
+                normalizeRoleNames(
+                        creator.getRoles()
+                                .stream()
+                                .map(Role::getName)
+                                .collect(
+                                        Collectors.toSet()
+                                )
+                );
 
-        Set<RoleName> allowedRoles;
-        if (creatorRoles.contains(RoleName.OWNER)) {
-            allowedRoles = OWNER_CREATABLE_ROLES;
-        } else if (creatorRoles.contains(RoleName.ADMIN)) {
-            allowedRoles = ADMIN_CREATABLE_ROLES;
-        } else {
-            throw new BusinessException("Perfil operacional não pode criar usuários");
+        if (
+                !creatorRoles.contains(
+                        RoleName.OWNER
+                )
+        ) {
+            throw new BusinessException(
+                    "Somente o dono pode criar novos usuários"
+            );
         }
 
-        if (!allowedRoles.containsAll(requestedRoles)) {
-            if (requestedRoles.contains(RoleName.OWNER)) {
-                throw new BusinessException("Não é permitido criar usuário OWNER por este fluxo");
+        if (
+                requestedRoles.size() != 1 ||
+                        !requestedRoles.contains(
+                                RoleName.ADMIN
+                        )
+        ) {
+            if (
+                    requestedRoles.contains(
+                            RoleName.OWNER
+                    )
+            ) {
+                throw new BusinessException(
+                        "Não é permitido criar outro usuário dono por este fluxo"
+                );
             }
-            if (requestedRoles.contains(RoleName.ADMIN)) {
-                throw new BusinessException("ADMIN não pode criar outro ADMIN");
-            }
-            throw new BusinessException("Você não tem permissão para criar usuário com os perfis solicitados");
+
+            throw new BusinessException(
+                    "Novos usuários podem receber somente o perfil de gerente"
+            );
         }
     }
 }

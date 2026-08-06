@@ -260,6 +260,7 @@
     sans-serif;
   font-synthesis: none;
   text-rendering: geometricPrecision;
+  scrollbar-gutter: stable;
 }
 
 * {
@@ -288,6 +289,7 @@ body {
 
 body.hubon-overlay-open {
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .hubon-overlay-root {
@@ -3558,7 +3560,7 @@ app-categories-page {
 }
 
 .report-reference-controls .icon-button {
-  flex: 0 0 var(--button-height);
+  flex: 0 0 var(--button-height-md);
 }
 
 .report-export-menu {
@@ -5007,7 +5009,7 @@ app-report-product-sort {
 
 .order-filters button.active > span {
   background: var(--surface-selected-bg);
-  color: var(--color-primary-strong);
+  color: var(--color-accent-text);
 }
 
 .order-flow-group {
