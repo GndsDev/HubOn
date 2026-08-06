@@ -8,6 +8,10 @@ import { routes } from './app.routes';
 import { AuthService } from './core/services/auth.service';
 import { CounterActivityService } from './core/services/counter-activity.service';
 import { DashboardApiService } from './core/services/dashboard-api.service';
+import { FeedbackService } from './core/services/feedback.service';
+import { OrderApiService } from './core/services/order-api.service';
+import { ProductApiService } from './core/services/product-api.service';
+import { TabApiService } from './core/services/tab-api.service';
 
 const dashboardSummary = {
   todaySales: 0,
@@ -67,6 +71,22 @@ describe('App', () => {
           provide: CounterActivityService,
           useValue: counterActivityMock,
         },
+        {
+          provide: TabApiService,
+          useValue: { getOpen: () => of([]) },
+        },
+        {
+          provide: OrderApiService,
+          useValue: { getByTab: () => of([]) },
+        },
+        {
+          provide: ProductApiService,
+          useValue: { getAll: () => of([]) },
+        },
+        {
+          provide: FeedbackService,
+          useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+        },
       ],
     }).compileComponents();
   });
@@ -93,7 +113,7 @@ describe('App', () => {
     await router.navigateByUrl('/mesas');
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(router.url).toBe('/login?returnUrl=%2Fmesas');
+    expect(router.url).toBe('/login?returnUrl=%2Fcomandas');
   });
 
   it('should redirect unknown routes to dashboard', async () => {
@@ -162,5 +182,19 @@ describe('App', () => {
     expect(router.url).toBe('/pedidos');
     expect(fixture.nativeElement.querySelector('a[href="/cozinha"]')).toBeNull();
     expect(fixture.nativeElement.textContent).not.toContain('Abrir cozinha');
+  });
+
+  it('should redirect Mesas to Comandas without exposing Mesas or a fake shift card', async () => {
+    authenticated.set(true);
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+
+    await router.navigateByUrl('/mesas');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(router.url).toBe('/comandas');
+    expect(fixture.nativeElement.querySelector('a[href="/mesas"]')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Turno atual');
   });
 });

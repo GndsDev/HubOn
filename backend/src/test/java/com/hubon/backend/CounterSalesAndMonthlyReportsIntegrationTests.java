@@ -111,6 +111,10 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
                 Long.class,
                 TABLE_NUMBER.incrementAndGet()
         );
+        jdbc.update(
+                "insert into cash_shifts (status, opened_by_user_id, opening_balance) values ('OPEN', ?, 0)",
+                userId
+        );
         directProductId = insertProduct("Coca-Cola", "DIRECT_SERVICE");
         directVariantId = insertVariant(directProductId, "Lata", "20.00");
         preparationProductId = insertProduct("Jantinha", "REQUIRES_PREPARATION");
@@ -164,7 +168,7 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
     }
 
     @Test
-    void databaseRejectsTableTabWithoutTable() {
+    void databaseRejectsTableTabWithoutTableNumber() {
         assertThatThrownBy(() -> jdbc.update(
                 """
                 insert into tabs (type, restaurant_table_id, status, opened_by_user_id, total_amount, service_fee, discount_amount, final_amount)
@@ -420,7 +424,7 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
 
     @Test
     void tablePaymentKeepsPreparationWaitingForExistingTableWorkflow() {
-        TabResponse tableTab = tabService.open(new OpenTabRequest(tableId, null, BigDecimal.ZERO, BigDecimal.ZERO));
+        TabResponse tableTab = tabService.open(new OpenTabRequest(tableId, null, null, BigDecimal.ZERO, BigDecimal.ZERO));
         RestaurantOrderResponse confirmed = orderService.confirm(createOrder(
                 tableTab.id(), List.of(item(preparationProductId, preparationVariantId, 1))).id());
 
@@ -470,7 +474,7 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
 
     @Test
     void tableTabRegressionStillRequiresAndOccupiesRealTable() {
-        TabResponse tab = tabService.open(new OpenTabRequest(tableId, null, BigDecimal.ZERO, BigDecimal.ZERO));
+        TabResponse tab = tabService.open(new OpenTabRequest(tableId, null, null, BigDecimal.ZERO, BigDecimal.ZERO));
         assertThat(tab.type()).isEqualTo(TabType.TABLE);
         assertThat(tab.tableId()).isEqualTo(tableId);
         entityManager.flush();
@@ -626,7 +630,7 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
 
     private TabResponse openCounter(String customerName) {
         return tabService.openCounter(new OpenCounterTabRequest(
-                customerName, null, null, BigDecimal.ZERO, BigDecimal.ZERO));
+                customerName, null, null, BigDecimal.ZERO, BigDecimal.ZERO, null));
     }
 
     private RestaurantOrderResponse createOrder(Long tabId, List<OrderItemRequest> items) {
@@ -684,14 +688,16 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
         Long tabId = jdbc.queryForObject(
                 """
                 insert into tabs (
-                    type, restaurant_table_id, status, opened_by_user_id, opened_at, closed_at, closed_business_date,
+                    type, restaurant_table_id, table_number, status, opened_by_user_id, opened_at, closed_at, closed_business_date,
                     total_amount, service_fee, discount_amount, final_amount
-                ) values (?, ?, 'CLOSED', ?, ?, ?, ?, cast(? as numeric), cast(? as numeric), cast(? as numeric), cast(? as numeric))
+                ) values (?, ?, case when ? = 'TABLE' then (select number from restaurant_tables where id = ?) else null end, 'CLOSED', ?, ?, ?, ?, cast(? as numeric), cast(? as numeric), cast(? as numeric), cast(? as numeric))
                 returning id
                 """,
                 Long.class,
                 type,
                 "TABLE".equals(type) ? tableId : null,
+                type,
+                tableId,
                 userId,
                 closedAt.minusHours(1),
                 closedAt,

@@ -84,7 +84,8 @@ export interface CounterHistoryFilters {
 }
 
 export interface OpenTabRequest {
-  tableId: number;
+  tableId?: number | null;
+  tableNumber: number;
   openedByUserId?: number;
   serviceFee: number;
   discountAmount: number;

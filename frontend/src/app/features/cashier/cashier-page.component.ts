@@ -81,7 +81,7 @@ import { apiErrorMessage } from '../../shared/util/api-error';
             @for (tab of pendingTabs(); track tab.id) {
               <article>
                 <div><strong>{{ tab.displayLabel }}</strong><small>Restante {{ currency(tab.remainingAmount) }}</small></div>
-                <a class="ghost-button compact-button" [routerLink]="tab.type === 'COUNTER' ? ['/balcao', tab.id] : ['/comandas']" [queryParams]="tab.type === 'TABLE' ? { tab: tab.id } : null">
+                <a class="ghost-button compact-button" [routerLink]="tab.type === 'COUNTER' ? ['/balcao', tab.id] : ['/comandas', tab.id]">
                   <i class="pi pi-arrow-right"></i>{{ tab.type === 'COUNTER' ? 'Abrir atendimento' : 'Abrir comanda' }}
                 </a>
               </article>

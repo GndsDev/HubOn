@@ -59,6 +59,7 @@ class FinancialRulesIntegrationTests {
         jdbcTemplate.update("delete from order_items where order_id = ?", scenario.orderId());
         jdbcTemplate.update("delete from orders where id = ?", scenario.orderId());
         jdbcTemplate.update("delete from tabs where id = ?", scenario.tabId());
+        jdbcTemplate.update("delete from cash_shifts where id = ?", scenario.cashShiftId());
         jdbcTemplate.update("delete from product_variants where id = ?", scenario.productVariantId());
         jdbcTemplate.update("delete from products where id = ?", scenario.productId());
         jdbcTemplate.update("delete from categories where id = ?", scenario.categoryId());
@@ -297,6 +298,7 @@ class FinancialRulesIntegrationTests {
                 """
                 insert into tabs (
                     restaurant_table_id,
+                    table_number,
                     status,
                     opened_by_user_id,
                     total_amount,
@@ -304,10 +306,11 @@ class FinancialRulesIntegrationTests {
                     discount_amount,
                     final_amount
                 )
-                values (?, 'OPEN', ?, 0, 0, 0, 0)
+                values (?, (select number from restaurant_tables where id = ?), 'OPEN', ?, 0, 0, 0, 0)
                 returning id
                 """,
                 Long.class,
+                tableId,
                 tableId,
                 userId
         );
@@ -353,7 +356,12 @@ class FinancialRulesIntegrationTests {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
         );
-        return new Scenario(userId, categoryId, productId, productVariantId, tableId, tabId, orderId);
+        Long cashShiftId = jdbcTemplate.queryForObject(
+                "insert into cash_shifts (status, opened_by_user_id, opening_balance) values ('OPEN', ?, 0) returning id",
+                Long.class,
+                userId
+        );
+        return new Scenario(userId, categoryId, productId, productVariantId, tableId, tabId, orderId, cashShiftId);
     }
 
     private void createPayment(String amount, String method) throws Throwable {
@@ -540,7 +548,8 @@ class FinancialRulesIntegrationTests {
             Long productVariantId,
             Long tableId,
             Long tabId,
-            Long orderId
+            Long orderId,
+            Long cashShiftId
     ) {
     }
 }

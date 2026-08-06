@@ -295,7 +295,12 @@ export class TablesPageComponent implements OnInit {
       return;
     }
     this.saving.set(true);
-    this.tabApi.open({ tableId: table.id, ...this.tabForm })
+    this.tabApi.open({
+        tableId: table.id,
+        tableNumber: table.number,
+        serviceFee: this.tabForm.serviceFee,
+        discountAmount: this.tabForm.discountAmount,
+      })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => { this.feedback.success('Comanda aberta com sucesso.'); this.closeAll(); this.load(); },

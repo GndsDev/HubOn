@@ -1,13 +1,15 @@
 package com.hubon.backend.tab.dto;
 
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 
 public record OpenTabRequest(
-        @NotNull
         Long tableId,
+
+        @Positive
+        Integer tableNumber,
 
         Long openedByUserId,
 

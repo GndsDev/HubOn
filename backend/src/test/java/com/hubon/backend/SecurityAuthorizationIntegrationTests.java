@@ -574,13 +574,14 @@ class SecurityAuthorizationIntegrationTests {
         testTabId = jdbcTemplate.queryForObject(
                 """
                 insert into tabs (
-                    restaurant_table_id, status, opened_by_user_id,
+                    restaurant_table_id, table_number, status, opened_by_user_id,
                     total_amount, service_fee, discount_amount, final_amount
                 )
-                values (?, 'OPEN', ?, 15, 0, 0, 15)
+                values (?, (select number from restaurant_tables where id = ?), 'OPEN', ?, 15, 0, 0, 15)
                 returning id
                 """,
                 Long.class,
+                testTableId,
                 testTableId,
                 ownerId
         );

@@ -26,6 +26,9 @@ public class Tab {
     @JoinColumn(name = "restaurant_table_id")
     private RestaurantTable restaurantTable;
 
+    @Column(name = "table_number")
+    private Integer tableNumber;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TabType type;

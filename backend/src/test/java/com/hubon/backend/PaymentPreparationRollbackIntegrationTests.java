@@ -61,6 +61,7 @@ class PaymentPreparationRollbackIntegrationTests {
     private Long categoryId;
     private Long productId;
     private Long variantId;
+    private Long cashShiftId;
     private Long tabId;
     private Long orderId;
 
@@ -101,9 +102,14 @@ class PaymentPreparationRollbackIntegrationTests {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
         );
+        cashShiftId = jdbc.queryForObject(
+                "insert into cash_shifts (status, opened_by_user_id, opening_balance) values ('OPEN', ?, 0) returning id",
+                Long.class,
+                userId
+        );
 
         TabResponse tab = tabService.openCounter(new OpenCounterTabRequest(
-                null, null, null, BigDecimal.ZERO, BigDecimal.ZERO));
+                null, null, null, BigDecimal.ZERO, BigDecimal.ZERO, null));
         tabId = tab.id();
         RestaurantOrderResponse order = orderService.create(new RestaurantOrderRequest(
                 tabId,
@@ -128,6 +134,7 @@ class PaymentPreparationRollbackIntegrationTests {
             jdbc.update("delete from orders where id = ?", orderId);
         }
         if (tabId != null) jdbc.update("delete from tabs where id = ?", tabId);
+        if (cashShiftId != null) jdbc.update("delete from cash_shifts where id = ?", cashShiftId);
         if (variantId != null) jdbc.update("delete from product_variants where id = ?", variantId);
         if (productId != null) jdbc.update("delete from products where id = ?", productId);
         if (categoryId != null) jdbc.update("delete from categories where id = ?", categoryId);

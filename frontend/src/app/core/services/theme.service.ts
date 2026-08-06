@@ -26,13 +26,13 @@ export class ThemeService {
   }
 
   private getInitialTheme(): AppTheme {
-    if (typeof localStorage === 'undefined') return 'dark';
+    if (typeof localStorage === 'undefined') return 'light';
 
     try {
       const storedTheme = localStorage.getItem(this.storageKey);
-      return storedTheme === 'light' || storedTheme === 'dark' ? storedTheme : 'dark';
+      return storedTheme === 'light' || storedTheme === 'dark' ? storedTheme : 'light';
     } catch {
-      return 'dark';
+      return 'light';
     }
   }
 

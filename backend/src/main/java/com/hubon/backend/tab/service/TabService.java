@@ -20,6 +20,7 @@ import com.hubon.backend.table.repository.RestaurantTableRepository;
 import com.hubon.backend.user.domain.User;
 import com.hubon.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,29 +71,37 @@ public class TabService {
 
     @Transactional
     public TabResponse open(OpenTabRequest request) {
-        RestaurantTable table = tableRepository.findById(request.tableId())
+        RestaurantTable table = request.tableId() == null
+                ? null
+                : tableRepository.findById(request.tableId())
                 .orElseThrow(() -> new ResourceNotFoundException("Mesa não encontrada"));
+        Integer tableNumber = tableNumberForOpening(request, table);
         User openedByUser = authenticatedUserProvider.currentUser()
                 .orElseGet(() -> findRequestedUser(request.openedByUserId()));
 
-        if (!Boolean.TRUE.equals(table.getActive()) || table.getStatus() == TableStatus.DISABLED) {
+        if (table != null && (!Boolean.TRUE.equals(table.getActive()) || table.getStatus() == TableStatus.DISABLED)) {
             throw new BusinessException("Mesa desativada não pode abrir comanda");
         }
 
-        if (table.getStatus() == TableStatus.OCCUPIED) {
+        if (table != null && table.getStatus() == TableStatus.OCCUPIED) {
             throw new BusinessException("Mesa ocupada não pode abrir outra comanda");
         }
 
-        if (table.getStatus() == TableStatus.RESERVED) {
+        if (table != null && table.getStatus() == TableStatus.RESERVED) {
             throw new BusinessException("Mesa reservada não pode abrir comanda diretamente.");
         }
 
-        if (tabRepository.existsByRestaurantTableIdAndStatus(table.getId(), TabStatus.OPEN)) {
-            throw new BusinessException("Mesa já possui uma comanda aberta");
+        if (tabRepository.existsByTypeAndStatusAndTableNumber(TabType.TABLE, TabStatus.OPEN, tableNumber)) {
+            throw duplicateTableTab(tableNumber);
+        }
+
+        if (table != null && tabRepository.existsByRestaurantTableIdAndStatus(table.getId(), TabStatus.OPEN)) {
+            throw duplicateTableTab(tableNumber);
         }
 
         Tab tab = Tab.builder()
                 .restaurantTable(table)
+                .tableNumber(tableNumber)
                 .type(TabType.TABLE)
                 .openedByUser(openedByUser)
                 .status(TabStatus.OPEN)
@@ -103,16 +112,26 @@ public class TabService {
                 .finalAmount(BigDecimal.ZERO)
                 .build();
 
-        Tab savedTab = tabRepository.save(tab);
+        Tab savedTab;
+        try {
+            savedTab = tabRepository.saveAndFlush(tab);
+        } catch (DataIntegrityViolationException exception) {
+            throw duplicateTableTab(tableNumber);
+        }
         accountingService.refreshAmounts(savedTab);
 
-        table.setStatus(TableStatus.OCCUPIED);
+        if (table != null) {
+            table.setStatus(TableStatus.OCCUPIED);
+        }
 
         return toResponse(savedTab);
     }
 
     @Transactional
     public TabResponse openCounter(OpenCounterTabRequest request) {
+        if (request.tableNumber() != null) {
+            throw new BusinessException("Atendimento de balcão não deve informar número de mesa");
+        }
         User openedByUser = authenticatedUserProvider.currentUser()
                 .orElseThrow(() -> new BusinessException("Usuário autenticado é obrigatório"));
 
@@ -150,9 +169,24 @@ public class TabService {
 
     @Transactional
     public TabResponse close(Long id) {
+        return close(id, TabType.TABLE);
+    }
+
+    @Transactional
+    public TabResponse closeCounter(Long id) {
+        return close(id, TabType.COUNTER);
+    }
+
+    private TabResponse close(Long id, TabType expectedType) {
         Tab tab = findEntityByIdForUpdate(id);
         ensureCurrentUserCanAccess(tab);
+        ensureType(tab, expectedType);
+        if (tab.getStatus() == TabStatus.CLOSED) {
+            accountingService.refreshAmounts(tab);
+            return toResponse(tab);
+        }
         ensureOpen(tab);
+        ensureNotEmpty(tab);
         ensureNoPendingOrders(tab);
         accountingService.refreshAmounts(tab);
 
@@ -210,7 +244,7 @@ public class TabService {
                 tab.getId(),
                 tab.getType(),
                 table == null ? null : table.getId(),
-                table == null ? null : table.getNumber(),
+                tableNumber(tab),
                 table == null ? null : table.getName(),
                 tab.getCustomerName(),
                 tab.getCustomerPhone(),
@@ -236,9 +270,14 @@ public class TabService {
             return customer == null ? "Balcão #" + tab.getId() : "Balcão #" + tab.getId() + " - " + customer;
         }
         RestaurantTable table = tab.getRestaurantTable();
-        return table.getName() == null || table.getName().isBlank()
-                ? "Mesa " + table.getNumber()
-                : "Mesa " + table.getNumber() + " - " + table.getName();
+        Integer number = tableNumber(tab);
+        if (number == null) {
+            return "Mesa sem número";
+        }
+        if (table == null || table.getName() == null || table.getName().isBlank()) {
+            return "Mesa " + number;
+        }
+        return "Mesa " + number + " - " + table.getName();
     }
 
     private void releaseTable(Tab tab) {
@@ -256,6 +295,15 @@ public class TabService {
     private void ensureCounter(Tab tab) {
         if (tab.getType() != TabType.COUNTER) {
             throw new BusinessException("A comanda informada não é um atendimento de balcão");
+        }
+    }
+
+    private void ensureType(Tab tab, TabType expectedType) {
+        if (expectedType == TabType.TABLE && tab.getType() != TabType.TABLE) {
+            throw new BusinessException("Use a finalização de balcão para encerrar este atendimento");
+        }
+        if (expectedType == TabType.COUNTER && tab.getType() != TabType.COUNTER) {
+            throw new BusinessException("Use Comandas para fechar atendimentos de mesa");
         }
     }
 
@@ -281,6 +329,16 @@ public class TabService {
         }
     }
 
+    private void ensureNotEmpty(Tab tab) {
+        boolean hasConfirmedOrder = orderRepository.existsByTabIdAndStatusNotIn(
+                tab.getId(),
+                List.of(OrderStatus.CREATED, OrderStatus.CANCELLED)
+        );
+        if (!hasConfirmedOrder) {
+            throw new BusinessException("Comanda vazia não pode ser fechada. Cancele a comanda vazia.");
+        }
+    }
+
     private void ensureNoPayments(Tab tab) {
         if (paymentRepository.existsByTabId(tab.getId())) {
             throw new BusinessException("Não é possível cancelar uma comanda com pagamentos registrados.");
@@ -295,6 +353,34 @@ public class TabService {
 
     private BigDecimal valueOrZero(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private Integer tableNumber(Tab tab) {
+        if (tab.getTableNumber() != null) {
+            return tab.getTableNumber();
+        }
+        RestaurantTable table = tab.getRestaurantTable();
+        return table == null ? null : table.getNumber();
+    }
+
+    private Integer tableNumberForOpening(OpenTabRequest request, RestaurantTable table) {
+        Integer requestedNumber = request.tableNumber();
+        Integer legacyNumber = table == null ? null : table.getNumber();
+        if (requestedNumber != null && legacyNumber != null && !requestedNumber.equals(legacyNumber)) {
+            throw new BusinessException("Número da mesa não corresponde à mesa informada");
+        }
+        Integer tableNumber = requestedNumber == null ? legacyNumber : requestedNumber;
+        if (tableNumber == null) {
+            throw new BusinessException("Informe o número da mesa para abrir a comanda");
+        }
+        if (tableNumber <= 0) {
+            throw new BusinessException("Número da mesa deve ser maior que zero");
+        }
+        return tableNumber;
+    }
+
+    private BusinessException duplicateTableTab(Integer tableNumber) {
+        return new BusinessException("Já existe uma comanda aberta para a Mesa " + tableNumber + ".");
     }
 
     private String normalizeOptional(String value) {
