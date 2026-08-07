@@ -1,4 +1,4 @@
-import { UnitOfMeasure } from '../models/ingredient.model';
+import { UnitOfMeasure } from '../models/stock.model';
 
 export function unitLabel(unit: UnitOfMeasure): string {
   return {
