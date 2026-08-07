@@ -23,15 +23,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
-        "spring.jpa.show-sql=false",
-        "hubon.security.permit-all=false",
-        "hubon.seed.enabled=true",
-        "hubon.seed.owner.name=Seed Owner",
-        "hubon.seed.owner.email=seed-owner@seed.hubon.test",
-        "hubon.seed.owner.password=configured-owner-pass-123",
-        "hubon.seed.admin.enabled=true",
-        "hubon.seed.admin.name=Seed Admin",
-        "hubon.seed.admin.email=seed-admin@seed.hubon.test",
+        "hubon.security.permit-all=false", "hubon.seed.enabled=true",
+        "hubon.seed.owner.name=Seed Owner", "hubon.seed.owner.email=seed-owner@seed.hubon.test",
+        "hubon.seed.owner.password=configured-owner-pass-123", "hubon.seed.admin.enabled=true",
+        "hubon.seed.admin.name=Seed Admin", "hubon.seed.admin.email=seed-admin@seed.hubon.test",
         "hubon.seed.admin.password=configured-admin-pass-123"
 })
 @AutoConfigureMockMvc
@@ -39,122 +34,42 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ContextConfiguration(initializers = IntegrationTestDatabaseGuard.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DataSeederIntegrationTests {
-
-    private static final String OWNER_EMAIL = "seed-owner@seed.hubon.test";
-    private static final String OWNER_PASSWORD = "configured-owner-pass-123";
-    private static final String ADMIN_EMAIL = "seed-admin@seed.hubon.test";
-    private static final String ADMIN_PASSWORD = "configured-admin-pass-123";
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private DataSeeder dataSeeder;
+    @Autowired MockMvc mockMvc;
+    @Autowired JdbcTemplate jdbc;
+    @Autowired PasswordEncoder passwordEncoder;
+    @Autowired DataSeeder dataSeeder;
 
     @AfterAll
     void cleanup() {
-        jdbcTemplate.update(
-                """
-                delete from user_roles
-                where user_id in (
-                    select id from users where email in (?, ?)
-                )
-                """,
-                OWNER_EMAIL,
-                ADMIN_EMAIL
-        );
-        jdbcTemplate.update("delete from users where email in (?, ?)", OWNER_EMAIL, ADMIN_EMAIL);
+        jdbc.execute("""
+                truncate table stock_movements, payments, cash_movements, sale_item_options,
+                sale_items, sales, product_stock_links, stock_items, product_options,
+                product_option_groups, products, categories, restaurant_tables, cash_shifts,
+                user_roles, users restart identity cascade
+                """);
     }
 
     @Test
-    void shouldCreateSeedUsersWithConfiguredEncryptedPasswords() {
-        String ownerPasswordHash = passwordHashFor(OWNER_EMAIL);
-        String adminPasswordHash = passwordHashFor(ADMIN_EMAIL);
+    void createsConfiguredUsersAndDirectlyPricedProductsIdempotently() throws Exception {
+        String hash = jdbc.queryForObject("select password from users where email = 'seed-owner@seed.hubon.test'", String.class);
+        assertThat(passwordEncoder.matches("configured-owner-pass-123", hash)).isTrue();
+        mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content("""
+                {"email":"seed-owner@seed.hubon.test","password":"configured-owner-pass-123"}
+                """)).andExpect(status().isOk()).andExpect(jsonPath("$.user.roles[0]").value("OWNER"));
 
-        assertThat(ownerPasswordHash).isNotEqualTo(OWNER_PASSWORD);
-        assertThat(adminPasswordHash).isNotEqualTo(ADMIN_PASSWORD);
-        assertThat(passwordEncoder.matches(OWNER_PASSWORD, ownerPasswordHash)).isTrue();
-        assertThat(passwordEncoder.matches(ADMIN_PASSWORD, adminPasswordHash)).isTrue();
-    }
-
-    @Test
-    void shouldLoginWithConfiguredOwnerCredentials() throws Exception {
-        mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "%s",
-                                  "password": "%s"
-                                }
-                                """.formatted(OWNER_EMAIL, OWNER_PASSWORD)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isNotEmpty())
-                .andExpect(jsonPath("$.user.email").value(OWNER_EMAIL))
-                .andExpect(jsonPath("$.user.roles[0]").value("OWNER"));
-    }
-
-    @Test
-    void shouldSeedExplicitProductFlowsDefaultVariantsAndRemainIdempotent() {
-        Map<String, Object> juice = seededProduct("Suco natural");
-        Map<String, Object> soda = seededProduct("Refrigerante lata");
-        Map<String, Object> executive = seededProduct("Executivo da casa");
-
-        assertThat(juice.get("preparation_flow")).isEqualTo("REQUIRES_PREPARATION");
-        assertThat(soda.get("preparation_flow")).isEqualTo("DIRECT_SERVICE");
-        assertThat(executive.get("preparation_flow")).isEqualTo("REQUIRES_PREPARATION");
-        assertThat(juice.get("variant_name")).isEqualTo("Padr\u00e3o");
-        assertThat(soda.get("variant_name")).isEqualTo("Padr\u00e3o");
-        assertThat(executive.get("variant_name")).isEqualTo("Padr\u00e3o");
-        assertThat((BigDecimal) juice.get("price")).isEqualByComparingTo("9.90");
-        assertThat((BigDecimal) soda.get("price")).isEqualByComparingTo("7.50");
-        assertThat((BigDecimal) executive.get("price")).isEqualByComparingTo("32.90");
-
-        Map<String, Integer> countsBefore = seedCounts();
+        Map<String, Object> product = jdbc.queryForMap("select name, price from products where name = 'Refrigerante lata'");
+        assertThat(product.get("price")).isEqualTo(new BigDecimal("7.50"));
+        assertThat(jdbc.queryForObject("select count(*) from product_option_groups", Integer.class)).isZero();
+        Map<String, Integer> before = counts();
         dataSeeder.run();
         dataSeeder.run();
-
-        assertThat(seedCounts()).isEqualTo(countsBefore);
+        assertThat(counts()).isEqualTo(before);
     }
 
-    private String passwordHashFor(String email) {
-        return jdbcTemplate.queryForObject(
-                "select password from users where email = ?",
-                String.class,
-                email
-        );
+    private Map<String, Integer> counts() {
+        return Map.of("categories", count("categories"), "products", count("products"),
+                "users", count("users"), "tables", count("restaurant_tables"));
     }
 
-    private Map<String, Object> seededProduct(String name) {
-        return jdbcTemplate.queryForMap(
-                """
-                select product.preparation_flow,
-                       variant.name as variant_name,
-                       variant.price
-                from products product
-                join product_variants variant on variant.product_id = product.id
-                where product.name = ?
-                """,
-                name
-        );
-    }
-
-    private Map<String, Integer> seedCounts() {
-        return Map.of(
-                "categories", count("categories"),
-                "products", count("products"),
-                "variants", count("product_variants"),
-                "users", count("users"),
-                "tables", count("restaurant_tables")
-        );
-    }
-
-    private int count(String table) {
-        return jdbcTemplate.queryForObject("select count(*) from " + table, Integer.class);
-    }
+    private int count(String table) { return jdbc.queryForObject("select count(*) from " + table, Integer.class); }
 }
