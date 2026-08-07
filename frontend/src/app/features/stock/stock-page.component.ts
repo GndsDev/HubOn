@@ -89,7 +89,7 @@ export class StockPageComponent implements OnInit {
   readonly manualTypes: ManualMovement[] = ['ENTRY', 'EXIT', 'LOSS', 'ADJUSTMENT'];
   readonly activeItems = computed(() => this.items().filter((item) => item.active));
   readonly alertCount = computed(() => this.items().filter((item) => item.active && item.status !== 'NORMAL').length);
-  readonly filteredItems = computed(() => { const query = this.normalized(this.searchTerm); return this.items().filter((item) => !query || this.normalized(item.name).includes(query)).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')); });
+  filteredItems(): StockItem[] { const query = this.normalized(this.searchTerm); return this.items().filter((item) => !query || this.normalized(item.name).includes(query)).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')); }
 
   ngOnInit(): void { this.load(); }
   load(): void { this.loading.set(true); this.error.set(null); forkJoin({ items: this.api.listItems(), movements: this.api.listMovements(), products: this.productApi.getAll() }).pipe(finalize(() => this.loading.set(false))).subscribe({ next: ({ items, movements, products }) => { this.items.set(items); this.movements.set(movements); this.products.set(products); this.loadLinks(products); }, error: (error) => this.error.set(apiErrorMessage(error)) }); }

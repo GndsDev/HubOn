@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { SalesApiService } from '../../core/services/sales-api.service';
@@ -39,7 +39,7 @@ export class SalesHistoryPageComponent implements OnInit {
   status: SaleStatus | 'ALL' = 'ALL';
   from = '';
   to = '';
-  readonly visibleSales = computed(() => this.sales().filter((sale) => sale.status !== 'OPEN').filter((sale) => this.type === 'ALL' || sale.type === this.type).filter((sale) => this.status === 'ALL' || sale.status === this.status).filter((sale) => { const date = (sale.closedAt || sale.cancelledAt || sale.openedAt).slice(0, 10); return (!this.from || date >= this.from) && (!this.to || date <= this.to); }).sort((a, b) => (b.closedAt || b.cancelledAt || b.openedAt).localeCompare(a.closedAt || a.cancelledAt || a.openedAt)));
+  visibleSales(): Sale[] { return this.sales().filter((sale) => sale.status !== 'OPEN').filter((sale) => this.type === 'ALL' || sale.type === this.type).filter((sale) => this.status === 'ALL' || sale.status === this.status).filter((sale) => { const date = (sale.closedAt || sale.cancelledAt || sale.openedAt).slice(0, 10); return (!this.from || date >= this.from) && (!this.to || date <= this.to); }).sort((a, b) => (b.closedAt || b.cancelledAt || b.openedAt).localeCompare(a.closedAt || a.cancelledAt || a.openedAt)); }
   ngOnInit(): void { this.load(); }
   load(): void { this.loading.set(true); this.error.set(null); this.api.list().pipe(finalize(() => this.loading.set(false))).subscribe({ next: (sales) => this.sales.set(sales), error: (error) => this.error.set(apiErrorMessage(error)) }); }
   toggleDetails(id: number): void { this.expandedId.update((current) => current === id ? null : id); }

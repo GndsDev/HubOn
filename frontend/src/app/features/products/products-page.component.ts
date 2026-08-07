@@ -199,12 +199,12 @@ export class ProductsPageComponent implements OnInit {
   productForm: ProductRequest = this.emptyProduct();
 
   readonly activeCategories = computed(() => this.categories().filter((category) => category.active));
-  readonly filteredProducts = computed(() => {
+  filteredProducts(): Product[] {
     const query = this.normalized(this.searchTerm);
     return [...this.products()]
       .filter((product) => !query || this.normalized(`${product.name} ${product.categoryName ?? ''}`).includes(query))
       .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, 'pt-BR'));
-  });
+  }
 
   ngOnInit(): void { this.load(); }
 

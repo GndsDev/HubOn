@@ -86,14 +86,17 @@ export class SaleProductPickerComponent {
   selectedIds: number[] = [];
   notes = '';
 
-  readonly categories = computed(() => [...new Set(this.products.map((product) => product.categoryName).filter((name): name is string => Boolean(name)))].sort((a, b) => a.localeCompare(b, 'pt-BR')));
-  readonly filteredProducts = computed(() => {
+  categories(): string[] {
+    return [...new Set(this.products.map((product) => product.categoryName).filter((name): name is string => Boolean(name)))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }
+
+  filteredProducts(): Product[] {
     const query = this.normalized(this.searchTerm);
     return this.products.filter((product) => product.active && product.available)
       .filter((product) => this.category === 'ALL' || product.categoryName === this.category)
       .filter((product) => !query || this.normalized(product.name).includes(query))
       .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, 'pt-BR'));
-  });
+  }
 
   select(product: Product): void {
     if (this.requiresChoice(product)) this.openChoices(product);
