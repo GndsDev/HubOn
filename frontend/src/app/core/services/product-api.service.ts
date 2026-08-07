@@ -10,8 +10,6 @@ import {
   ProductOptionRequest,
   ProductRegistrationRequest,
   ProductRequest,
-  ProductVariant,
-  ProductVariantRequest,
 } from '../../shared/models/product.model';
 
 @Injectable({ providedIn: 'root' })
@@ -49,33 +47,6 @@ export class ProductApiService {
 
   setAvailable(id: number, available: boolean): Observable<Product> {
     return this.http.patch<Product>(`${this.baseUrl}/${id}/${available ? 'available' : 'unavailable'}`, {});
-  }
-
-  getVariants(productId: number): Observable<ProductVariant[]> {
-    return this.http.get<ProductVariant[]>(`${this.baseUrl}/${productId}/variants`);
-  }
-
-  createVariant(productId: number, request: ProductVariantRequest): Observable<ProductVariant> {
-    return this.http.post<ProductVariant>(`${this.baseUrl}/${productId}/variants`, request);
-  }
-
-  updateVariant(productId: number, variantId: number, request: ProductVariantRequest): Observable<ProductVariant> {
-    return this.http.put<ProductVariant>(`${this.baseUrl}/${productId}/variants/${variantId}`, request);
-  }
-
-  activateVariant(productId: number, variantId: number): Observable<ProductVariant> {
-    return this.http.patch<ProductVariant>(`${this.baseUrl}/${productId}/variants/${variantId}/activate`, {});
-  }
-
-  deactivateVariant(productId: number, variantId: number): Observable<ProductVariant> {
-    return this.http.patch<ProductVariant>(`${this.baseUrl}/${productId}/variants/${variantId}/deactivate`, {});
-  }
-
-  setVariantAvailable(productId: number, variantId: number, available: boolean): Observable<ProductVariant> {
-    return this.http.patch<ProductVariant>(
-      `${this.baseUrl}/${productId}/variants/${variantId}/${available ? 'available' : 'unavailable'}`,
-      {},
-    );
   }
 
   getOptionGroups(productId: number): Observable<ProductOptionGroup[]> {
