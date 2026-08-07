@@ -100,6 +100,9 @@ class SecurityAuthorizationIntegrationTests {
         }
         if (testCategoryId != null) jdbcTemplate.update("delete from categories where id = ?", testCategoryId);
         jdbcTemplate.update(
+                "delete from tabs where opened_by_user_id in (select id from users where email like '%@security.hubon.test')"
+        );
+        jdbcTemplate.update(
                 """
                 delete from user_roles
                 where user_id in (
@@ -135,7 +138,7 @@ class SecurityAuthorizationIntegrationTests {
     }
 
     @Test
-    void cashierShouldCreateIndependentCounterSaleWithAuthenticatedIdentity() throws Exception {
+    void legacyCashierCreationRouteShouldNotGrantOperationalCounterAccess() throws Exception {
         String body = mockMvc.perform(post("/api/tabs/counter")
                         .header("Authorization", bearer(tokenFor(cashierEmail)))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -151,13 +154,11 @@ class SecurityAuthorizationIntegrationTests {
 
         mockMvc.perform(get("/api/tabs/counter/active")
                         .header("Authorization", bearer(tokenFor(cashierEmail))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(testTabId));
+                .andExpect(status().isForbidden());
 
         mockMvc.perform(get("/api/tabs/counter/{id}", testTabId)
                         .header("Authorization", bearer(tokenFor(cashierEmail))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.summary.id").value(testTabId));
+                .andExpect(status().isForbidden());
 
         mockMvc.perform(get("/api/tabs/{id}", testTabId)
                         .header("Authorization", bearer(tokenFor(waiterEmail))))
@@ -225,25 +226,24 @@ class SecurityAuthorizationIntegrationTests {
     }
 
     @Test
-    void shouldAllowKitchenToUseOnlyPreparationQueueAndItemStatus() throws Exception {
+    void kitchenShouldNotOperatePreparationQueue() throws Exception {
         String token = tokenFor(kitchenEmail);
         OrderFixture order = insertMixedPreparationOrder();
 
         mockMvc.perform(get("/api/orders/preparation-queue")
                         .header("Authorization", bearer(token)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].items[0].id").value(order.preparationItemId()));
+                .andExpect(status().isForbidden());
 
         mockMvc.perform(patch("/api/orders/{orderId}/items/{itemId}/status", order.orderId(), order.preparationItemId())
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"READY\"}"))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
         assertThat(jdbcTemplate.queryForObject(
                 "select status from order_items where id = ?",
                 String.class,
                 order.preparationItemId()
-        )).isEqualTo("READY");
+        )).isEqualTo("IN_PREPARATION");
 
         mockMvc.perform(patch("/api/orders/{orderId}/items/{itemId}/status", order.orderId(), order.preparationItemId())
                         .header("Authorization", bearer(token))
@@ -255,7 +255,7 @@ class SecurityAuthorizationIntegrationTests {
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"IN_PREPARATION\"}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden());
 
         mockMvc.perform(patch("/api/orders/{orderId}/status", order.orderId())
                         .header("Authorization", bearer(token))
@@ -357,7 +357,7 @@ class SecurityAuthorizationIntegrationTests {
     }
 
     @Test
-    void ownerShouldCreateAdminAndOperationalUsersButNotOwner() throws Exception {
+    void ownerShouldCreateOnlyAdminUsers() throws Exception {
         String token = tokenFor(ownerEmail);
 
         mockMvc.perform(post("/api/users")
@@ -371,41 +371,41 @@ class SecurityAuthorizationIntegrationTests {
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(userPayload("created-waiter", List.of("WAITER"))))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.roles[0]").value("WAITER"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Novos usuários podem receber somente o perfil de gerente"));
 
         mockMvc.perform(post("/api/users")
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(userPayload("blocked-owner", List.of("OWNER"))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Não é permitido criar usuário OWNER por este fluxo"));
+                .andExpect(jsonPath("$.message").value("Não é permitido criar outro usuário dono por este fluxo"));
     }
 
     @Test
-    void adminShouldCreateOnlyOperationalUsers() throws Exception {
+    void adminShouldNotCreateUsers() throws Exception {
         String token = tokenFor(adminEmail);
 
         mockMvc.perform(post("/api/users")
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(userPayload("admin-created-cashier", List.of("CASHIER"))))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.roles[0]").value("CASHIER"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Somente o dono pode criar novos usuários"));
 
         mockMvc.perform(post("/api/users")
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(userPayload("admin-created-admin", List.of("ADMIN"))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("ADMIN não pode criar outro ADMIN"));
+                .andExpect(jsonPath("$.message").value("Somente o dono pode criar novos usuários"));
 
         mockMvc.perform(post("/api/users")
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(userPayload("admin-created-owner", List.of("OWNER"))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Não é permitido criar usuário OWNER por este fluxo"));
+                .andExpect(jsonPath("$.message").value("Somente o dono pode criar novos usuários"));
     }
 
     @Test

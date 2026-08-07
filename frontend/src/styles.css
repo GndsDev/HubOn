@@ -6882,6 +6882,12 @@ app-report-product-sort {
     flex-direction: column;
   }
 
+  .page-header-copy {
+    flex: none;
+    width: 100%;
+    max-width: none;
+  }
+
   .page-header-actions {
     width: 100%;
     justify-content: flex-start;

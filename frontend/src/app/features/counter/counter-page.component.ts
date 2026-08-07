@@ -43,6 +43,7 @@ interface CounterCartItem extends OrderItemRequest {
 }
 
 type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
+type StatusTone = 'neutral' | 'info' | 'warning' | 'success' | 'danger';
 
 @Component({
   selector: 'app-counter-page',
@@ -101,8 +102,8 @@ type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
               Histórico
             </button>
           </div>
-          <button type="button" class="icon-button" aria-label="Atualizar atendimentos" title="Atualizar" (click)="loadCenter()">
-            <i class="pi pi-refresh"></i>
+          <button type="button" class="icon-button" aria-label="Atualizar atendimentos" title="Atualizar" (click)="loadCenter()" [disabled]="loading() || refreshing()">
+            <i class="pi" [class.pi-refresh]="!refreshing()" [class.pi-spin]="refreshing()" [class.pi-spinner]="refreshing()"></i>
           </button>
         </div>
 
@@ -344,7 +345,7 @@ type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
                 <div class="info-panel compact-info"><i class="pi pi-check-circle"></i><div><strong>{{ current.summary.tabStatus === 'CLOSED' ? 'Atendimento finalizado' : 'Atendimento cancelado' }}</strong><p>Esta venda permanece disponível para consulta no histórico.</p></div></div>
               } @else if (current.summary.nextAction === 'REGISTER_PAYMENT' || current.summary.nextAction === 'COMPLETE_PAYMENT') {
                 <div class="counter-action-copy"><span>Próxima ação</span><h2>{{ current.summary.nextAction === 'COMPLETE_PAYMENT' ? 'Completar pagamento' : 'Registrar pagamento' }}</h2><p>O preparo dos itens começa automaticamente quando o saldo chegar a zero.</p></div>
-                <button type="button" class="primary-button counter-primary-action" (click)="paymentOpen.set(true)"><i class="pi pi-wallet"></i>{{ current.summary.nextAction === 'COMPLETE_PAYMENT' ? 'Completar pagamento' : 'Registrar pagamento' }}</button>
+                <button type="button" class="primary-button counter-primary-action" (click)="paymentOpen.set(true)" [disabled]="saving()"><i class="pi pi-wallet"></i>{{ current.summary.nextAction === 'COMPLETE_PAYMENT' ? 'Completar pagamento' : 'Registrar pagamento' }}</button>
               } @else if (current.summary.nextAction === 'FOLLOW_PREPARATION') {
                 <div class="counter-action-copy"><span>Próxima ação</span><h2>Acompanhar preparo</h2><p>Marque cada item como pronto assim que o preparo terminar.</p></div>
                 <button type="button" class="ghost-button counter-secondary-action" (click)="refreshDetail()" [disabled]="saving()"><i class="pi pi-refresh"></i>Atualizar andamento</button>
@@ -378,10 +379,10 @@ type CounterCenterView = 'ACTIVE' | 'TODAY' | 'HISTORY';
 
     @if (cancelOpen()) {
       <div class="modal-backdrop" (click)="cancelOpen.set(false)">
-        <form class="modal-panel compact" appAccessibleDialog role="alertdialog" aria-modal="true" aria-labelledby="counter-cancel-title" (dialogClose)="cancelOpen.set(false)" (click)="$event.stopPropagation()" (ngSubmit)="cancelSale()">
-          <div class="modal-header"><div class="modal-heading"><span class="modal-eyebrow">Confirmação</span><h2 id="counter-cancel-title">{{ isAssembly() ? 'Descartar este atendimento?' : 'Cancelar esta venda?' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="cancelOpen.set(false)"><i class="pi pi-times"></i></button></div>
+        <form class="modal-panel compact" appAccessibleDialog role="alertdialog" aria-modal="true" aria-labelledby="counter-cancel-title" [dialogCloseDisabled]="saving()" (dialogClose)="cancelOpen.set(false)" (click)="$event.stopPropagation()" (ngSubmit)="cancelSale()">
+          <div class="modal-header"><div class="modal-heading"><span class="modal-eyebrow">Confirmação</span><h2 id="counter-cancel-title">{{ isAssembly() ? 'Descartar este atendimento?' : 'Cancelar esta venda?' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" [disabled]="saving()" (click)="cancelOpen.set(false)"><i class="pi pi-times"></i></button></div>
           <div class="modal-body"><p class="modal-description">O atendimento sairá da lista de ativos, mas continuará disponível no histórico.</p><label class="field"><span>Motivo</span><textarea name="cancelReason" [(ngModel)]="cancelReason" maxlength="500" required autofocus></textarea></label></div>
-          <div class="modal-footer modal-actions"><button type="button" class="ghost-button" (click)="cancelOpen.set(false)">Voltar</button><button type="submit" class="danger-button" [disabled]="saving() || !cancelReason.trim()"><i class="pi pi-times"></i>Confirmar cancelamento</button></div>
+          <div class="modal-footer modal-actions"><button type="button" class="ghost-button" [disabled]="saving()" (click)="cancelOpen.set(false)">Voltar</button><button type="submit" class="danger-button" [disabled]="saving() || !cancelReason.trim()"><i class="pi pi-times"></i>Confirmar cancelamento</button></div>
         </form>
       </div>
     }
@@ -409,6 +410,7 @@ export class CounterPageComponent implements OnInit {
   private readonly activity = inject(CounterActivityService);
   private readonly feedback = inject(FeedbackService);
   private nextCartKey = 1;
+  private centerLoadedOnce = false;
 
   readonly saleId = signal<number | null>(null);
   readonly products = signal<Product[]>([]);
@@ -433,7 +435,8 @@ export class CounterPageComponent implements OnInit {
   readonly activeReceivable = computed(() => this.activeSales().reduce((total, sale) => total + sale.remainingAmount, 0));
   readonly selectedProduct = signal<Product | null>(null);
   readonly editingCartKey = signal<number | null>(null);
-  readonly loading = signal(true);
+  readonly loading = signal(false);
+  readonly refreshing = signal(false);
   readonly historyLoading = signal(false);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
@@ -468,18 +471,41 @@ export class CounterPageComponent implements OnInit {
   }
 
   loadCenter(): void {
-    this.loading.set(true);
-    this.error.set(null);
+    if (this.loading() || this.refreshing()) return;
+
+    const firstLoad = !this.centerLoadedOnce;
+
+    if (firstLoad) {
+      this.loading.set(true);
+      this.error.set(null);
+    } else {
+      this.refreshing.set(true);
+    }
+
     forkJoin({
       active: this.tabApi.getActiveCounterSales(),
       today: this.tabApi.getCounterSalesFinishedToday(),
-    }).pipe(finalize(() => this.loading.set(false))).subscribe({
+    }).pipe(finalize(() => {
+      this.loading.set(false);
+      this.refreshing.set(false);
+    })).subscribe({
       next: ({ active, today }) => {
         this.activeSales.set(active);
         this.finishedToday.set(today);
+        this.error.set(null);
+        this.centerLoadedOnce = true;
         this.activity.refresh();
       },
-      error: (error) => this.error.set(apiErrorMessage(error)),
+      error: (error) => {
+        const message = apiErrorMessage(error);
+
+        if (firstLoad) {
+          this.error.set(message);
+          return;
+        }
+
+        this.feedback.error(`${message} Os atendimentos exibidos foram mantidos.`);
+      },
     });
   }
 
@@ -534,6 +560,8 @@ export class CounterPageComponent implements OnInit {
   }
 
   loadHistory(): void {
+    if (this.historyLoading()) return;
+
     this.historyLoading.set(true);
     this.tabApi.getCounterHistory(this.historyFilters).pipe(finalize(() => this.historyLoading.set(false))).subscribe({
       next: (history) => this.history.set(history),
@@ -551,7 +579,9 @@ export class CounterPageComponent implements OnInit {
 
   selectCategory(category: string, event?: MouseEvent): void {
     this.categoryFilter = category;
-    const button = event?.currentTarget as HTMLElement | null;
+    const button = event?.currentTarget instanceof HTMLElement
+      ? event.currentTarget
+      : null;
     button?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   }
 
@@ -600,7 +630,8 @@ export class CounterPageComponent implements OnInit {
   saveCartItem(): void {
     const product = this.selectedProduct();
     if (!product || !this.productFormValid(product) || this.saving()) return;
-    const variant = this.availableVariants(product).find((item) => item.id === this.productForm.variantId)!;
+    const variant = this.availableVariants(product).find((item) => item.id === this.productForm.variantId);
+    if (!variant) return;
     const selectedOptions = product.optionGroups.flatMap((group) => group.options)
       .filter((option) => this.productForm.optionIds.includes(option.id));
     const editingKey = this.editingCartKey();
@@ -655,10 +686,11 @@ export class CounterPageComponent implements OnInit {
 
   confirmOrder(): void {
     const order = this.draftOrder();
-    if (!order || this.cart().length === 0 || this.saving()) return;
+    const id = this.saleId();
+    if (!order || id == null || this.cart().length === 0 || this.saving()) return;
     this.saving.set(true);
     this.orderApi.confirm(order.id).pipe(
-      switchMap(() => this.tabApi.getCounterSale(this.saleId()!)),
+      switchMap(() => this.tabApi.getCounterSale(id)),
       finalize(() => this.saving.set(false)),
     ).subscribe({
       next: (detail) => {
@@ -774,16 +806,19 @@ export class CounterPageComponent implements OnInit {
     return ({ ADD_ITEMS: 'Adicionar itens', CONFIRM_ORDER: 'Confirmar pedido', FOLLOW_PREPARATION: 'Acompanhar preparo', REGISTER_PAYMENT: 'Registrar pagamento', COMPLETE_PAYMENT: 'Completar pagamento', DELIVER: 'Marcar como entregue', FINALIZE: 'Finalizar venda', VIEW: 'Consultar atendimento', NONE: 'Nenhuma ação' })[action];
   }
 
-  attendanceTone(state: CounterAttendanceState): 'neutral' | 'info' | 'warning' | 'success' | 'danger' {
-    return ({ ASSEMBLING: 'neutral', CONFIRMED: 'info', IN_PROGRESS: 'warning', READY_TO_FINISH: 'success', FINISHED: 'success', CANCELLED: 'danger' })[state] as 'neutral' | 'info' | 'warning' | 'success' | 'danger';
+  attendanceTone(state: CounterAttendanceState): StatusTone {
+    const tones: Record<CounterAttendanceState, StatusTone> = { ASSEMBLING: 'neutral', CONFIRMED: 'info', IN_PROGRESS: 'warning', READY_TO_FINISH: 'success', FINISHED: 'success', CANCELLED: 'danger' };
+    return tones[state];
   }
 
-  preparationTone(state: CounterPreparationState): 'neutral' | 'info' | 'warning' | 'success' | 'danger' {
-    return ({ NOT_APPLICABLE: 'neutral', WAITING_PAYMENT: 'warning', WAITING: 'warning', IN_PREPARATION: 'info', PARTIALLY_READY: 'warning', READY: 'success', DELIVERED: 'success' })[state] as 'neutral' | 'info' | 'warning' | 'success' | 'danger';
+  preparationTone(state: CounterPreparationState): StatusTone {
+    const tones: Record<CounterPreparationState, StatusTone> = { NOT_APPLICABLE: 'neutral', WAITING_PAYMENT: 'warning', WAITING: 'warning', IN_PREPARATION: 'info', PARTIALLY_READY: 'warning', READY: 'success', DELIVERED: 'success' };
+    return tones[state];
   }
 
-  financialTone(state: CounterFinancialState): 'neutral' | 'info' | 'warning' | 'success' | 'danger' {
-    return ({ UNPAID: 'warning', PARTIALLY_PAID: 'info', PAID: 'success', CANCELLED: 'danger' })[state] as 'neutral' | 'info' | 'warning' | 'success' | 'danger';
+  financialTone(state: CounterFinancialState): StatusTone {
+    const tones: Record<CounterFinancialState, StatusTone> = { UNPAID: 'warning', PARTIALLY_PAID: 'info', PAID: 'success', CANCELLED: 'danger' };
+    return tones[state];
   }
 
   isReadyForHandoff(sale: CounterSaleSummary): boolean {
@@ -800,8 +835,9 @@ export class CounterPageComponent implements OnInit {
     return ({ DRAFT: 'Rascunho', WAITING_PREPARATION: 'Aguardando preparo', IN_PREPARATION: 'Em preparo', READY: 'Pronto', DELIVERED: 'Entregue', CANCELED: 'Cancelado' })[status];
   }
 
-  itemStatusTone(status: OrderItemStatus): 'neutral' | 'info' | 'warning' | 'success' | 'danger' {
-    return ({ DRAFT: 'neutral', WAITING_PREPARATION: 'warning', IN_PREPARATION: 'info', READY: 'success', DELIVERED: 'success', CANCELED: 'danger' })[status] as 'neutral' | 'info' | 'warning' | 'success' | 'danger';
+  itemStatusTone(status: OrderItemStatus): StatusTone {
+    const tones: Record<OrderItemStatus, StatusTone> = { DRAFT: 'neutral', WAITING_PREPARATION: 'warning', IN_PREPARATION: 'info', READY: 'success', DELIVERED: 'success', CANCELED: 'danger' };
+    return tones[status];
   }
 
   optionSummary(options: RestaurantOrder['items'][number]['options']): string {

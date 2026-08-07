@@ -365,6 +365,7 @@ interface OrderItemGroup {
 
                 <div class="action-cluster">
                   @if (
+                    canOpenOperation(order) &&
                     order.tabType === 'COUNTER'
                   ) {
                     <a
@@ -383,6 +384,7 @@ interface OrderItemGroup {
                   }
 
                   @if (
+                    canOpenOperation(order) &&
                     order.tabType === 'TABLE'
                   ) {
                     <a
@@ -569,7 +571,13 @@ export class OrdersPageComponent
   effectiveTabStatus(
     order: RestaurantOrder,
   ): TabStatus {
-    return order.tabStatus ?? 'OPEN';
+    return order.tabStatus;
+  }
+
+  canOpenOperation(
+    order: RestaurantOrder,
+  ): boolean {
+    return this.effectiveTabStatus(order) === 'OPEN';
   }
 
   tabStatusLabel(

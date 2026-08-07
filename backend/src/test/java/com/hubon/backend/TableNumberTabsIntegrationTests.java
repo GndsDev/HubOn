@@ -2,6 +2,7 @@ package com.hubon.backend;
 
 import com.hubon.backend.auth.service.AuthenticatedUser;
 import com.hubon.backend.order.domain.OrderItemStatus;
+import com.hubon.backend.order.domain.OrderStatus;
 import com.hubon.backend.order.domain.OrderType;
 import com.hubon.backend.order.dto.OrderItemRequest;
 import com.hubon.backend.order.dto.OrderItemStatusRequest;
@@ -61,6 +62,8 @@ class TableNumberTabsIntegrationTests {
     private Long categoryId;
     private Long productId;
     private Long variantId;
+    private Long preparationProductId;
+    private Long preparationVariantId;
 
     @BeforeEach
     void setup() {
@@ -85,6 +88,17 @@ class TableNumberTabsIntegrationTests {
                 "insert into product_variants (product_id, name, price, active, available, display_order) values (?, 'Padrão', 35, true, true, 0) returning id",
                 Long.class,
                 productId
+        );
+        preparationProductId = jdbc.queryForObject(
+                "insert into products (category_id, name, preparation_flow, active, available, display_order) values (?, ?, 'REQUIRES_PREPARATION', true, true, 1) returning id",
+                Long.class,
+                categoryId,
+                "Produto Preparo Mesa " + suffix
+        );
+        preparationVariantId = jdbc.queryForObject(
+                "insert into product_variants (product_id, name, price, active, available, display_order) values (?, 'Padrão', 25, true, true, 0) returning id",
+                Long.class,
+                preparationProductId
         );
 
         User user = User.builder()
@@ -161,16 +175,17 @@ class TableNumberTabsIntegrationTests {
         ));
         RestaurantOrderResponse confirmed = orderService.confirm(order.id());
         Long itemId = confirmed.items().getFirst().id();
+        assertThat(confirmed.status()).isEqualTo(OrderStatus.READY);
+        assertThat(confirmed.items().getFirst().status()).isEqualTo(OrderItemStatus.READY);
 
         assertThatThrownBy(() -> paymentService.create(new PaymentRequest(
                 tab.id(), PaymentMethod.PIX, new BigDecimal("35.00"), null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Abra o caixa");
 
-        jdbc.update(
-                "insert into cash_shifts (status, opened_by_user_id, opening_balance) values ('OPEN', ?, 0)",
-                userId
-        );
+        orderService.updateItemStatus(order.id(), itemId, new OrderItemStatusRequest(OrderItemStatus.DELIVERED));
+
+        openCashShift();
         paymentService.create(new PaymentRequest(tab.id(), PaymentMethod.PIX, new BigDecimal("35.00"), null));
         assertThatThrownBy(() -> orderService.create(new RestaurantOrderRequest(
                 tab.id(),
@@ -182,8 +197,6 @@ class TableNumberTabsIntegrationTests {
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("já foi paga");
 
-        orderService.updateItemStatus(order.id(), itemId, new OrderItemStatusRequest(OrderItemStatus.DELIVERED));
-
         TabResponse closed = tabService.close(tab.id());
         TabResponse idempotent = tabService.close(tab.id());
         assertThat(closed.status()).isEqualTo(TabStatus.CLOSED);
@@ -192,6 +205,97 @@ class TableNumberTabsIntegrationTests {
         TabResponse reopened = tabService.open(new OpenTabRequest(null, tableNumber, null, BigDecimal.ZERO, BigDecimal.ZERO));
         assertThat(reopened.tableNumber()).isEqualTo(tableNumber);
         assertThat(reopened.status()).isEqualTo(TabStatus.OPEN);
+    }
+
+    @Test
+    void tablePreparationOrderCompletesFromPreparationToClosing() {
+        TabResponse tab = openTableTab();
+        RestaurantOrderResponse confirmed = orderService.confirm(
+                createOrder(tab.id(), List.of(item(preparationProductId, preparationVariantId))).id()
+        );
+        Long itemId = confirmed.items().getFirst().id();
+
+        assertThat(confirmed.status()).isEqualTo(OrderStatus.PREPARING);
+        assertThat(confirmed.items().getFirst().status()).isEqualTo(OrderItemStatus.IN_PREPARATION);
+
+        RestaurantOrderResponse ready = orderService.updateItemStatus(
+                confirmed.id(), itemId, new OrderItemStatusRequest(OrderItemStatus.READY));
+        assertThat(ready.status()).isEqualTo(OrderStatus.READY);
+
+        RestaurantOrderResponse delivered = orderService.updateItemStatus(
+                confirmed.id(), itemId, new OrderItemStatusRequest(OrderItemStatus.DELIVERED));
+        assertThat(delivered.status()).isEqualTo(OrderStatus.DELIVERED);
+
+        openCashShift();
+        paymentService.create(new PaymentRequest(
+                tab.id(), PaymentMethod.PIX, tabService.getById(tab.id()).finalAmount(), null));
+
+        assertThat(tabService.close(tab.id()).status()).isEqualTo(TabStatus.CLOSED);
+    }
+
+    @Test
+    void mixedTableOrderKeepsEachItemInItsOwnPreparationFlow() {
+        TabResponse tab = openTableTab();
+        RestaurantOrderResponse confirmed = orderService.confirm(
+                createOrder(tab.id(), List.of(
+                        item(productId, variantId),
+                        item(preparationProductId, preparationVariantId)
+                )).id()
+        );
+
+        assertThat(confirmed.status()).isEqualTo(OrderStatus.PREPARING);
+        assertThat(confirmed.items()).extracting(item -> item.status())
+                .containsExactly(OrderItemStatus.READY, OrderItemStatus.IN_PREPARATION);
+
+        Long directItemId = confirmed.items().getFirst().id();
+        Long preparationItemId = confirmed.items().get(1).id();
+        orderService.updateItemStatus(
+                confirmed.id(), preparationItemId, new OrderItemStatusRequest(OrderItemStatus.READY));
+        orderService.updateItemStatus(
+                confirmed.id(), directItemId, new OrderItemStatusRequest(OrderItemStatus.DELIVERED));
+        RestaurantOrderResponse delivered = orderService.updateItemStatus(
+                confirmed.id(), preparationItemId, new OrderItemStatusRequest(OrderItemStatus.DELIVERED));
+
+        assertThat(delivered.status()).isEqualTo(OrderStatus.DELIVERED);
+        assertThat(delivered.items()).extracting(item -> item.status())
+                .containsOnly(OrderItemStatus.DELIVERED);
+
+        openCashShift();
+        paymentService.create(new PaymentRequest(
+                tab.id(), PaymentMethod.CASH, tabService.getById(tab.id()).finalAmount(), null));
+
+        assertThat(tabService.close(tab.id()).status()).isEqualTo(TabStatus.CLOSED);
+    }
+
+    private TabResponse openTableTab() {
+        return tabService.open(new OpenTabRequest(
+                null,
+                TABLE_NUMBER.incrementAndGet(),
+                null,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
+        ));
+    }
+
+    private RestaurantOrderResponse createOrder(Long tabId, List<OrderItemRequest> items) {
+        return orderService.create(new RestaurantOrderRequest(
+                tabId,
+                null,
+                OrderType.TABLE,
+                null,
+                items
+        ));
+    }
+
+    private OrderItemRequest item(Long requestedProductId, Long requestedVariantId) {
+        return new OrderItemRequest(requestedProductId, requestedVariantId, 1, null, List.of());
+    }
+
+    private void openCashShift() {
+        jdbc.update(
+                "insert into cash_shifts (status, opened_by_user_id, opening_balance) values ('OPEN', ?, 0)",
+                userId
+        );
     }
 
     private int tableCount() {

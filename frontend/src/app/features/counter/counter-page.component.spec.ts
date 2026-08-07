@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { BehaviorSubject, of } from 'rxjs';
+import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CounterActivityService } from '../../core/services/counter-activity.service';
 import { FeedbackService } from '../../core/services/feedback.service';
@@ -207,6 +207,51 @@ describe('CounterPageComponent', () => {
       discountAmount: 0,
     });
     expect(router.navigate).toHaveBeenCalledWith(['/balcao', 50]);
+  });
+
+  it('keeps the counter cards visible while refreshing and ignores repeated clicks', () => {
+    const fixture = createFixture();
+    const component = fixture.componentInstance;
+    const refresh = new Subject<CounterSaleSummary[]>();
+
+    tabApi.getActiveCounterSales.mockReturnValue(refresh);
+
+    component.loadCenter();
+    component.loadCenter();
+    fixture.detectChanges();
+
+    expect(tabApi.getActiveCounterSales).toHaveBeenCalledTimes(2);
+    expect(component.loading()).toBe(false);
+    expect(component.refreshing()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.counter-loading-grid')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Venda #50');
+    expect(fixture.nativeElement.textContent).toContain('Ana');
+
+    refresh.next([summary]);
+    refresh.complete();
+    fixture.detectChanges();
+
+    expect(component.refreshing()).toBe(false);
+  });
+
+  it('keeps previous counter data when a refresh fails', () => {
+    const fixture = createFixture();
+    const component = fixture.componentInstance;
+
+    tabApi.getActiveCounterSales.mockReturnValue(
+      throwError(() => new Error('indisponível')),
+    );
+
+    component.loadCenter();
+    fixture.detectChanges();
+
+    expect(component.activeSales()).toEqual([summary]);
+    expect(component.error()).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Venda #50');
+    expect(fixture.nativeElement.textContent).toContain('Ana');
+    expect(feedback.error).toHaveBeenCalledWith(
+      expect.stringContaining('foram mantidos'),
+    );
   });
 
   it('restores a saved draft from the backend when opening the sale URL', () => {

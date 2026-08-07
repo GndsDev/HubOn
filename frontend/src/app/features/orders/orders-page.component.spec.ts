@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import {
   afterEach,
   beforeEach,
@@ -9,13 +9,11 @@ import {
   it,
   vi,
 } from 'vitest';
-import { AuthService } from '../../core/services/auth.service';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { OrderApiService } from '../../core/services/order-api.service';
 import { TabApiService } from '../../core/services/tab-api.service';
 import { RestaurantOrder } from '../../shared/models/order.model';
 import { CounterSaleSummary } from '../../shared/models/tab.model';
-import { User } from '../../shared/models/user.model';
 import { OrdersPageComponent } from './orders-page.component';
 
 describe('OrdersPageComponent', () => {
@@ -137,12 +135,7 @@ describe('OrdersPageComponent', () => {
     cancellationAllowed: false,
   };
 
-  let currentUser: User;
   let fixture: ComponentFixture<OrdersPageComponent>;
-
-  const auth = {
-    currentUser: vi.fn(() => currentUser),
-  };
 
   const orderApi = {
     getAll: vi.fn(() =>
@@ -150,10 +143,6 @@ describe('OrdersPageComponent', () => {
         mixedOrder,
         deliveredTableOrder,
       ]),
-    ),
-
-    getPreparationQueue: vi.fn(() =>
-      of([mixedOrder]),
     ),
   };
 
@@ -172,23 +161,11 @@ describe('OrdersPageComponent', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
 
-    currentUser = {
-      id: 1,
-      name: 'Dona',
-      email: 'dona@hubon.local',
-      active: true,
-      roles: ['OWNER'],
-    };
-
     orderApi.getAll.mockReturnValue(
       of([
         mixedOrder,
         deliveredTableOrder,
       ]),
-    );
-
-    orderApi.getPreparationQueue.mockReturnValue(
-      of([mixedOrder]),
     );
 
     tabApi.getActiveCounterSales.mockReturnValue(
@@ -199,10 +176,6 @@ describe('OrdersPageComponent', () => {
       imports: [OrdersPageComponent],
       providers: [
         provideRouter([]),
-        {
-          provide: AuthService,
-          useValue: auth,
-        },
         {
           provide: OrderApiService,
           useValue: orderApi,
@@ -233,15 +206,11 @@ describe('OrdersPageComponent', () => {
     return fixture;
   }
 
-  it('carrega o histórico completo para proprietário', () => {
+  it('carrega pedidos de mesa e balcão com seus fluxos de preparo', () => {
     const current = createFixture();
     const text = current.nativeElement.textContent as string;
 
     expect(orderApi.getAll).toHaveBeenCalledTimes(1);
-    expect(
-      orderApi.getPreparationQueue,
-    ).not.toHaveBeenCalled();
-
     expect(
       tabApi.getActiveCounterSales,
     ).toHaveBeenCalledTimes(1);
@@ -253,7 +222,6 @@ describe('OrdersPageComponent', () => {
     expect(text).toContain('Itens de preparo');
     expect(text).toContain('Entrega direta');
     expect(text).toContain('Ver atendimento');
-    expect(text).toContain('Ver comanda');
     expect(text).toContain('R$');
   });
 
@@ -294,42 +262,25 @@ describe('OrdersPageComponent', () => {
     );
   });
 
-  it('usa somente a fila de preparo para o perfil KITCHEN', () => {
-    currentUser = {
-      id: 2,
-      name: 'Preparo',
-      email: 'preparo@hubon.local',
-      active: true,
-      roles: ['KITCHEN'],
-    };
-
+  it('oferece acesso operacional somente para atendimentos abertos', () => {
     const current = createFixture();
     const text = current.nativeElement.textContent as string;
 
-    expect(
-      orderApi.getPreparationQueue,
-    ).toHaveBeenCalledTimes(1);
-
-    expect(
-      orderApi.getAll,
-    ).not.toHaveBeenCalled();
-
-    expect(
-      tabApi.getActiveCounterSales,
-    ).not.toHaveBeenCalled();
-
-    expect(text).toContain('Jantinha');
-
-    expect(text).not.toContain(
-      'Refrigerante - Lata',
-    );
-
-    expect(text).not.toContain('R$');
-    expect(text).not.toContain('Financeiro:');
-    expect(text).not.toContain('Ver atendimento');
+    expect(text).toContain('Fechada');
+    expect(text).toContain('Ver atendimento');
     expect(text).not.toContain('Ver comanda');
-    expect(text).not.toContain('Marcar como pronto');
-    expect(text).not.toContain('Marcar como entregue');
+
+    expect(
+      current.nativeElement.querySelector(
+        'a[href="/balcao/104"]',
+      ),
+    ).not.toBeNull();
+
+    expect(
+      current.nativeElement.querySelector(
+        'a[href="/comandas/105"]',
+      ),
+    ).toBeNull();
   });
 
   it('filtra os pedidos entregues', () => {
@@ -376,32 +327,47 @@ describe('OrdersPageComponent', () => {
     expect(text).not.toContain('Mesa 8');
   });
 
-  it('atualiza os dados sem voltar ao carregamento inicial', () => {
+  it('atualiza os dados sem voltar ao skeleton inicial', () => {
     const current = createFixture();
+    const refresh = new Subject<RestaurantOrder[]>();
 
-    expect(
-      current.componentInstance.loading(),
-    ).toBe(false);
-
-    orderApi.getAll.mockReturnValue(
-      of([deliveredTableOrder]),
-    );
+    orderApi.getAll.mockReturnValue(refresh);
 
     current.componentInstance.load();
     current.detectChanges();
 
     expect(orderApi.getAll).toHaveBeenCalledTimes(2);
+    expect(current.componentInstance.loading()).toBe(false);
+    expect(current.componentInstance.refreshing()).toBe(true);
+    expect(current.nativeElement.querySelector('.loading-grid')).toBeNull();
+    expect(current.nativeElement.textContent).toContain('Jantinha');
 
-    expect(
-      current.componentInstance.loading(),
-    ).toBe(false);
+    refresh.next([deliveredTableOrder]);
+    refresh.complete();
+    current.detectChanges();
 
-    expect(
-      current.componentInstance.refreshing(),
-    ).toBe(false);
+    expect(current.componentInstance.refreshing()).toBe(false);
+    expect(current.componentInstance.orders()).toEqual([deliveredTableOrder]);
+  });
 
-    expect(
-      current.componentInstance.orders(),
-    ).toEqual([deliveredTableOrder]);
+  it('mantém os dados anteriores quando o refresh falha', () => {
+    const current = createFixture();
+
+    orderApi.getAll.mockReturnValue(
+      throwError(() => new Error('indisponível')),
+    );
+
+    current.componentInstance.load();
+    current.detectChanges();
+
+    expect(current.componentInstance.orders()).toEqual([
+      mixedOrder,
+      deliveredTableOrder,
+    ]);
+    expect(current.nativeElement.textContent).toContain('Jantinha');
+    expect(current.nativeElement.querySelector('.error-panel')).toBeNull();
+    expect(feedback.error).toHaveBeenCalledWith(
+      expect.stringContaining('foram mantidos'),
+    );
   });
 });

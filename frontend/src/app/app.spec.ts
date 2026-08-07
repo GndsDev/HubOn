@@ -73,11 +73,17 @@ describe('App', () => {
         },
         {
           provide: TabApiService,
-          useValue: { getOpen: () => of([]) },
+          useValue: {
+            getOpen: () => of([]),
+            getActiveCounterSales: () => of([]),
+          },
         },
         {
           provide: OrderApiService,
-          useValue: { getByTab: () => of([]) },
+          useValue: {
+            getAll: () => of([]),
+            getByTab: () => of([]),
+          },
         },
         {
           provide: ProductApiService,
@@ -85,7 +91,13 @@ describe('App', () => {
         },
         {
           provide: FeedbackService,
-          useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+          useValue: {
+            message: signal(null),
+            success: vi.fn(),
+            error: vi.fn(),
+            info: vi.fn(),
+            clear: vi.fn(),
+          },
         },
       ],
     }).compileComponents();

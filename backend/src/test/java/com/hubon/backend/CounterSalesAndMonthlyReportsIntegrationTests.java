@@ -211,9 +211,9 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
         TabResponse amount = tabService.getById(tab.id());
         paymentService.create(new PaymentRequest(tab.id(), PaymentMethod.PIX, amount.finalAmount(), null));
         orderService.updateStatus(draft.id(), new OrderStatusRequest(OrderStatus.DELIVERED));
-        TabResponse closed = tabService.close(tab.id());
-        assertThat(closed.status()).isEqualTo(TabStatus.CLOSED);
-        assertThat(closed.paidAmount()).isEqualByComparingTo(closed.finalAmount());
+        CounterSaleDetailResponse closed = counterSaleService.finish(tab.id());
+        assertThat(closed.summary().tabStatus()).isEqualTo(TabStatus.CLOSED);
+        assertThat(closed.summary().paidAmount()).isEqualByComparingTo(closed.summary().totalAmount());
     }
 
     @Test
@@ -284,7 +284,7 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
         assertThat(ready.status()).isEqualTo(OrderStatus.READY);
 
         orderService.updateStatus(order.id(), new OrderStatusRequest(OrderStatus.DELIVERED));
-        assertThat(tabService.close(tab.id()).status()).isEqualTo(TabStatus.CLOSED);
+        assertThat(counterSaleService.finish(tab.id()).summary().tabStatus()).isEqualTo(TabStatus.CLOSED);
     }
 
     @Test
@@ -423,7 +423,7 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
     }
 
     @Test
-    void tablePaymentKeepsPreparationWaitingForExistingTableWorkflow() {
+    void tablePaymentPreservesPreparationAlreadyStartedOnConfirmation() {
         TabResponse tableTab = tabService.open(new OpenTabRequest(tableId, null, null, BigDecimal.ZERO, BigDecimal.ZERO));
         RestaurantOrderResponse confirmed = orderService.confirm(createOrder(
                 tableTab.id(), List.of(item(preparationProductId, preparationVariantId, 1))).id());
@@ -433,11 +433,11 @@ class CounterSalesAndMonthlyReportsIntegrationTests {
 
         assertThat(payment.nextAction()).isEqualTo(PaymentNextAction.RETURN_TO_TAB);
         assertThat(payment.orders()).singleElement().satisfies(order -> {
-            assertThat(order.status()).isEqualTo(OrderStatus.SENT_TO_KITCHEN);
+            assertThat(order.status()).isEqualTo(OrderStatus.PREPARING);
             assertThat(order.items()).singleElement()
-                    .satisfies(item -> assertThat(item.status()).isEqualTo(OrderItemStatus.WAITING_PREPARATION));
+                    .satisfies(item -> assertThat(item.status()).isEqualTo(OrderItemStatus.IN_PREPARATION));
         });
-        assertThat(confirmed.status()).isEqualTo(OrderStatus.SENT_TO_KITCHEN);
+        assertThat(confirmed.status()).isEqualTo(OrderStatus.PREPARING);
     }
 
     @Test

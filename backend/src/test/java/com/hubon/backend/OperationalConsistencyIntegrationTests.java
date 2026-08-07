@@ -1,6 +1,7 @@
 package com.hubon.backend;
 
 import com.hubon.backend.auth.service.AuthenticatedUser;
+import com.hubon.backend.role.domain.Role;
 import com.hubon.backend.user.domain.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -330,6 +332,7 @@ class OperationalConsistencyIntegrationTests {
                 .email("operator-" + suffix + "@hubon.test")
                 .password("{noop}test")
                 .active(true)
+                .roles(Set.of(Role.builder().name("OWNER").build()))
                 .build();
         AuthenticatedUser principal = new AuthenticatedUser(authenticatedUser);
         SecurityContextHolder.getContext().setAuthentication(

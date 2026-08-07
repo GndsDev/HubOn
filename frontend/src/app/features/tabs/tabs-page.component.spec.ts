@@ -9,6 +9,7 @@ import { PaymentApiService } from '../../core/services/payment-api.service';
 import { ProductApiService } from '../../core/services/product-api.service';
 import { TabApiService } from '../../core/services/tab-api.service';
 import { RestaurantOrder } from '../../shared/models/order.model';
+import { PaymentOperation } from '../../shared/models/payment.model';
 import { Product } from '../../shared/models/product.model';
 import { Tab } from '../../shared/models/tab.model';
 import { TabsPageComponent } from './tabs-page.component';
@@ -78,27 +79,47 @@ describe('TabsPageComponent', () => {
       cancellationReason: null,
     }],
   };
-  const product = {
+  const product: Product = {
     id: 11,
+    categoryId: 1,
+    categoryName: 'Pratos',
+    categoryActive: true,
     name: 'Jantinha',
+    description: null,
+    preparationFlow: 'DIRECT_SERVICE',
     active: true,
     available: true,
+    displayOrder: 0,
+    imageUrl: null,
+    variantCount: 1,
+    activeVariantCount: 1,
     complete: true,
     sellableVariantCount: 1,
     minimumVariantPrice: 60,
     maximumVariantPrice: 60,
+    hasAutomaticStockLink: false,
     variants: [{
       id: 21,
       productId: 11,
       productName: 'Jantinha',
       name: 'Padrão',
+      sku: null,
       price: 60,
       active: true,
       available: true,
       displayOrder: 0,
+      stockLinkActive: false,
+      stockLinkId: null,
+      stockItemId: null,
+      stockItemName: null,
+      quantityPerSale: null,
+      createdAt: '',
+      updatedAt: '',
     }],
     optionGroups: [],
-  } as Product;
+    createdAt: '',
+    updatedAt: '',
+  };
 
   const tabApi = {
     getOpen: vi.fn(() => of([tableTab, counterTab])),
@@ -163,6 +184,26 @@ describe('TabsPageComponent', () => {
     expect(navigateSpy).toHaveBeenCalledWith(['/comandas', 18]);
   });
 
+  it('keeps relative times stable until the list is refreshed', () => {
+    const component = fixture.componentInstance;
+    const openedAt = new Date(tableTab.openedAt).getTime();
+    const nowSpy = vi.spyOn(Date, 'now');
+
+    try {
+      nowSpy.mockReturnValue(openedAt + 60 * 60_000);
+      component.load();
+      expect(component.relativeTime(tableTab.openedAt)).toBe('há 1h 0min');
+
+      nowSpy.mockReturnValue(openedAt + 61 * 60_000);
+      expect(component.relativeTime(tableTab.openedAt)).toBe('há 1h 0min');
+
+      component.load();
+      expect(component.relativeTime(tableTab.openedAt)).toBe('há 1h 1min');
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
   it('loads the detail route data and keeps payment in Comandas', () => {
     const component = fixture.componentInstance;
     component.activeTabId.set(18);
@@ -172,11 +213,38 @@ describe('TabsPageComponent', () => {
     expect(tabApi.getById).toHaveBeenCalledWith(18);
     expect(orderApi.getByTab).toHaveBeenCalledWith(18);
     expect(fixture.nativeElement.textContent).toContain('Jantinha');
-    expect(fixture.nativeElement.textContent).toContain('Registrar pagamento');
+    expect(fixture.nativeElement.textContent).toContain('Completar pagamento');
 
     component.paymentOpen.set(true);
     fixture.detectChanges();
     expect(document.querySelector('.payment-dialog')?.textContent).toContain('Mesa 8');
+
+    const payment: PaymentOperation = {
+      payment: {
+        id: 91,
+        tabId: 18,
+        method: 'PIX',
+        amount: 40,
+        paidAt: '2026-07-31T10:30:00',
+        receivedByUserId: 1,
+        receivedByUserName: 'Operadora',
+      },
+      totalAmount: 60,
+      paidAmount: 60,
+      remainingAmount: 0,
+      financialState: 'PAID',
+      orders: [deliveredOrder],
+      nextAction: 'RETURN_TO_TAB',
+    };
+
+    component.onPaymentCompleted(payment);
+
+    expect(component.paymentOpen()).toBe(false);
+    expect(component.selected()).toMatchObject({
+      paidAmount: 60,
+      remainingAmount: 0,
+    });
+    expect(tabApi.getById).toHaveBeenCalledTimes(1);
   });
 
   it('explains why closing is unavailable and allows eligible closing after full payment and delivery', () => {
@@ -191,5 +259,13 @@ describe('TabsPageComponent', () => {
     component.selected.set(paidTab);
     expect(component.closureIssues(paidTab)).toEqual([]);
     expect(component.canClose(paidTab)).toBe(true);
+
+    const closedTab = { ...paidTab, status: 'CLOSED' as const };
+    expect(component.canClose(closedTab)).toBe(false);
+    expect(component.canMarkReady(closedTab, {
+      ...deliveredOrder.items[0],
+      preparationFlow: 'REQUIRES_PREPARATION',
+      status: 'IN_PREPARATION',
+    })).toBe(false);
   });
 });

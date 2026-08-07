@@ -2,6 +2,7 @@ package com.hubon.backend;
 
 import com.hubon.backend.auth.service.AuthenticatedUser;
 import com.hubon.backend.order.dto.OrderCancellationRequest;
+import com.hubon.backend.role.domain.Role;
 import com.hubon.backend.user.domain.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -345,17 +347,7 @@ class FinancialRulesIntegrationTests {
                 "Produto " + suffix
         );
 
-        User authenticatedUser = User.builder()
-                .id(userId)
-                .name("Operador financeiro")
-                .email("financial-" + suffix + "@hubon.test")
-                .password("{noop}test")
-                .active(true)
-                .build();
-        AuthenticatedUser principal = new AuthenticatedUser(authenticatedUser);
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
-        );
+        authenticateOwner(userId, "financial-" + suffix + "@hubon.test");
         Long cashShiftId = jdbcTemplate.queryForObject(
                 "insert into cash_shifts (status, opened_by_user_id, opening_balance) values ('OPEN', ?, 0) returning id",
                 Long.class,
@@ -431,6 +423,7 @@ class FinancialRulesIntegrationTests {
             CountDownLatch ready,
             CountDownLatch start
     ) {
+        authenticateOwner(scenario.userId(), "financial-concurrent@hubon.test");
         ready.countDown();
         try {
             if (!start.await(5, TimeUnit.SECONDS)) {
@@ -440,7 +433,24 @@ class FinancialRulesIntegrationTests {
             return null;
         } catch (Throwable exception) {
             return exception;
+        } finally {
+            SecurityContextHolder.clearContext();
         }
+    }
+
+    private void authenticateOwner(Long userId, String email) {
+        User authenticatedUser = User.builder()
+                .id(userId)
+                .name("Operador financeiro")
+                .email(email)
+                .password("{noop}test")
+                .active(true)
+                .roles(Set.of(Role.builder().name("OWNER").build()))
+                .build();
+        AuthenticatedUser principal = new AuthenticatedUser(authenticatedUser);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
+        );
     }
 
     private Throwable captureFailure(ThrowingOperation operation) {

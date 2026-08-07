@@ -403,13 +403,13 @@ class StockIntegrationTests {
                         .header("Authorization", bearer(tokenFor(ownerEmail)))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("SENT_TO_KITCHEN"));
+                .andExpect(jsonPath("$.status").value("PREPARING"));
 
         mockMvc.perform(post("/api/orders/{id}/send-to-kitchen", orderId)
                         .header("Authorization", bearer(tokenFor(ownerEmail)))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("SENT_TO_KITCHEN"));
+                .andExpect(jsonPath("$.status").value("PREPARING"));
 
         assertMoney("2.000", ingredientStock(ingredientId));
         assertEquals(1, movementCountByOrigin(ingredientId, "ORDER_ITEM", "SALE"));
@@ -489,7 +489,7 @@ class StockIntegrationTests {
                         .header("Authorization", bearer(tokenFor(ownerEmail)))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("SENT_TO_KITCHEN"));
+                .andExpect(jsonPath("$.status").value("PREPARING"));
 
         assertMoney("3.000", ingredientStock(ingredientId));
         assertEquals(0, movementCountByOrigin(ingredientId, "ORDER_ITEM", "SALE"));

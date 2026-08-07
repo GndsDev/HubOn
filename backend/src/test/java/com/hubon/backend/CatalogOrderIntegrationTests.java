@@ -382,10 +382,10 @@ class CatalogOrderIntegrationTests {
         JsonNode preparationItem = findItemByFlow(confirmed, "REQUIRES_PREPARATION");
         JsonNode directItem = findItemByFlow(confirmed, "DIRECT_SERVICE");
 
-        assertEquals("SENT_TO_KITCHEN", confirmed.path("status").asText());
+        assertEquals("PREPARING", confirmed.path("status").asText());
         assertNotNull(preparationItem);
         assertNotNull(directItem);
-        assertEquals("WAITING_PREPARATION", preparationItem.path("status").asText());
+        assertEquals("IN_PREPARATION", preparationItem.path("status").asText());
         assertEquals("READY", directItem.path("status").asText());
         JsonNode queue = getJson("/api/orders/preparation-queue");
         JsonNode queuedOrder = findOrder(queue, orderId);
@@ -394,7 +394,7 @@ class CatalogOrderIntegrationTests {
         assertEquals("REQUIRES_PREPARATION", queuedOrder.path("items").get(0).path("preparationFlow").asText());
 
         long preparationItemId = preparationItem.path("id").asLong();
-        patchJson("/api/orders/%d/items/%d/status".formatted(orderId, preparationItemId), Map.of("status", "IN_PREPARATION"), 200);
+        patchJson("/api/orders/%d/items/%d/status".formatted(orderId, preparationItemId), Map.of("status", "READY"), 200);
         postJson("/api/orders/%d/items/%d/cancel".formatted(orderId, preparationItemId), Map.of("reason", "Cliente desistiu"), 200);
         assertFalse(containsOrder(getJson("/api/orders/preparation-queue"), orderId));
         assertEquals("CANCELED", findItemById(getJson("/api/orders/" + orderId), preparationItemId).path("status").asText());

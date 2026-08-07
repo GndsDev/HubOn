@@ -25,6 +25,7 @@ import {
   ProductOptionGroup,
   ProductVariant,
 } from '../../shared/models/product.model';
+import { PaymentOperation } from '../../shared/models/payment.model';
 import { Tab } from '../../shared/models/tab.model';
 import {
   automaticVariantId,
@@ -306,7 +307,7 @@ import { apiErrorMessage } from '../../shared/util/api-error';
 
                           <b>{{ currency(item.subtotal) }}</b>
 
-                          @if (canMarkReady(item)) {
+                          @if (canMarkReady(tab, item)) {
                             <button
                               type="button"
                               class="primary-button compact-button"
@@ -891,7 +892,7 @@ import { apiErrorMessage } from '../../shared/util/api-error';
         [paidAmount]="tab.paidAmount"
         [remainingAmount]="tab.remainingAmount"
         (dismissed)="paymentOpen.set(false)"
-        (completed)="onPaymentCompleted()"
+        (completed)="onPaymentCompleted($event)"
       />
     }
   `,
@@ -905,6 +906,7 @@ export class TabsPageComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly feedback = inject(FeedbackService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly relativeTimeReference = signal(Date.now());
 
   readonly tabs = signal<Tab[]>([]);
   readonly orders = signal<RestaurantOrder[]>([]);
@@ -960,6 +962,7 @@ export class TabsPageComponent implements OnInit {
   }
 
   load(): void {
+    this.relativeTimeReference.set(Date.now());
     this.loading.set(true);
     this.error.set(null);
 
@@ -1353,9 +1356,19 @@ export class TabsPageComponent implements OnInit {
       });
   }
 
-  onPaymentCompleted(): void {
+  onPaymentCompleted(operation: PaymentOperation): void {
     this.paymentOpen.set(false);
-    this.refreshTabSummary();
+
+    const tab = this.selected();
+
+    if (!tab) return;
+
+    this.orders.set(operation.orders);
+    this.applyTab({
+      ...tab,
+      paidAmount: operation.paidAmount,
+      remainingAmount: operation.remainingAmount,
+    });
   }
 
   close(tab: Tab): void {
@@ -1453,8 +1466,12 @@ export class TabsPageComponent implements OnInit {
     );
   }
 
-  canMarkReady(item: OrderItem): boolean {
+  canMarkReady(
+    tab: Tab,
+    item: OrderItem,
+  ): boolean {
     return (
+      tab.status === 'OPEN' &&
       item.preparationFlow === 'REQUIRES_PREPARATION' &&
       item.status === 'IN_PREPARATION'
     );
@@ -1481,7 +1498,10 @@ export class TabsPageComponent implements OnInit {
   }
 
   canClose(tab: Tab): boolean {
-    return this.closureIssues(tab).length === 0;
+    return (
+      tab.status === 'OPEN' &&
+      this.closureIssues(tab).length === 0
+    );
   }
 
   closureIssues(tab: Tab): string[] {
@@ -1782,7 +1802,7 @@ export class TabsPageComponent implements OnInit {
     const minutes = Math.max(
       0,
       Math.floor(
-        (Date.now() - parsedTime) / 60_000,
+        (this.relativeTimeReference() - parsedTime) / 60_000,
       ),
     );
 

@@ -76,6 +76,11 @@ export class AccessibleDialogDirective implements AfterViewInit, OnDestroy {
       true,
     );
 
+    dialog.addEventListener(
+      'click',
+      this.stopDialogClick,
+    );
+
     this.overlays.root().appendChild(backdrop);
     this.unregister = this.overlays.register(backdrop);
 
@@ -158,6 +163,11 @@ export class AccessibleDialogDirective implements AfterViewInit, OnDestroy {
       true,
     );
 
+    dialog.removeEventListener(
+      'click',
+      this.stopDialogClick,
+    );
+
     this.unregister?.();
     overlay?.remove();
 
@@ -195,6 +205,12 @@ export class AccessibleDialogDirective implements AfterViewInit, OnDestroy {
 
   private readonly markDirty = (): void => {
     this.autoDirty = true;
+  };
+
+  private readonly stopDialogClick = (
+    event: MouseEvent,
+  ): void => {
+    event.stopPropagation();
   };
 
   private readonly confirmDirtyCloseClick = (
@@ -315,7 +331,7 @@ export class AccessibleDialogDirective implements AfterViewInit, OnDestroy {
     }
 
     const first = focusable[0];
-    const last = focusable.at(-1)!;
+    const last = focusable[focusable.length - 1];
     const active = this.document.activeElement;
 
     if (
