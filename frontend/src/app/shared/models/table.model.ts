@@ -1,10 +1,10 @@
-export type RestaurantTableStatus = 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'DISABLED';
+export type RestaurantTableState = 'FREE' | 'OCCUPIED' | 'DISABLED';
 
 export interface RestaurantTable {
   id: number;
   number: number;
-  name: string | null;
-  status: RestaurantTableStatus;
+  label: string | null;
+  state: RestaurantTableState;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -12,11 +12,6 @@ export interface RestaurantTable {
 
 export interface RestaurantTableRequest {
   number: number;
-  name: string | null;
-  status: RestaurantTableStatus;
+  label: string | null;
   active: boolean;
-}
-
-export interface TableStatusRequest {
-  status: RestaurantTableStatus;
 }

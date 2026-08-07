@@ -5,7 +5,6 @@ import { environment } from '../../../environments/environment';
 import {
   RestaurantTable,
   RestaurantTableRequest,
-  RestaurantTableStatus,
 } from '../../shared/models/table.model';
 
 @Injectable({ providedIn: 'root' })
@@ -27,9 +26,5 @@ export class TableApiService {
 
   update(id: number, request: RestaurantTableRequest): Observable<RestaurantTable> {
     return this.http.put<RestaurantTable>(`${this.baseUrl}/${id}`, request);
-  }
-
-  updateStatus(id: number, status: RestaurantTableStatus): Observable<RestaurantTable> {
-    return this.http.patch<RestaurantTable>(`${this.baseUrl}/${id}/status`, { status });
   }
 }

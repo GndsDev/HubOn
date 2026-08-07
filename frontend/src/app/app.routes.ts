@@ -49,7 +49,7 @@ export const routes: Routes = [
     },
   },
   {
-    path: 'balcao/:counterTabId',
+    path: 'balcao/:saleId',
     canActivate: [authGuard],
     loadComponent: () =>
       import(
@@ -81,7 +81,7 @@ export const routes: Routes = [
     },
   },
   {
-    path: 'comandas/:tabId',
+    path: 'comandas/:saleId',
     canActivate: [authGuard],
     loadComponent: () =>
       import(
