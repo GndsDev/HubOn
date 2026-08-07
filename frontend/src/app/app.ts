@@ -112,9 +112,9 @@ export class App {
           roles: ['OWNER', 'ADMIN'],
         },
         {
-          path: '/pedidos',
-          label: 'Pedidos',
-          icon: 'pi pi-shopping-cart',
+          path: '/historico',
+          label: 'Histórico',
+          icon: 'pi pi-history',
           roles: ['OWNER', 'ADMIN'],
         },
         {

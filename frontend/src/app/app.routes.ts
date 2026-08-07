@@ -95,16 +95,16 @@ export const routes: Routes = [
     },
   },
   {
-    path: 'pedidos',
+    path: 'historico',
     canActivate: [authGuard],
     loadComponent: () =>
       import(
-        './features/orders/orders-page.component'
+        './features/history/sales-history-page.component'
       ).then(
-        (module) => module.OrdersPageComponent,
+        (module) => module.SalesHistoryPageComponent,
       ),
     data: {
-      label: 'Pedidos',
+      label: 'Histórico',
       roles: MANAGEMENT_ROLES,
     },
   },
@@ -210,10 +210,6 @@ export const routes: Routes = [
     path: '',
     pathMatch: 'full',
     redirectTo: 'dashboard',
-  },
-  {
-    path: 'cozinha',
-    redirectTo: 'pedidos',
   },
   {
     path: '**',
