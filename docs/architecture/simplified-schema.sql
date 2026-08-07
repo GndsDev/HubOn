@@ -102,7 +102,6 @@ CREATE TABLE products (
     name VARCHAR(120) NOT NULL,
     description VARCHAR(255),
     price NUMERIC(12, 2) NOT NULL,
-    image_url VARCHAR(500),
     active BOOLEAN NOT NULL DEFAULT TRUE,
     available BOOLEAN NOT NULL DEFAULT TRUE,
     display_order INTEGER NOT NULL DEFAULT 0,
@@ -115,8 +114,6 @@ CREATE TABLE products (
         CHECK (btrim(name) <> ''),
     CONSTRAINT chk_products_description
         CHECK (description IS NULL OR btrim(description) <> ''),
-    CONSTRAINT chk_products_image_url
-        CHECK (image_url IS NULL OR btrim(image_url) <> ''),
     CONSTRAINT chk_products_price
         CHECK (price >= 0),
     CONSTRAINT chk_products_display_order

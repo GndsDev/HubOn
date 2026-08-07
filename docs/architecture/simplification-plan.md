@@ -31,7 +31,7 @@ Este documento planeja a implementacao, mas nao a inicia. Nesta etapa:
 | `tabs` | `sales` | Agregado definitivo, auditoria de fechamento/cancelamento e mesa derivada. |
 | `order_items` | `sale_items` | Item direto, sem preparo, com snapshots e cancelamento. |
 | `order_item_options` | `sale_item_options` | Snapshot de opcao ligado diretamente ao item vendido. |
-| `products` | `products` | Preco volta ao produto, categoria fica opcional, imagem permanece opcional e saem fluxo/variacao. |
+| `products` | `products` | Preco volta ao produto, categoria fica opcional e saem imagem, fluxo e variacao. |
 | `ingredients` | `stock_items` | Nome generico; saem modo de controle e estoque ideal. |
 | `product_stock_links` | `product_stock_links` | FK passa de variacao para produto. |
 | `inventory_movements` | `stock_movements` | Delta assinado, origem em item vendido e estorno explicito. |
@@ -46,6 +46,7 @@ Este documento planeja a implementacao, mas nao a inicia. Nesta etapa:
 - `PreparationFlow`;
 - SKU no dominio alvo;
 - confirmacao, envio, preparo, pronto e entrega;
+- imagem de produto e `product.image_url`;
 - `required` nos grupos de opcoes;
 - `control_mode` e `ideal_stock` do estoque;
 - `identification_note` e `category.description` do modelo alvo.
@@ -166,7 +167,7 @@ Resultado: schema alvo reproduzivel, sem cadeia de compatibilidade.
 
 - mover `price` para `Product`;
 - tornar `category_id` opcional sem usar categoria para validar vendabilidade;
-- preservar `image_url` como campo opcional do produto;
+- remover `image_url` do dominio, DTOs e persistencia;
 - remover `ProductVariant`, repositories, DTOs, services e controller;
 - remover `PreparationFlow` e SKU;
 - simplificar grupos de opcoes removendo `required`;
@@ -359,7 +360,7 @@ npm run visual:audit
 | Deadlock em operacao com varios itens | Transacao abortada sob concorrencia. | Ordem global de locks e timeout traduzido em repeticao segura. |
 | Relatorios ainda contarem pedidos/variantes | Numeros e layouts incoerentes. | Reescrever consultas e DTOs juntos; reconciliar tela/PDF/XLSX/CSV com fixtures iguais. |
 | Cancelamento exibido no Caixa sem devolucao | Usuario pode interpretar cancelamento como dinheiro devolvido. | Separar claramente cancelamento operacional de devolucao financeira; nao alterar caixa esperado sem Payment de estorno. |
-| Remocao de reserva ou identificacao complementar | Pode eliminar necessidade ainda nao confirmada. | Confirmar esses dois pontos antes da fase de codigo; `image_url` sera preservado. |
+| Remocao de reserva ou identificacao complementar | Pode eliminar necessidade ainda nao confirmada. | Confirmar esses dois pontos antes da fase de codigo; imagem de produto ja foi removida por decisao arquitetural. |
 | Data comercial e fuso | Venda perto da meia-noite cai no periodo errado. | Continuar usando `Clock` de negocio e preencher `closed_business_date` no fechamento. |
 
 ## Criterios de conclusao

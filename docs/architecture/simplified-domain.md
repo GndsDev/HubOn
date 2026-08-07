@@ -166,11 +166,11 @@ altera vendas antigas.
 ### `Product`
 
 E a unidade vendavel. Possui `category_id` opcional, nome, descricao opcional,
-`price`, `image_url` opcional, `active`, `available`, ordem e timestamps. Um
-produto sem categoria continua vendavel.
+`price`, `active`, `available`, ordem e timestamps. Um produto sem categoria
+continua vendavel.
 
-Nao existem `ProductVariant`, SKU nem `PreparationFlow`. Apresentacoes
-comerciais diferentes sao produtos diferentes.
+Nao existem `ProductVariant`, SKU, `PreparationFlow` nem imagem de produto.
+Apresentacoes comerciais diferentes sao produtos diferentes.
 
 ### `ProductOptionGroup` e `ProductOption`
 
