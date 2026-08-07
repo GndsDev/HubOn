@@ -15,7 +15,7 @@ export interface ProductOptionGroup {
   id: number;
   productId: number;
   name: string;
-  required: boolean;
+  required?: boolean;
   minimumSelections: number;
   maximumSelections: number;
   displayOrder: number;
@@ -46,11 +46,12 @@ export interface ProductVariant {
 
 export interface Product {
   id: number;
-  categoryId: number;
-  categoryName: string;
+  categoryId: number | null;
+  categoryName: string | null;
   categoryActive: boolean;
   name: string;
   description: string | null;
+  price: number;
   preparationFlow: PreparationFlow;
   active: boolean;
   available: boolean;
@@ -70,14 +71,13 @@ export interface Product {
 }
 
 export interface ProductRequest {
-  categoryId: number;
+  categoryId: number | null;
   name: string;
   description: string | null;
-  preparationFlow: PreparationFlow;
+  price: number;
   active: boolean;
   available: boolean;
   displayOrder: number;
-  imageUrl: string | null;
 }
 
 export interface ProductVariantRequest {
@@ -98,7 +98,6 @@ export interface ProductOptionRequest {
 
 export interface ProductOptionGroupRequest {
   name: string;
-  required: boolean;
   minimumSelections: number;
   maximumSelections: number;
   displayOrder: number;
@@ -114,6 +113,5 @@ export interface ProductVariantRegistrationRequest {
 
 export interface ProductRegistrationRequest {
   product: ProductRequest;
-  variants: ProductVariantRegistrationRequest[];
   optionGroups: ProductOptionGroupRequest[];
 }

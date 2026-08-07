@@ -414,7 +414,7 @@ export class CounterPageComponent implements OnInit {
 
   readonly saleId = signal<number | null>(null);
   readonly products = signal<Product[]>([]);
-  readonly categories = computed(() => [...new Set(this.products().map((product) => product.categoryName))].sort());
+  readonly categories = computed(() => [...new Set(this.products().map((product) => product.categoryName).filter((name): name is string => Boolean(name)))].sort());
   readonly cart = signal<CounterCartItem[]>([]);
   readonly cartTotal = computed(() => this.cart().reduce((total, item) => total + item.unitPrice * item.quantity, 0));
   readonly detail = signal<CounterSaleDetail | null>(null);

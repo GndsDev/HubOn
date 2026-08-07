@@ -3,10 +3,7 @@ import {
   PreparationFlow,
   Product,
   ProductOptionGroup,
-  ProductOptionGroupRequest,
-  ProductRequest,
   ProductVariant,
-  ProductVariantRegistrationRequest,
 } from '../models/product.model';
 
 export function isCatalogProductSellable(product: Product): boolean {
@@ -62,26 +59,4 @@ export function preparationFlowLabel(flow: PreparationFlow): string {
 
 export function statusAfterConfirmation(flow: PreparationFlow): OrderItemStatus {
   return flow === 'DIRECT_SERVICE' ? 'READY' : 'WAITING_PREPARATION';
-}
-
-export function registrationStepIsValid(
-  step: number,
-  product: ProductRequest,
-  variants: ProductVariantRegistrationRequest[],
-  groups: ProductOptionGroupRequest[],
-): boolean {
-  if (step === 1) return Boolean(product.name.trim() && product.categoryId && product.preparationFlow);
-  if (step === 2) {
-    return variants.length > 0
-      && variants.every((entry) => Boolean(entry.variant.name.trim()) && Number(entry.variant.price) >= 0);
-  }
-  if (step === 3) {
-    const validLinks = variants.every((entry) => !entry.stockItemId || Boolean(entry.quantityPerSale && entry.quantityPerSale > 0));
-    const validGroups = groups.every((group) => Boolean(group.name.trim())
-      && group.maximumSelections >= group.minimumSelections
-      && (!group.required || group.minimumSelections >= 1)
-      && group.options.every((option) => Boolean(option.name.trim()) && option.additionalPrice >= 0));
-    return validLinks && validGroups;
-  }
-  return false;
 }
