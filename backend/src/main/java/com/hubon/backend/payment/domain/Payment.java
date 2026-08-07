@@ -1,7 +1,7 @@
 package com.hubon.backend.payment.domain;
 
 import com.hubon.backend.cash.domain.CashShift;
-import com.hubon.backend.tab.domain.Tab;
+import com.hubon.backend.sale.domain.Sale;
 import com.hubon.backend.user.domain.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -23,8 +23,8 @@ public class Payment {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tab_id", nullable = false)
-    private Tab tab;
+    @JoinColumn(name = "sale_id", nullable = false)
+    private Sale sale;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cash_shift_id")
@@ -34,7 +34,7 @@ public class Payment {
     @Column(nullable = false)
     private PaymentMethod method;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 
     @Column(name = "paid_at", nullable = false)

@@ -432,8 +432,7 @@ CREATE TABLE sale_items (
     sale_id BIGINT NOT NULL,
     product_id BIGINT NOT NULL,
     product_name_snapshot VARCHAR(120) NOT NULL,
-    -- The application stores 'Sem categoria' when products.category_id is NULL.
-    category_name_snapshot VARCHAR(120) NOT NULL,
+    category_name_snapshot VARCHAR(120),
     base_unit_price_snapshot NUMERIC(12, 2) NOT NULL,
     unit_price_snapshot NUMERIC(12, 2) NOT NULL,
     quantity INTEGER NOT NULL,
@@ -456,7 +455,7 @@ CREATE TABLE sale_items (
     CONSTRAINT chk_sale_items_product_snapshot
         CHECK (btrim(product_name_snapshot) <> ''),
     CONSTRAINT chk_sale_items_category_snapshot
-        CHECK (btrim(category_name_snapshot) <> ''),
+        CHECK (category_name_snapshot IS NULL OR btrim(category_name_snapshot) <> ''),
     CONSTRAINT chk_sale_items_prices
         CHECK (
             base_unit_price_snapshot >= 0

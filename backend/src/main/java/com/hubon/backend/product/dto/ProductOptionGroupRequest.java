@@ -13,8 +13,6 @@ public record ProductOptionGroupRequest(
         @Size(max = 120)
         String name,
 
-        Boolean required,
-
         @NotNull
         @Min(0)
         Integer minimumSelections,

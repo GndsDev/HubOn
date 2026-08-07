@@ -186,7 +186,7 @@ Resultado: cada produto retornado pela API e diretamente vendavel.
 - derivar subtotal, valor final, valor pago e restante sem persisti-los em
   `Sale`;
 - adicionar item diretamente com snapshots e sem estado intermediario;
-- gravar `Sem categoria` no snapshot quando o produto nao estiver categorizado;
+- manter o snapshot de categoria nulo quando o produto nao estiver categorizado;
 - implementar cancelamento logico e imutabilidade apos fechamento;
 - corrigir item efetivado somente por cancelamento seguido de novo lancamento;
 - remover o pacote `order` quando nenhuma referencia restar.

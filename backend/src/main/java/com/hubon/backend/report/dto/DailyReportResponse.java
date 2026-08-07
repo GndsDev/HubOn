@@ -7,11 +7,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record DailyReportResponse(
-        LocalDate date,
-        String periodLabel,
-        ReportChannel channel,
-        MonthlyReportResponse.Summary summary,
-        Comparison comparison,
+        LocalDate date, String periodLabel, ReportChannel channel,
+        MonthlyReportResponse.Summary summary, Comparison comparison,
         List<MonthlyReportResponse.ProductPerformance> products,
         List<MonthlyReportResponse.CategoryPerformance> categories,
         List<MonthlyReportResponse.PaymentPerformance> paymentMethods,
@@ -20,25 +17,9 @@ public record DailyReportResponse(
         List<MonthlyReportResponse.SaleDetail> sales,
         MonthlyReportResponse.CancellationSummary cancellations
 ) {
-    public record Comparison(
-            BigDecimal previousDayNetRevenue,
-            BigDecimal netRevenueDifference,
-            BigDecimal percentageChange
-    ) {
-    }
-
-    public record HourlyPerformance(
-            int hour,
-            String hourLabel,
-            long closedTabs,
-            long orders,
-            long itemsSold,
-            BigDecimal grossRevenue,
-            BigDecimal serviceFees,
-            BigDecimal discounts,
-            BigDecimal netRevenue,
-            BigDecimal receivedAmount,
-            BigDecimal averageTicket
-    ) {
-    }
+    public record Comparison(BigDecimal previousDayNetRevenue, BigDecimal netRevenueDifference,
+            BigDecimal percentageChange) { }
+    public record HourlyPerformance(int hour, String hourLabel, long closedSales, long itemsSold,
+            BigDecimal grossRevenue, BigDecimal serviceFees, BigDecimal discounts,
+            BigDecimal netRevenue, BigDecimal receivedAmount, BigDecimal averageTicket) { }
 }

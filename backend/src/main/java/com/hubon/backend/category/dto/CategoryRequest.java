@@ -7,10 +7,6 @@ public record CategoryRequest(
         @NotBlank
         @Size(max = 120)
         String name,
-
-        @Size(max = 255)
-        String description,
-
         Integer displayOrder,
 
         Boolean active

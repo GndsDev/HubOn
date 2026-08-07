@@ -44,9 +44,6 @@ public class ProductOptionGroup {
     @Column(nullable = false, length = 120)
     private String name;
 
-    @Column(nullable = false)
-    private Boolean required;
-
     @Column(name = "minimum_selections", nullable = false)
     private Integer minimumSelections;
 
@@ -78,8 +75,7 @@ public class ProductOptionGroup {
     @PrePersist
     void prePersist() {
         LocalDateTime now = LocalDateTime.now();
-        if (required == null) required = false;
-        if (minimumSelections == null) minimumSelections = Boolean.TRUE.equals(required) ? 1 : 0;
+        if (minimumSelections == null) minimumSelections = 0;
         if (maximumSelections == null) maximumSelections = 1;
         if (displayOrder == null) displayOrder = 0;
         if (active == null) active = true;

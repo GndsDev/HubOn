@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 public record PaymentResponse(
         Long id,
-        Long tabId,
+        Long saleId,
         PaymentMethod method,
         BigDecimal amount,
         LocalDateTime paidAt,

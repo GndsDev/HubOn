@@ -4,6 +4,7 @@ import com.hubon.backend.category.domain.Category;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -20,7 +21,7 @@ public class Product {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = false)
+    @JoinColumn(name = "category_id")
     private Category category;
 
     @Column(nullable = false, length = 120)
@@ -29,9 +30,8 @@ public class Product {
     @Column(length = 255)
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "preparation_flow", nullable = false, length = 30)
-    private PreparationFlow preparationFlow;
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal price;
 
     @Column(nullable = false)
     private Boolean active;
@@ -41,9 +41,6 @@ public class Product {
 
     @Column(name = "display_order", nullable = false)
     private Integer displayOrder;
-
-    @Column(name = "image_url", length = 500)
-    private String imageUrl;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -63,9 +60,7 @@ public class Product {
         if (displayOrder == null) {
             displayOrder = 0;
         }
-        if (preparationFlow == null) {
-            preparationFlow = PreparationFlow.REQUIRES_PREPARATION;
-        }
+        if (price == null) price = BigDecimal.ZERO;
         if (createdAt == null) {
             createdAt = now;
         }

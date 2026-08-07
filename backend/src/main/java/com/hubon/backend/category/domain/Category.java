@@ -21,9 +21,6 @@ public class Category {
     @Column(nullable = false, length = 120)
     private String name;
 
-    @Column(length = 255)
-    private String description;
-
     @Column(nullable = false)
     private Boolean active;
 

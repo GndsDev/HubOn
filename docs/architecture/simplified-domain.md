@@ -187,11 +187,10 @@ E um lancamento efetivo diretamente dentro de `Sale`. Nao possui estado de
 preparo. Um item esta ativo quando `cancelled_at IS NULL` e cancelado quando o
 instante, o responsavel e o motivo de cancelamento estao preenchidos.
 
-Snapshots obrigatorios:
+Snapshots historicos:
 
 - nome do produto;
-- nome da categoria, usando `Sem categoria` quando `Product.category_id` for
-  nulo;
+- nome da categoria, opcional quando `Product.category_id` for nulo;
 - preco base unitario;
 - preco unitario final, incluindo opcoes;
 - subtotal (`unit_price_snapshot * quantity`).

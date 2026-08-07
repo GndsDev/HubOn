@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 
 public record StockAdjustmentRequest(
         @NotNull
-        Long ingredientId,
+        Long stockItemId,
 
         @NotNull
         @DecimalMin(value = "0.000")

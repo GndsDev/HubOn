@@ -34,13 +34,13 @@ public class ProductOption {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "group_id", nullable = false)
+    @JoinColumn(name = "option_group_id", nullable = false)
     private ProductOptionGroup group;
 
     @Column(nullable = false, length = 120)
     private String name;
 
-    @Column(name = "additional_price", nullable = false, precision = 10, scale = 2)
+    @Column(name = "additional_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal additionalPrice;
 
     @Column(name = "display_order", nullable = false)

@@ -7,8 +7,6 @@ import java.time.LocalDateTime;
 
 public record ProductStockLinkResponse(
         Long id,
-        Long variantId,
-        String variantName,
         Long productId,
         String productName,
         Long stockItemId,

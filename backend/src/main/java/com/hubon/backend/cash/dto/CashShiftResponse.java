@@ -21,7 +21,6 @@ public record CashShiftResponse(
         BigDecimal receivedTotal,
         Map<PaymentMethod, BigDecimal> receivedByMethod,
         BigDecimal cancellationAmount,
-        BigDecimal refundAmount,
         BigDecimal supplyAmount,
         BigDecimal withdrawalAmount,
         BigDecimal expectedCash,

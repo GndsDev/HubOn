@@ -22,11 +22,7 @@ public class RestaurantTable {
     private Integer number;
 
     @Column(length = 80)
-    private String name;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private TableStatus status;
+    private String label;
 
     @Column(nullable = false)
     private Boolean active;
@@ -40,9 +36,6 @@ public class RestaurantTable {
     @PrePersist
     void prePersist() {
         LocalDateTime now = LocalDateTime.now();
-        if (status == null) {
-            status = TableStatus.AVAILABLE;
-        }
         if (active == null) {
             active = true;
         }

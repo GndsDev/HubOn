@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 
 public record StockEntryRequest(
         @NotNull
-        Long ingredientId,
+        Long stockItemId,
 
         @NotNull
         @DecimalMin(value = "0.000", inclusive = false)

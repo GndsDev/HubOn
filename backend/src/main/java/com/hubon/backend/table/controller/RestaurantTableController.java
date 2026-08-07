@@ -2,7 +2,6 @@ package com.hubon.backend.table.controller;
 
 import com.hubon.backend.table.dto.RestaurantTableRequest;
 import com.hubon.backend.table.dto.RestaurantTableResponse;
-import com.hubon.backend.table.dto.TableStatusRequest;
 import com.hubon.backend.table.service.RestaurantTableService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,8 +46,4 @@ public class RestaurantTableController {
         return tableService.update(id, request);
     }
 
-    @PatchMapping("/{id}/status")
-    public RestaurantTableResponse updateStatus(@PathVariable Long id, @Valid @RequestBody TableStatusRequest request) {
-        return tableService.updateStatus(id, request);
-    }
 }
