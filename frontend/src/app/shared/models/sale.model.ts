@@ -44,9 +44,7 @@ export interface Sale {
   id: number;
   type: SaleType;
   status: SaleStatus;
-  restaurantTableId: number | null;
   tableNumber: number | null;
-  tableLabel: string | null;
   customerName: string | null;
   customerPhone: string | null;
   subtotal: number;
@@ -72,7 +70,7 @@ export interface Sale {
 
 export interface OpenSaleRequest {
   type: SaleType;
-  restaurantTableId: number | null;
+  tableNumber: number | null;
   customerName: string | null;
   customerPhone: string | null;
   serviceFee: number;

@@ -21,8 +21,7 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
     List<Sale> findAllByStatusOrderByOpenedAtDesc(SaleStatus status);
     List<Sale> findAllByTypeOrderByOpenedAtDesc(SaleType type);
     List<Sale> findAllByTypeAndStatusOrderByOpenedAtDesc(SaleType type, SaleStatus status);
-    Optional<Sale> findFirstByRestaurantTableIdAndStatus(Long tableId, SaleStatus status);
-    boolean existsByRestaurantTableIdAndStatus(Long tableId, SaleStatus status);
+    boolean existsByTypeAndStatusAndTableNumber(SaleType type, SaleStatus status, Integer tableNumber);
     long countByStatus(SaleStatus status);
     long countByTypeAndStatus(SaleType type, SaleStatus status);
     long countByStatusAndClosedBusinessDate(SaleStatus status, LocalDate date);

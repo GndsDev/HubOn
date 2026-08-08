@@ -13,7 +13,6 @@ const summary: DashboardSummary = {
   openCounterSales: 1,
   pendingPayments: 2,
   averageTicket: 80,
-  tableSummary: { free: 4, occupied: 2, disabled: 1, total: 7 },
   cashSummary: { received: 240, openAmount: 80, cancelledAmount: 0 },
   recentSales: [{ id: 9, tableNumber: 2, originLabel: 'Mesa 2', status: 'CLOSED', amount: 80, createdAt: '2026-08-07T12:00:00' }],
 };
@@ -37,12 +36,13 @@ describe('DashboardPageComponent', () => {
     return fixture;
   }
 
-  it('loads the simplified sales summary and table states', () => {
+  it('loads the simplified sales summary without salao indicators', () => {
     const instance = createFixture().componentInstance;
 
     expect(api.getSummary).toHaveBeenCalledOnce();
     expect(instance.summary()).toEqual(summary);
-    expect(instance.tableStatuses(summary).map((entry) => entry.label)).toEqual(['Livres', 'Ocupadas', 'Desativadas']);
+    expect(fixture.nativeElement.textContent).toContain('Comandas abertas');
+    expect(fixture.nativeElement.textContent).not.toContain('Salao');
     fixture.destroy();
   });
 

@@ -5,12 +5,6 @@ export interface DashboardSummary {
   openCounterSales: number;
   pendingPayments: number;
   averageTicket: number;
-  tableSummary: {
-    free: number;
-    occupied: number;
-    disabled: number;
-    total: number;
-  };
   cashSummary: {
     received: number;
     openAmount: number;

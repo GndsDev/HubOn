@@ -1,6 +1,5 @@
 package com.hubon.backend.sale.domain;
 
-import com.hubon.backend.table.domain.RestaurantTable;
 import com.hubon.backend.user.domain.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -25,12 +24,8 @@ public class Sale {
     @Column(nullable = false, length = 20)
     private SaleType type;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "restaurant_table_id")
-    private RestaurantTable restaurantTable;
-
-    @Column(name = "table_number_snapshot")
-    private Integer tableNumberSnapshot;
+    @Column(name = "table_number")
+    private Integer tableNumber;
 
     @Column(name = "customer_name", length = 120)
     private String customerName;

@@ -57,7 +57,6 @@ const demo = {
   categoryName: 'Portfólio HubOn',
   productName: 'Menu Portfólio',
   tableNumber: 9901,
-  tableLabel: 'Mesa Demo Portfólio',
   itemNotes: '[PORTFOLIO] Item de demonstração',
 };
 
@@ -243,43 +242,14 @@ async function prepareDemoData(currentUser) {
     });
   }
 
-  const tables = await apiRequest('/tables');
-  let table = tables.find((item) => item.number === demo.tableNumber);
-  if (!table) {
-    table = await apiRequest('/tables', {
-      method: 'POST',
-      body: {
-        number: demo.tableNumber,
-        label: demo.tableLabel,
-        active: true,
-      },
-    });
-  }
-
-  if (!table.active) {
-    table = await apiRequest(`/tables/${table.id}`, {
-      method: 'PUT',
-      body: {
-        number: table.number,
-        label: table.label,
-        active: true,
-      },
-    });
-  }
-
   const openSales = await apiRequest('/sales?status=OPEN&type=TABLE');
-  let sale = openSales.find((item) => item.restaurantTableId === table.id);
+  let sale = openSales.find((item) => item.tableNumber === demo.tableNumber);
   if (!sale) {
-    if (table.state !== 'FREE') {
-      throw new Error(
-        `A mesa demo está em ${table.state} sem venda aberta. Ajuste a mesa ${demo.tableNumber} antes de regenerar a mídia.`,
-      );
-    }
     sale = await apiRequest('/sales', {
       method: 'POST',
       body: {
         type: 'TABLE',
-        restaurantTableId: table.id,
+        tableNumber: demo.tableNumber,
         customerName: null,
         customerPhone: null,
         serviceFee: 0,

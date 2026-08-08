@@ -219,7 +219,7 @@ public class MonthlyReportService {
     private BigDecimal average(BigDecimal amount, long count) { return count == 0 ? BigDecimal.ZERO : amount.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP); }
     private BigDecimal share(BigDecimal amount, BigDecimal total) { return total.signum() == 0 ? BigDecimal.ZERO : amount.multiply(BigDecimal.valueOf(100)).divide(total, 2, RoundingMode.HALF_UP); }
     private BigDecimal percentageChange(BigDecimal current, BigDecimal previous) { return previous.signum() == 0 ? BigDecimal.ZERO : current.subtract(previous).multiply(BigDecimal.valueOf(100)).divide(previous, 2, RoundingMode.HALF_UP); }
-    private String origin(Sale sale) { return sale.getType() == SaleType.COUNTER ? "Balcao #" + sale.getId() : "Mesa " + sale.getTableNumberSnapshot(); }
+    private String origin(Sale sale) { return sale.getType() == SaleType.COUNTER ? "Balcao #" + sale.getId() : "Mesa " + sale.getTableNumber(); }
     private String monthLabel(YearMonth period) { String month = period.getMonth().getDisplayName(TextStyle.FULL, Locale.forLanguageTag("pt-BR")); return month.substring(0, 1).toUpperCase() + month.substring(1) + " de " + period.getYear(); }
 
     private record ProductKey(String name, String category) { }

@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 
 public record OpenSaleRequest(
         @NotNull SaleType type,
-        Long restaurantTableId,
+        Integer tableNumber,
         @Size(max = 120) String customerName,
         @Size(max = 30) String customerPhone,
         @DecimalMin("0.00") BigDecimal serviceFee,

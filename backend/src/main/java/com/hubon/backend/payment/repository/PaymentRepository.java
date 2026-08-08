@@ -15,7 +15,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findAllBySaleIdOrderByPaidAtAscIdAsc(Long saleId);
     List<Payment> findAllBySaleIdIn(Collection<Long> saleIds);
 
-    @EntityGraph(attributePaths = {"sale", "sale.restaurantTable", "receivedByUser"})
+    @EntityGraph(attributePaths = {"sale", "receivedByUser"})
     List<Payment> findAllByCashShiftIdOrderByPaidAtAsc(Long cashShiftId);
 
     boolean existsBySaleId(Long saleId);

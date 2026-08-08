@@ -6,8 +6,6 @@ import com.hubon.backend.product.domain.Product;
 import com.hubon.backend.product.repository.ProductRepository;
 import com.hubon.backend.role.domain.Role;
 import com.hubon.backend.role.repository.RoleRepository;
-import com.hubon.backend.table.domain.RestaurantTable;
-import com.hubon.backend.table.repository.RestaurantTableRepository;
 import com.hubon.backend.user.domain.User;
 import com.hubon.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +27,6 @@ public class DataSeeder implements CommandLineRunner {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
-    private final RestaurantTableRepository tableRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${hubon.seed.owner.name:}") private String ownerName;
@@ -54,7 +51,6 @@ public class DataSeeder implements CommandLineRunner {
             user(adminName, adminEmail, adminPassword, Set.of(admin));
         }
         seedCatalog();
-        seedTables();
     }
 
     private Role role(String name, String description) {
@@ -86,12 +82,5 @@ public class DataSeeder implements CommandLineRunner {
     private void product(Category category, String name, String description, String price) {
         productRepository.save(Product.builder().category(category).name(name).description(description)
                 .price(new BigDecimal(price)).active(true).available(true).displayOrder(0).build());
-    }
-
-    private void seedTables() {
-        if (tableRepository.count() > 0) return;
-        for (int number = 1; number <= 8; number++) {
-            tableRepository.save(RestaurantTable.builder().number(number).label("Mesa " + number).active(true).build());
-        }
     }
 }

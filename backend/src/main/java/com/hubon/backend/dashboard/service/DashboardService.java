@@ -6,7 +6,6 @@ import com.hubon.backend.sale.domain.*;
 import com.hubon.backend.sale.repository.SaleItemRepository;
 import com.hubon.backend.sale.repository.SaleRepository;
 import com.hubon.backend.sale.service.SaleValueService;
-import com.hubon.backend.table.repository.RestaurantTableRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +24,6 @@ public class DashboardService {
     private final SaleRepository saleRepository;
     private final SaleItemRepository itemRepository;
     private final PaymentRepository paymentRepository;
-    private final RestaurantTableRepository tableRepository;
     private final SaleValueService valueService;
     private final Clock businessClock;
 
@@ -51,17 +49,13 @@ public class DashboardService {
                 .findAllByCancelledAtGreaterThanEqualAndCancelledAtLessThanOrderByCancelledAtAsc(start, end)
                 .stream().filter(SaleItem::isOperationalCancellation)
                 .map(SaleItem::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
-        long activeTables = tableRepository.countByActiveTrue();
-        long disabledTables = tableRepository.countByActiveFalse();
-        DashboardSummaryResponse.TableSummary tables = new DashboardSummaryResponse.TableSummary(
-                Math.max(activeTables - openTables, 0), openTables, disabledTables, activeTables + disabledTables);
         List<DashboardSummaryResponse.RecentSale> recent = saleRepository.findAllByOrderByOpenedAtDesc().stream().limit(5)
-                .map(sale -> new DashboardSummaryResponse.RecentSale(sale.getId(), sale.getTableNumberSnapshot(),
-                        sale.getType() == SaleType.COUNTER ? "Balcao #" + sale.getId() : "Mesa " + sale.getTableNumberSnapshot(),
+                .map(sale -> new DashboardSummaryResponse.RecentSale(sale.getId(), sale.getTableNumber(),
+                        sale.getType() == SaleType.COUNTER ? "Balcao #" + sale.getId() : "Mesa " + sale.getTableNumber(),
                         sale.getStatus().name(), valueService.calculate(sale).finalAmount(),
                         sale.getOpenedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))).toList();
         return new DashboardSummaryResponse(todaySales, open.size(), openTables, openCounters, pending, average,
-                tables, new DashboardSummaryResponse.CashSummary(paymentRepository.sumAmountBetween(start, end),
+                new DashboardSummaryResponse.CashSummary(paymentRepository.sumAmountBetween(start, end),
                 openAmount, cancelled), recent);
     }
 }

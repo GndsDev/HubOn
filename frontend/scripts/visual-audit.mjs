@@ -116,9 +116,7 @@ const openSale = {
   id: 1,
   type: 'TABLE',
   status: 'OPEN',
-  restaurantTableId: 1,
   tableNumber: 1,
-  tableLabel: 'Salão principal',
   customerName: null,
   customerPhone: null,
   subtotal: 32,
@@ -147,9 +145,7 @@ const closedSale = {
   id: 2,
   type: 'COUNTER',
   status: 'CLOSED',
-  restaurantTableId: null,
   tableNumber: null,
-  tableLabel: null,
   finalAmount: 32,
   paidAmount: 32,
   remainingAmount: 0,
@@ -264,7 +260,6 @@ async function mockApi(page) {
       openCounterSales: 0,
       pendingPayments: 1,
       averageTicket: 32,
-      tableSummary: { free: 7, occupied: 1, disabled: 0, total: 8 },
       cashSummary: { received: 32, openAmount: 32, cancelledAmount: 6 },
       recentSales: [{ id: 2, tableNumber: null, originLabel: 'Balcão #2', status: 'CLOSED', amount: 32, createdAt: now }],
     });
@@ -273,8 +268,6 @@ async function mockApi(page) {
     if (/^\/products\/\d+\/option-groups$/.test(apiPath)) return json(route, optionGroup.productId === Number(apiPath.split('/')[2]) ? [optionGroup] : []);
     if (/^\/products\/\d+\/stock-link$/.test(apiPath)) return json(route, { id: 1, productId: 1, productName: products[0].name, stockItemId: 1, stockItemName: stockItems[0].name, unit: 'UN', quantityPerSale: 1, active: true, createdAt: now, updatedAt: now });
     if (/^\/products\/\d+$/.test(apiPath)) return json(route, products.find((product) => product.id === Number(apiPath.split('/')[2])) ?? products[0]);
-    if (apiPath === '/tables') return json(route, tables);
-    if (/^\/tables\/\d+$/.test(apiPath)) return json(route, tables.find((table) => table.id === Number(apiPath.split('/')[2])) ?? tables[0]);
     if (apiPath === '/sales') return json(route, [openSale, closedSale]);
     if (/^\/sales\/\d+$/.test(apiPath)) return json(route, Number(apiPath.split('/')[2]) === closedSale.id ? closedSale : openSale);
     if (apiPath === '/stock-items' || apiPath === '/stock-items/active') return json(route, stockItems);

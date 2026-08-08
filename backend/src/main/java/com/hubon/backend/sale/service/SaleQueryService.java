@@ -52,9 +52,7 @@ public class SaleQueryService {
         SaleAmounts amounts = valueService.calculate(sale);
         return new SaleResponse(
                 sale.getId(), sale.getType(), sale.getStatus(),
-                sale.getRestaurantTable() == null ? null : sale.getRestaurantTable().getId(),
-                sale.getTableNumberSnapshot(),
-                sale.getRestaurantTable() == null ? null : sale.getRestaurantTable().getLabel(),
+                sale.getTableNumber(),
                 sale.getCustomerName(), sale.getCustomerPhone(), amounts.subtotal(), sale.getServiceFee(),
                 sale.getDiscountAmount(), amounts.finalAmount(), amounts.paidAmount(), amounts.remainingAmount(),
                 items.stream().map(item -> itemResponse(item, options.getOrDefault(item.getId(), List.of()))).toList(),

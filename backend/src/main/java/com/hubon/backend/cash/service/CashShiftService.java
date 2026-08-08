@@ -144,7 +144,7 @@ public class CashShiftService {
 
     private String origin(Sale sale) {
         return sale.getType() == SaleType.COUNTER ? "Balcao #" + sale.getId()
-                : sale.getTableNumberSnapshot() == null ? "Mesa sem numero" : "Mesa " + sale.getTableNumberSnapshot();
+                : sale.getTableNumber() == null ? "Mesa sem numero" : "Mesa " + sale.getTableNumber();
     }
 
     private BigDecimal movementTotal(List<CashMovement> values, CashMovementType type) { return values.stream().filter(value -> value.getType() == type).map(CashMovement::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add); }

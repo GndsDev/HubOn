@@ -50,9 +50,7 @@ function sale(overrides: Partial<Sale> = {}): Sale {
     id: 50,
     type: 'COUNTER',
     status: 'OPEN',
-    restaurantTableId: null,
     tableNumber: null,
-    tableLabel: null,
     customerName: null,
     customerPhone: null,
     subtotal: 8,
@@ -146,7 +144,7 @@ describe('CounterPageComponent', () => {
 
     expect(api.open).toHaveBeenCalledWith({
       type: 'COUNTER',
-      restaurantTableId: null,
+      tableNumber: null,
       customerName: null,
       customerPhone: null,
       serviceFee: 0,

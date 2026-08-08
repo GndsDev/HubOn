@@ -86,11 +86,6 @@ public class SecurityConfig {
                         auth.requestMatchers("/api/users/**").hasAnyRole("OWNER", "ADMIN");
                         auth.requestMatchers("/api/roles/**").hasAnyRole("OWNER", "ADMIN");
 
-                        auth.requestMatchers(HttpMethod.GET, "/api/tables/**")
-                                .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
-                        auth.requestMatchers("/api/tables/**")
-                                .hasAnyRole("OWNER", "ADMIN", "WAITER");
-
                         auth.requestMatchers("/api/sales/**")
                                 .hasAnyRole("OWNER", "ADMIN", "WAITER", "CASHIER");
 

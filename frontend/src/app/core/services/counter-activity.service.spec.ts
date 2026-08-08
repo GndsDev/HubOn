@@ -8,7 +8,7 @@ import { CounterActivityService } from './counter-activity.service';
 import { SalesApiService } from './sales-api.service';
 
 const openSale: Sale = {
-  id: 8, type: 'COUNTER', status: 'OPEN', restaurantTableId: null, tableNumber: null, tableLabel: null,
+  id: 8, type: 'COUNTER', status: 'OPEN', tableNumber: null,
   customerName: null, customerPhone: null, subtotal: 6, serviceFee: 0, discountAmount: 0,
   finalAmount: 6, paidAmount: 0, remainingAmount: 6, items: [], payments: [], openedByUserId: 1,
   openedByUserName: 'Gerente', openedAt: '', closedByUserId: null, closedByUserName: null, closedAt: null,

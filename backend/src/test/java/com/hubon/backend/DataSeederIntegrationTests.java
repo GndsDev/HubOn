@@ -44,7 +44,7 @@ class DataSeederIntegrationTests {
         jdbc.execute("""
                 truncate table stock_movements, payments, cash_movements, sale_item_options,
                 sale_items, sales, product_stock_links, stock_items, product_options,
-                product_option_groups, products, categories, restaurant_tables, cash_shifts,
+                product_option_groups, products, categories, cash_shifts,
                 user_roles, users restart identity cascade
                 """);
     }
@@ -68,7 +68,7 @@ class DataSeederIntegrationTests {
 
     private Map<String, Integer> counts() {
         return Map.of("categories", count("categories"), "products", count("products"),
-                "users", count("users"), "tables", count("restaurant_tables"));
+                "users", count("users"));
     }
 
     private int count(String table) { return jdbc.queryForObject("select count(*) from " + table, Integer.class); }

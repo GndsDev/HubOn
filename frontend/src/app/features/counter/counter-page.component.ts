@@ -139,5 +139,5 @@ export class CounterPageComponent implements OnInit {
   currency(value: number): string { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
   private handlePayment(sale: Sale): void { if (sale.status === 'CLOSED') this.completeSale('Venda concluída.'); else { this.currentSale.set(sale); this.feedback.success(sale.remainingAmount > 0 ? 'Pagamento parcial registrado.' : 'Pagamento registrado.'); } }
   private completeSale(message: string): void { const id = this.currentSale()?.id; this.currentSale.set(null); this.openSales.update((items) => items.filter((item) => item.id !== id)); this.router.navigateByUrl('/balcao'); this.activity.refresh(); this.feedback.success(message); }
-  private openRequest() { return { type: 'COUNTER' as const, restaurantTableId: null, customerName: null, customerPhone: null, serviceFee: 0, discountAmount: 0 }; }
+  private openRequest() { return { type: 'COUNTER' as const, tableNumber: null, customerName: null, customerPhone: null, serviceFee: 0, discountAmount: 0 }; }
 }

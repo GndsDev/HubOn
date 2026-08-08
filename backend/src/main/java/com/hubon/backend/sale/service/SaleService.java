@@ -14,8 +14,6 @@ import com.hubon.backend.sale.repository.SaleRepository;
 import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.shared.exception.ResourceNotFoundException;
 import com.hubon.backend.stock.service.StockMovementService;
-import com.hubon.backend.table.domain.RestaurantTable;
-import com.hubon.backend.table.repository.RestaurantTableRepository;
 import com.hubon.backend.user.domain.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -35,7 +33,6 @@ public class SaleService {
     private final SaleItemOptionRepository itemOptionRepository;
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
-    private final RestaurantTableRepository tableRepository;
     private final ProductOptionService productOptionService;
     private final StockMovementService stockMovementService;
     private final SaleValueService valueService;
@@ -46,21 +43,18 @@ public class SaleService {
 
     @Transactional
     public SaleResponse open(OpenSaleRequest request) {
-        RestaurantTable table = null;
         Integer tableNumber = null;
         if (request.type() == SaleType.TABLE) {
-            if (request.restaurantTableId() == null) throw new BusinessException("Mesa e obrigatoria para venda de mesa");
-            table = tableRepository.findByIdForUpdate(request.restaurantTableId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Mesa nao encontrada"));
-            if (!Boolean.TRUE.equals(table.getActive())) throw new BusinessException("Mesa inativa nao pode receber venda");
-            if (saleRepository.existsByRestaurantTableIdAndStatus(table.getId(), SaleStatus.OPEN)) {
+            if (request.tableNumber() == null) throw new BusinessException("Numero da mesa e obrigatorio para venda de mesa");
+            if (request.tableNumber() <= 0) throw new BusinessException("Numero da mesa deve ser maior que zero");
+            tableNumber = request.tableNumber();
+            if (saleRepository.existsByTypeAndStatusAndTableNumber(SaleType.TABLE, SaleStatus.OPEN, tableNumber)) {
                 throw new BusinessException("Mesa ja possui uma venda aberta");
             }
-            tableNumber = table.getNumber();
-        } else if (request.restaurantTableId() != null) {
+        } else if (request.tableNumber() != null) {
             throw new BusinessException("Venda de balcao nao pode possuir mesa");
         }
-        Sale sale = Sale.builder().type(request.type()).restaurantTable(table).tableNumberSnapshot(tableNumber)
+        Sale sale = Sale.builder().type(request.type()).tableNumber(tableNumber)
                 .customerName(normalize(request.customerName())).customerPhone(normalize(request.customerPhone()))
                 .status(SaleStatus.OPEN).serviceFee(valueOrZero(request.serviceFee()))
                 .discountAmount(valueOrZero(request.discountAmount())).openedByUser(currentUser())

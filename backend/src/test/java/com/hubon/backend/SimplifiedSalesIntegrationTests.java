@@ -34,9 +34,6 @@ import com.hubon.backend.stock.dto.ProductStockLinkRequest;
 import com.hubon.backend.stock.dto.StockItemRequest;
 import com.hubon.backend.stock.service.ProductStockLinkService;
 import com.hubon.backend.stock.service.StockItemService;
-import com.hubon.backend.table.dto.RestaurantTableRequest;
-import com.hubon.backend.table.dto.RestaurantTableState;
-import com.hubon.backend.table.service.RestaurantTableService;
 import com.hubon.backend.user.domain.User;
 import com.hubon.backend.user.repository.UserRepository;
 import org.junit.jupiter.api.*;
@@ -67,7 +64,6 @@ class SimplifiedSalesIntegrationTests {
     @Autowired CategoryService categoryService;
     @Autowired ProductService productService;
     @Autowired ProductOptionService optionService;
-    @Autowired RestaurantTableService tableService;
     @Autowired SaleService saleService;
     @Autowired SaleQueryService saleQueryService;
     @Autowired PaymentService paymentService;
@@ -95,7 +91,7 @@ class SimplifiedSalesIntegrationTests {
         jdbc.execute("""
                 truncate table stock_movements, payments, cash_movements, sale_item_options,
                 sale_items, sales, product_stock_links, stock_items, product_options,
-                product_option_groups, products, categories, restaurant_tables, cash_shifts,
+                product_option_groups, products, categories, cash_shifts,
                 user_roles, users restart identity cascade
                 """);
     }
@@ -138,19 +134,41 @@ class SimplifiedSalesIntegrationTests {
     }
 
     @Test
-    void tableOccupancyIsDerivedAndOnlyOneOpenSaleIsAllowed() {
-        var table = tableService.create(new RestaurantTableRequest(12, "Varanda", true));
-        SaleResponse sale = saleService.open(new OpenSaleRequest(SaleType.TABLE, table.id(), null, null,
+    void tableSalesUseTypedNumberAndOnlyOneOpenSaleIsAllowed() {
+        SaleResponse sale = saleService.open(new OpenSaleRequest(SaleType.TABLE, 12, null, null,
                 BigDecimal.ZERO, BigDecimal.ZERO));
-        assertThat(tableService.getById(table.id()).state()).isEqualTo(RestaurantTableState.OCCUPIED);
-        assertThatThrownBy(() -> saleService.open(new OpenSaleRequest(SaleType.TABLE, table.id(), null, null,
+        assertThat(sale.tableNumber()).isEqualTo(12);
+        assertThatThrownBy(() -> saleService.open(new OpenSaleRequest(SaleType.TABLE, 12, null, null,
                 BigDecimal.ZERO, BigDecimal.ZERO))).isInstanceOf(BusinessException.class);
-        assertThatThrownBy(() -> tableService.update(table.id(), new RestaurantTableRequest(13, "Varanda", true)))
+        assertThatThrownBy(() -> saleService.open(new OpenSaleRequest(SaleType.TABLE, null, null, null,
+                BigDecimal.ZERO, BigDecimal.ZERO)))
                 .isInstanceOf(BusinessException.class);
-        assertThatThrownBy(() -> tableService.update(table.id(), new RestaurantTableRequest(12, "Varanda", false)))
+        assertThatThrownBy(() -> saleService.open(new OpenSaleRequest(SaleType.TABLE, 0, null, null,
+                BigDecimal.ZERO, BigDecimal.ZERO)))
                 .isInstanceOf(BusinessException.class);
         saleService.cancel(sale.id(), new CancellationRequest("Cliente desistiu"));
-        assertThat(tableService.getById(table.id()).state()).isEqualTo(RestaurantTableState.FREE);
+        SaleResponse reopened = saleService.open(new OpenSaleRequest(SaleType.TABLE, 12, null, null,
+                BigDecimal.ZERO, BigDecimal.ZERO));
+        assertThat(reopened.tableNumber()).isEqualTo(12);
+    }
+
+    @Test
+    void tableNumberCanBeReusedAfterCloseAndCounterHasNoTableNumber() {
+        ProductResponse product = product(null, "Agua com gas", "5.00");
+        SaleResponse tableSale = saleService.open(new OpenSaleRequest(SaleType.TABLE, 5, null, null,
+                BigDecimal.ZERO, BigDecimal.ZERO));
+        saleService.addItem(tableSale.id(), new AddSaleItemRequest(product.id(), 1, null, List.of()));
+        openCash("0.00");
+        paymentService.create(tableSale.id(), new PaymentRequest(PaymentMethod.PIX, money("5.00"), null));
+        assertThat(saleService.close(tableSale.id()).status()).isEqualTo(SaleStatus.CLOSED);
+        assertThat(saleService.open(new OpenSaleRequest(SaleType.TABLE, 5, null, null,
+                BigDecimal.ZERO, BigDecimal.ZERO)).tableNumber()).isEqualTo(5);
+
+        SaleResponse counter = counter();
+        assertThat(counter.type()).isEqualTo(SaleType.COUNTER);
+        assertThat(counter.tableNumber()).isNull();
+        assertThatThrownBy(() -> saleService.open(new OpenSaleRequest(SaleType.COUNTER, 5, null, null,
+                BigDecimal.ZERO, BigDecimal.ZERO))).isInstanceOf(BusinessException.class);
     }
 
     @Test
@@ -211,8 +229,7 @@ class SimplifiedSalesIntegrationTests {
     void tableAndZeroValueSalesRequireExplicitCloseAndEmptySalesNeverClose() {
         ProductResponse regular = product(null, "Cafe", "5.00");
         ProductResponse free = product(null, "Cortesia", "0.00");
-        var table = tableService.create(new RestaurantTableRequest(1, null, true));
-        SaleResponse tableSale = saleService.open(new OpenSaleRequest(SaleType.TABLE, table.id(), null, null,
+        SaleResponse tableSale = saleService.open(new OpenSaleRequest(SaleType.TABLE, 1, null, null,
                 BigDecimal.ZERO, BigDecimal.ZERO));
         saleService.addItem(tableSale.id(), new AddSaleItemRequest(regular.id(), 1, null, List.of()));
         openCash("0.00");
