@@ -82,6 +82,7 @@ describe('CounterPageComponent', () => {
     get: vi.fn(() => of(sale())),
     open: vi.fn(() => of(sale({ items: [], subtotal: 0, finalAmount: 0, remainingAmount: 0 }))),
     addItem: vi.fn(() => of(sale())),
+    updateItemQuantity: vi.fn(() => of(sale())),
     cancelItem: vi.fn(() => of(sale())),
     pay: vi.fn(() => of(sale())),
     close: vi.fn(() => of(sale({ status: 'CLOSED' }))),
@@ -97,6 +98,7 @@ describe('CounterPageComponent', () => {
     api.get.mockReturnValue(of(sale()));
     api.open.mockReturnValue(of(sale({ items: [], subtotal: 0, finalAmount: 0, remainingAmount: 0 })));
     api.addItem.mockReturnValue(of(sale()));
+    api.updateItemQuantity.mockReturnValue(of(sale()));
     api.cancelItem.mockReturnValue(of(sale()));
     api.pay.mockReturnValue(of(sale()));
     api.close.mockReturnValue(of(sale({ status: 'CLOSED' })));
@@ -178,18 +180,17 @@ describe('CounterPageComponent', () => {
     expect(api.addItem).not.toHaveBeenCalled();
   });
 
-  it('increases quantity by replacing the matching item with its snapshots', () => {
-    const cancelled = sale({ items: [{ ...item, cancelledAt: '2026-08-07T12:10:00' }] });
-    const updated = sale({ items: [{ ...item, id: 71, quantity: 2, subtotal: 16 }], subtotal: 16, finalAmount: 16, remainingAmount: 16 });
-    api.cancelItem.mockReturnValueOnce(of(cancelled));
-    api.addItem.mockReturnValueOnce(of(updated));
+  it('increases quantity on the matching sale item', () => {
+    const updated = sale({ items: [{ ...item, quantity: 2, subtotal: 16 }], subtotal: 16, finalAmount: 16, remainingAmount: 16 });
+    api.updateItemQuantity.mockReturnValueOnce(of(updated));
     const instance = component();
     instance.currentSale.set(sale());
 
     instance.addProduct({ productId: 10, quantity: 1, notes: null, optionIds: [] });
 
-    expect(api.cancelItem).toHaveBeenCalledWith(50, 70, { reason: 'Ajuste de quantidade' });
-    expect(api.addItem).toHaveBeenCalledWith(50, { productId: 10, quantity: 2, notes: null, optionIds: [] });
+    expect(api.updateItemQuantity).toHaveBeenCalledWith(50, 70, { quantity: 2 });
+    expect(api.cancelItem).not.toHaveBeenCalled();
+    expect(api.addItem).not.toHaveBeenCalled();
     expect(instance.currentSale()).toBe(updated);
   });
 
@@ -264,6 +265,7 @@ describe('CounterPageComponent', () => {
     instance.changeQuantity(item, 2);
 
     expect(api.addItem).not.toHaveBeenCalled();
+    expect(api.updateItemQuantity).not.toHaveBeenCalled();
     expect(api.cancelItem).not.toHaveBeenCalled();
   });
 

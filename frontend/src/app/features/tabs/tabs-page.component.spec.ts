@@ -28,7 +28,8 @@ function sale(overrides: Partial<Sale> = {}): Sale {
 describe('TabsPageComponent', () => {
   const api = {
     list: vi.fn(() => of([] as Sale[])), get: vi.fn(() => of(sale())), open: vi.fn(() => of(sale())),
-    addItem: vi.fn(() => of(sale())), cancelItem: vi.fn(() => of(sale())), close: vi.fn(() => of(sale({ status: 'CLOSED' }))),
+    addItem: vi.fn(() => of(sale())), updateItemQuantity: vi.fn(() => of(sale())),
+    cancelItem: vi.fn(() => of(sale())), close: vi.fn(() => of(sale({ status: 'CLOSED' }))),
     cancel: vi.fn(() => of(sale({ status: 'CANCELLED' }))),
   };
   const productApi = { getAll: vi.fn(() => of([])) };
@@ -41,6 +42,7 @@ describe('TabsPageComponent', () => {
     api.get.mockReturnValue(of(sale()));
     api.open.mockReturnValue(of(sale()));
     api.addItem.mockReturnValue(of(sale()));
+    api.updateItemQuantity.mockReturnValue(of(sale()));
     api.cancelItem.mockReturnValue(of(sale()));
     api.close.mockReturnValue(of(sale({ status: 'CLOSED' })));
     api.cancel.mockReturnValue(of(sale({ status: 'CANCELLED' })));
@@ -120,17 +122,26 @@ describe('TabsPageComponent', () => {
     expect(instance.currentSale()).toBe(updated);
   });
 
-  it('changes quantity through cancellation plus a replacement item', () => {
+  it('changes quantity while preserving the same sale item', () => {
     const instance = component();
-    const cancelled = sale({ items: [{ ...line, cancelledAt: '2026-08-07T12:10:00' }] });
-    const updated = sale({ items: [{ ...line, id: 10, quantity: 3, subtotal: 18 }], subtotal: 18, finalAmount: 18, remainingAmount: 18 });
-    api.cancelItem.mockReturnValueOnce(of(cancelled));
-    api.addItem.mockReturnValueOnce(of(updated));
+    const updated = sale({ items: [{ ...line, quantity: 3, subtotal: 18 }], subtotal: 18, finalAmount: 18, remainingAmount: 18 });
+    api.updateItemQuantity.mockReturnValueOnce(of(updated));
     instance.currentSale.set(sale());
     instance.changeQuantity(line, 3);
-    expect(api.cancelItem).toHaveBeenCalledWith(20, 9, { reason: 'Ajuste de quantidade' });
-    expect(api.addItem).toHaveBeenCalledWith(20, { productId: 3, quantity: 3, notes: null, optionIds: [] });
+    expect(api.updateItemQuantity).toHaveBeenCalledWith(20, 9, { quantity: 3 });
+    expect(api.cancelItem).not.toHaveBeenCalled();
+    expect(api.addItem).not.toHaveBeenCalled();
     expect(instance.currentSale()).toBe(updated);
+  });
+
+  it('does not use quantity zero to remove an item', () => {
+    const instance = component();
+    instance.currentSale.set(sale());
+
+    instance.changeQuantity(line, 0);
+
+    expect(api.updateItemQuantity).not.toHaveBeenCalled();
+    expect(api.cancelItem).not.toHaveBeenCalled();
   });
 
   it('closes a fully paid table sale explicitly', () => {

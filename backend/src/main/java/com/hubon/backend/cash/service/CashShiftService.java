@@ -55,8 +55,9 @@ public class CashShiftService {
     public CashShiftResponse addMovement(Long id, CashMovementRequest request) {
         CashShift shift = findByIdForUpdate(id);
         ensureOpen(shift);
+        validateMovement(request);
         LocalDateTime now = LocalDateTime.now(businessClock);
-        cashMovementRepository.save(CashMovement.builder().cashShift(shift).type(request.type())
+        cashMovementRepository.saveAndFlush(CashMovement.builder().cashShift(shift).type(request.type())
                 .amount(request.amount()).note(request.note().trim()).createdByUser(currentUser())
                 .occurredAt(now).createdAt(now).updatedAt(now).build());
         shift.setUpdatedAt(now);
@@ -100,8 +101,7 @@ public class CashShiftService {
         List<Payment> payments = paymentRepository.findAllByCashShiftIdOrderByPaidAtAsc(shift.getId());
         List<CashMovement> manual = cashMovementRepository.findAllByCashShiftIdOrderByOccurredAtAsc(shift.getId());
         List<SaleItem> cancellations = saleItemRepository
-                .findAllByCancelledAtGreaterThanEqualAndCancelledAtLessThanOrderByCancelledAtAsc(shift.getOpenedAt(), end)
-                .stream().filter(SaleItem::isOperationalCancellation).toList();
+                .findAllByCancelledAtGreaterThanEqualAndCancelledAtLessThanOrderByCancelledAtAsc(shift.getOpenedAt(), end);
         EnumMap<PaymentMethod, BigDecimal> byMethod = new EnumMap<>(PaymentMethod.class);
         for (PaymentMethod method : PaymentMethod.values()) byMethod.put(method, BigDecimal.ZERO);
         payments.forEach(payment -> byMethod.merge(payment.getMethod(), payment.getAmount(), BigDecimal::add));
@@ -151,6 +151,13 @@ public class CashShiftService {
     private CashShift findById(Long id) { return cashShiftRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Turno de caixa nao encontrado")); }
     private CashShift findByIdForUpdate(Long id) { return cashShiftRepository.findByIdForUpdate(id).orElseThrow(() -> new ResourceNotFoundException("Turno de caixa nao encontrado")); }
     private void ensureOpen(CashShift shift) { if (shift.getStatus() != CashShiftStatus.OPEN) throw new BusinessException("O turno de caixa ja esta fechado"); }
+    private void validateMovement(CashMovementRequest request) {
+        if (request == null || request.type() == null) throw new BusinessException("Tipo da movimentacao e obrigatorio");
+        if (request.amount() == null || request.amount().signum() <= 0) throw new BusinessException("Valor da movimentacao deve ser maior que zero");
+        String note = normalize(request.note());
+        if (note == null) throw new BusinessException("Observacao da movimentacao e obrigatoria");
+        if (note.length() > 500) throw new BusinessException("Observacao da movimentacao deve ter no maximo 500 caracteres");
+    }
     private User currentUser() { return authenticatedUserProvider.currentUser().orElseThrow(() -> new BusinessException("Usuario autenticado e obrigatorio")); }
     private String normalize(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 

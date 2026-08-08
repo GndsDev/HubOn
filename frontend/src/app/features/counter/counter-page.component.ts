@@ -125,7 +125,7 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
                       type="button"
                       aria-label="Diminuir quantidade"
                       (click)="changeQuantity(item, item.quantity - 1)"
-                      [disabled]="!canChangeItems() || actionItemId() === item.id"
+                      [disabled]="!canChangeItems() || item.quantity <= 1 || actionItemId() === item.id"
                     >
                       <i class="pi pi-minus"></i>
                     </button>
@@ -644,24 +644,15 @@ export class CounterPageComponent implements OnInit {
 
   changeQuantity(item: SaleItem, quantity: number): void {
     const sale = this.currentSale();
-    if (!sale || !this.canChangeItems() || quantity < 0) return;
+    if (!sale || !this.canChangeItems() || quantity < 1) return;
 
     this.actionItemId.set(item.id);
-    this.api.cancelItem(sale.id, item.id, { reason: 'Ajuste de quantidade' }).pipe(
-      switchMap((cancelled) => quantity === 0
-        ? of(cancelled)
-        : this.api.addItem(sale.id, {
-          productId: item.productId,
-          quantity,
-          notes: item.notes,
-          optionIds: item.options.map((option) => option.productOptionId),
-        }),
-      ),
+    this.api.updateItemQuantity(sale.id, item.id, { quantity }).pipe(
       finalize(() => this.actionItemId.set(null)),
     ).subscribe({
       next: (updated) => {
         this.currentSale.set(updated);
-        this.feedback.success(quantity === 0 ? 'Item removido.' : 'Quantidade atualizada.');
+        this.feedback.success('Quantidade atualizada.');
       },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });

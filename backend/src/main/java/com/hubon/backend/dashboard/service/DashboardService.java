@@ -47,8 +47,7 @@ public class DashboardService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal cancelled = itemRepository
                 .findAllByCancelledAtGreaterThanEqualAndCancelledAtLessThanOrderByCancelledAtAsc(start, end)
-                .stream().filter(SaleItem::isOperationalCancellation)
-                .map(SaleItem::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+                .stream().map(SaleItem::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
         List<DashboardSummaryResponse.RecentSale> recent = saleRepository.findAllByOrderByOpenedAtDesc().stream().limit(5)
                 .map(sale -> new DashboardSummaryResponse.RecentSale(sale.getId(), sale.getTableNumber(),
                         sale.getType() == SaleType.COUNTER ? "Balcao #" + sale.getId() : "Mesa " + sale.getTableNumber(),

@@ -10,6 +10,7 @@ import {
   Sale,
   SaleStatus,
   SaleType,
+  UpdateSaleItemQuantityRequest,
 } from '../../shared/models/sale.model';
 
 @Injectable({ providedIn: 'root' })
@@ -34,6 +35,14 @@ export class SalesApiService {
 
   addItem(saleId: number, request: AddSaleItemRequest): Observable<Sale> {
     return this.http.post<Sale>(`${this.baseUrl}/${saleId}/items`, request);
+  }
+
+  updateItemQuantity(
+    saleId: number,
+    itemId: number,
+    request: UpdateSaleItemQuantityRequest,
+  ): Observable<Sale> {
+    return this.http.patch<Sale>(`${this.baseUrl}/${saleId}/items/${itemId}/quantity`, request);
   }
 
   cancelItem(saleId: number, itemId: number, request: CancellationRequest): Observable<Sale> {

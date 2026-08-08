@@ -41,8 +41,8 @@ public class StockMovement {
     @JoinColumn(name = "sale_item_id")
     private SaleItem saleItem;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reversed_movement_id", unique = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reversed_movement_id")
     private StockMovement reversedMovement;
 
     @Column(length = 500)

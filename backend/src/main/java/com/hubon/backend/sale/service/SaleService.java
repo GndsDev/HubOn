@@ -96,6 +96,27 @@ public class SaleService {
     }
 
     @Transactional
+    public SaleResponse updateItemQuantity(Long saleId, Long itemId, UpdateSaleItemQuantityRequest request) {
+        Sale sale = findForUpdate(saleId);
+        SaleItem item = itemRepository.findByIdAndSaleIdForUpdate(itemId, saleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Item da venda nao encontrado"));
+        lifecycleService.ensureOpen(sale);
+        if (!item.isActive()) throw new BusinessException("Item cancelado nao pode ter a quantidade alterada");
+        ensureWithoutPayment(saleId);
+        if (request.quantity() == null || request.quantity() < 1) {
+            throw new BusinessException("Quantidade deve ser maior que zero");
+        }
+        if (request.quantity().equals(item.getQuantity())) return queryService.toResponse(sale);
+
+        int quantityDelta = request.quantity() - item.getQuantity();
+        stockMovementService.applySaleQuantityDelta(item, quantityDelta, currentUser());
+        item.setQuantity(request.quantity());
+        item.setSubtotal(item.getUnitPriceSnapshot().multiply(BigDecimal.valueOf(request.quantity())));
+        itemRepository.saveAndFlush(item);
+        return queryService.toResponse(sale);
+    }
+
+    @Transactional
     public SaleResponse cancelItem(Long saleId, Long itemId, CancellationRequest request) {
         Sale sale = findForUpdate(saleId);
         SaleItem item = itemRepository.findByIdAndSaleIdForUpdate(itemId, saleId)

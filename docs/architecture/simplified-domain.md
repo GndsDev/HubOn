@@ -250,8 +250,10 @@ Tipos:
 - `LOSS`: delta negativo;
 - `ADJUSTMENT`: delta positivo ou negativo.
 
-`reversed_movement_id` torna o estorno explicitamente rastreavel. Uma restricao
-unica permite no maximo um `SALE_REVERSAL` para cada movimento original.
+`reversed_movement_id` torna a devolucao explicitamente rastreavel. Um mesmo
+`SaleItem` pode gerar varios movimentos append-only quando sua quantidade muda:
+aumentos geram `SALE`, reducoes geram `SALE_REVERSAL` e o cancelamento devolve
+somente o consumo liquido ainda ativo.
 
 ### `CashShift` e `CashMovement`
 
@@ -328,10 +330,11 @@ remaining_amount (derivado) = MAX(final_amount - paid_amount, 0)
 3. `resulting_balance = previous_balance + delta_quantity`.
 4. Adicionar item com vinculo ativo cria `SaleItem`, baixa `SALE` e atualiza o
    saldo na mesma transacao.
-5. Um `SaleItem` gera no maximo uma baixa automatica no escopo de vinculo unico.
-6. Cancelar item gera no maximo um `SALE_REVERSAL` do movimento original.
-7. O movimento original nunca e apagado ou alterado.
-8. Unidade de um item com movimentos nao pode ser alterada.
+5. Alterar a quantidade mantem o mesmo `SaleItem` e movimenta somente o delta.
+6. Aumento de quantidade falha integralmente quando nao existe saldo suficiente.
+7. Cancelar item devolve exatamente o consumo liquido atual e e idempotente.
+8. Movimentos anteriores nunca sao apagados ou alterados.
+9. Unidade de um item com movimentos nao pode ser alterada.
 
 ## Fluxos operacionais
 
@@ -370,6 +373,17 @@ pode ser fechada.
 8. Confirmar tudo junto; qualquer falha causa rollback integral.
 
 Nenhum total derivado e persistido em `Sale` durante essa operacao.
+
+### Alteracao de quantidade
+
+1. Bloquear a venda e o item e confirmar que ambos estao ativos.
+2. Rejeitar quantidade menor que um e vendas com pagamento.
+3. Calcular a diferenca entre a quantidade atual e a nova quantidade.
+4. Em aumento, baixar somente a diferenca; em reducao, devolver somente a
+   diferenca.
+5. Atualizar `quantity` e `subtotal` no mesmo `SaleItem`.
+6. Confirmar item, saldo e movimentos juntos; falta de estoque causa rollback
+   integral.
 
 Em inclusao em lote, todos os itens de estoque sao bloqueados por `id`
 crescente antes das alteracoes para reduzir risco de deadlock.

@@ -21,7 +21,6 @@ import com.hubon.backend.report.service.MonthlyReportService;
 import com.hubon.backend.role.domain.Role;
 import com.hubon.backend.role.repository.RoleRepository;
 import com.hubon.backend.sale.domain.SaleStatus;
-import com.hubon.backend.sale.domain.SaleItem;
 import com.hubon.backend.sale.domain.SaleType;
 import com.hubon.backend.sale.dto.*;
 import com.hubon.backend.sale.repository.SaleItemRepository;
@@ -172,7 +171,7 @@ class SimplifiedSalesIntegrationTests {
     }
 
     @Test
-    void stockDebitRollbackAndCancelNewQuantityStrategyAreAuditable() {
+    void quantityUpdatesKeepTheItemAndApplyOnlyTheStockDelta() {
         ProductResponse product = product(null, "Refrigerante", "8.00");
         var stock = stockItemService.create(new StockItemRequest("Lata", null, UnitOfMeasure.UN,
                 money("10.000"), money("2.000"), true));
@@ -182,21 +181,39 @@ class SimplifiedSalesIntegrationTests {
                 new AddSaleItemRequest(product.id(), 1, null, List.of())).items().getFirst();
         assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("8.000");
 
-        saleService.cancelItem(sale.id(), first.id(), new CancellationRequest("Corrigir quantidade"));
-        saleService.cancelItem(sale.id(), first.id(), new CancellationRequest("Repeticao idempotente"));
-        SaleResponse corrected = saleService.addItem(sale.id(),
-                new AddSaleItemRequest(product.id(), 2, null, List.of()));
-        assertThat(corrected.items()).hasSize(2);
-        assertThat(corrected.items().stream().filter(item -> item.cancelledAt() == null)).singleElement()
-                .satisfies(item -> assertThat(item.quantity()).isEqualTo(2));
+        SaleResponse increased = saleService.updateItemQuantity(sale.id(), first.id(),
+                new UpdateSaleItemQuantityRequest(2));
+        assertThat(increased.items()).singleElement().satisfies(item -> {
+            assertThat(item.id()).isEqualTo(first.id());
+            assertThat(item.quantity()).isEqualTo(2);
+            assertThat(item.subtotal()).isEqualByComparingTo("16.00");
+            assertThat(item.cancelledAt()).isNull();
+            assertThat(item.cancellationReason()).isNull();
+        });
         assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("6.000");
-        assertThat(count("stock_movements", "type = 'SALE_REVERSAL'")).isEqualTo(1);
 
-        assertThatThrownBy(() -> saleService.addItem(sale.id(),
-                new AddSaleItemRequest(product.id(), 4, null, List.of())))
+        saleService.updateItemQuantity(sale.id(), first.id(), new UpdateSaleItemQuantityRequest(1));
+        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("8.000");
+        saleService.updateItemQuantity(sale.id(), first.id(), new UpdateSaleItemQuantityRequest(5));
+        assertThat(stockItemService.getById(stock.id()).currentStock()).isZero();
+        saleService.updateItemQuantity(sale.id(), first.id(), new UpdateSaleItemQuantityRequest(2));
+        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("6.000");
+
+        int movementsBeforeFailure = count("stock_movements", "sale_item_id = " + first.id());
+        assertThatThrownBy(() -> saleService.updateItemQuantity(sale.id(), first.id(),
+                new UpdateSaleItemQuantityRequest(6)))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("Estoque insuficiente");
+        assertThat(saleQueryService.get(sale.id()).items().getFirst().quantity()).isEqualTo(2);
         assertThat(saleItemRepository.countBySaleIdAndCancelledAtIsNull(sale.id())).isEqualTo(1);
         assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("6.000");
+        assertThat(count("stock_movements", "sale_item_id = " + first.id())).isEqualTo(movementsBeforeFailure);
+
+        saleService.cancelItem(sale.id(), first.id(), new CancellationRequest("Cliente desistiu"));
+        saleService.cancelItem(sale.id(), first.id(), new CancellationRequest("Repeticao idempotente"));
+        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("10.000");
+        assertThat(count("sale_items", "sale_id = " + sale.id())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select sum(delta_quantity) from stock_movements where sale_item_id = ?",
+                BigDecimal.class, first.id())).isZero();
     }
 
     @Test
@@ -212,6 +229,8 @@ class SimplifiedSalesIntegrationTests {
                 new AddSaleItemRequest(product.id(), 1, null, List.of()))).isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> saleService.cancelItem(sale.id(), item.id(), new CancellationRequest("Erro")))
                 .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> saleService.updateItemQuantity(sale.id(), item.id(),
+                new UpdateSaleItemQuantityRequest(2))).isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> saleService.cancel(sale.id(), new CancellationRequest("Erro")))
                 .isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> paymentService.create(sale.id(),
@@ -251,16 +270,22 @@ class SimplifiedSalesIntegrationTests {
     void closedAndCancelledSalesAreImmutable() {
         ProductResponse product = product(null, "Agua", "3.00");
         SaleResponse cancelled = counter();
-        saleService.addItem(cancelled.id(), new AddSaleItemRequest(product.id(), 1, null, List.of()));
+        SaleItemResponse cancelledItem = saleService.addItem(cancelled.id(),
+                new AddSaleItemRequest(product.id(), 1, null, List.of())).items().getFirst();
         saleService.cancel(cancelled.id(), new CancellationRequest("Cancelamento operacional"));
         assertThatThrownBy(() -> saleService.addItem(cancelled.id(),
                 new AddSaleItemRequest(product.id(), 1, null, List.of()))).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> saleService.updateItemQuantity(cancelled.id(), cancelledItem.id(),
+                new UpdateSaleItemQuantityRequest(2))).isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> saleService.close(cancelled.id())).isInstanceOf(BusinessException.class);
 
         SaleResponse closed = counter();
-        saleService.addItem(closed.id(), new AddSaleItemRequest(product.id(), 1, null, List.of()));
+        SaleItemResponse closedItem = saleService.addItem(closed.id(),
+                new AddSaleItemRequest(product.id(), 1, null, List.of())).items().getFirst();
         openCash("0.00");
         paymentService.create(closed.id(), new PaymentRequest(PaymentMethod.PIX, money("3.00"), null));
+        assertThatThrownBy(() -> saleService.updateItemQuantity(closed.id(), closedItem.id(),
+                new UpdateSaleItemQuantityRequest(2))).isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> saleService.cancel(closed.id(), new CancellationRequest("Tentar cancelar")))
                 .isInstanceOf(BusinessException.class);
     }
@@ -274,13 +299,30 @@ class SimplifiedSalesIntegrationTests {
         SaleItemResponse cancelled = saleService.addItem(sale.id(),
                 new AddSaleItemRequest(cancelledProduct.id(), 1, null, List.of())).items().getFirst();
         SaleItemResponse sold = saleService.addItem(sale.id(),
-                new AddSaleItemRequest(soldProduct.id(), 2, null, List.of())).items().stream()
+                new AddSaleItemRequest(soldProduct.id(), 1, null, List.of())).items().stream()
                 .filter(item -> item.productId().equals(soldProduct.id())).findFirst().orElseThrow();
-        saleService.cancelItem(sale.id(), sold.id(), new CancellationRequest(SaleItem.QUANTITY_ADJUSTMENT_REASON));
-        saleService.addItem(sale.id(), new AddSaleItemRequest(soldProduct.id(), 2, null, List.of()));
+        saleService.updateItemQuantity(sale.id(), sold.id(), new UpdateSaleItemQuantityRequest(2));
         saleService.cancelItem(sale.id(), cancelled.id(), new CancellationRequest("Cliente mudou de ideia"));
-        cashShiftService.addMovement(shift.id(), new CashMovementRequest(CashMovementType.SUPPLY, money("2.00"), "Troco"));
-        cashShiftService.addMovement(shift.id(), new CashMovementRequest(CashMovementType.WITHDRAWAL, money("1.00"), "Sangria"));
+        var supplied = cashShiftService.addMovement(shift.id(),
+                new CashMovementRequest(CashMovementType.SUPPLY, money("2.00"), "Troco"));
+        assertThat(supplied.supplyAmount()).isEqualByComparingTo("2.00");
+        assertThat(supplied.expectedCash()).isEqualByComparingTo("7.00");
+        assertThat(supplied.movements().stream().filter(movement -> movement.type().equals("SUPPLY")))
+                .singleElement()
+                .satisfies(movement -> assertThat(movement.type()).isEqualTo("SUPPLY"));
+        var withdrawn = cashShiftService.addMovement(shift.id(),
+                new CashMovementRequest(CashMovementType.WITHDRAWAL, money("1.00"), "Sangria"));
+        assertThat(withdrawn.withdrawalAmount()).isEqualByComparingTo("1.00");
+        assertThat(withdrawn.expectedCash()).isEqualByComparingTo("6.00");
+        assertThat(withdrawn.movements().stream()
+                .filter(movement -> movement.type().equals("SUPPLY") || movement.type().equals("WITHDRAWAL")))
+                .hasSize(2);
+        assertThatThrownBy(() -> cashShiftService.addMovement(shift.id(),
+                new CashMovementRequest(CashMovementType.SUPPLY, BigDecimal.ZERO, "Troco")))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> cashShiftService.addMovement(shift.id(),
+                new CashMovementRequest(CashMovementType.WITHDRAWAL, money("1.00"), " ")))
+                .isInstanceOf(BusinessException.class);
         paymentService.create(sale.id(), new PaymentRequest(PaymentMethod.CASH, money("10.00"), null));
 
         var report = reportService.generateDaily(LocalDate.now(businessClock), ReportChannel.ALL);

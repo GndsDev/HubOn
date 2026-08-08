@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { finalize, forkJoin, of, switchMap } from 'rxjs';
+import { finalize, forkJoin, of } from 'rxjs';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { ProductApiService } from '../../core/services/product-api.service';
 import { SalesApiService } from '../../core/services/sales-api.service';
@@ -207,7 +207,7 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
                         type="button"
                         aria-label="Diminuir quantidade"
                         (click)="changeQuantity(item, item.quantity - 1)"
-                        [disabled]="!canChangeItems() || actionItemId() === item.id"
+                        [disabled]="!canChangeItems() || item.quantity <= 1 || actionItemId() === item.id"
                       >
                         <i class="pi pi-minus"></i>
                       </button>
@@ -649,22 +649,13 @@ export class TabsPageComponent implements OnInit {
 
   changeQuantity(item: SaleItem, quantity: number): void {
     const sale = this.currentSale();
-    if (!sale || !this.canChangeItems() || quantity < 0) return;
+    if (!sale || !this.canChangeItems() || quantity < 1) return;
 
     this.actionItemId.set(item.id);
-    this.api.cancelItem(sale.id, item.id, { reason: 'Ajuste de quantidade' }).pipe(
-      switchMap((cancelled) => quantity === 0
-        ? of(cancelled)
-        : this.api.addItem(sale.id, {
-          productId: item.productId,
-          quantity,
-          notes: item.notes,
-          optionIds: item.options.map((option) => option.productOptionId),
-        }),
-      ),
+    this.api.updateItemQuantity(sale.id, item.id, { quantity }).pipe(
       finalize(() => this.actionItemId.set(null)),
     ).subscribe({
-      next: (updated) => this.applySale(updated, quantity === 0 ? 'Item removido.' : 'Quantidade atualizada.'),
+      next: (updated) => this.applySale(updated, 'Quantidade atualizada.'),
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
   }

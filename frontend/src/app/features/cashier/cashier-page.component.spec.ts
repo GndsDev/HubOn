@@ -144,6 +144,19 @@ describe('CashierPageComponent', () => {
     expect(cashApi.addMovement).toHaveBeenCalledWith(7, { type: 'WITHDRAWAL', amount: 15, note: 'Pagamento local' });
   });
 
+  it('explains invalid movement fields instead of failing silently', () => {
+    const instance = component();
+    instance.currentShift.set(openShift);
+
+    instance.movementForm = { type: 'SUPPLY', amount: 0, note: 'Troco' };
+    instance.saveMovement();
+    instance.movementForm = { type: 'WITHDRAWAL', amount: 10, note: '   ' };
+    instance.saveMovement();
+
+    expect(cashApi.addMovement).not.toHaveBeenCalled();
+    expect(feedback.error).toHaveBeenCalledTimes(2);
+  });
+
   it('prepares reconciliation using expected cash and closes without a note when balanced', () => {
     const instance = component();
     instance.currentShift.set(openShift);

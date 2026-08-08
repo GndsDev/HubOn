@@ -84,6 +84,10 @@ export interface AddSaleItemRequest {
   optionIds: number[];
 }
 
+export interface UpdateSaleItemQuantityRequest {
+  quantity: number;
+}
+
 export interface PaymentRequest {
   method: PaymentMethod;
   amount: number;

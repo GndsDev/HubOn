@@ -611,8 +611,6 @@ CREATE TABLE stock_movements (
         REFERENCES stock_movements(id) ON DELETE RESTRICT,
     CONSTRAINT fk_stock_movements_created_by_user
         FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,
-    CONSTRAINT uq_stock_movements_reversed_movement
-        UNIQUE (reversed_movement_id),
     CONSTRAINT chk_stock_movements_type
         CHECK (type IN ('ENTRY', 'SALE', 'SALE_REVERSAL', 'EXIT', 'LOSS', 'ADJUSTMENT')),
     CONSTRAINT chk_stock_movements_delta_direction
@@ -658,10 +656,6 @@ CREATE TABLE stock_movements (
             )
         )
 );
-
-CREATE UNIQUE INDEX uq_stock_movements_sale_per_item
-    ON stock_movements (sale_item_id)
-    WHERE type = 'SALE';
 
 CREATE INDEX idx_stock_movements_stock_item_time
     ON stock_movements (stock_item_id, created_at DESC, id DESC);

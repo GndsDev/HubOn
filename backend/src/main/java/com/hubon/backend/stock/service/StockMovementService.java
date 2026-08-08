@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -74,13 +75,55 @@ public class StockMovementService {
         });
     }
 
+    public void applySaleQuantityDelta(SaleItem saleItem, int quantityDelta, User user) {
+        if (quantityDelta == 0) return;
+        List<StockMovement> movements = saleMovements(saleItem);
+        if (movements.isEmpty()) return;
+
+        StockMovement original = originalSaleMovement(movements);
+        BigDecimal consumed = netDelta(movements).negate();
+        if (consumed.signum() <= 0) {
+            throw new BusinessException("Consumo de estoque da venda esta inconsistente");
+        }
+        BigDecimal quantityPerSale = consumed.divide(
+                BigDecimal.valueOf(saleItem.getQuantity()),
+                3,
+                RoundingMode.UNNECESSARY
+        );
+        BigDecimal stockDelta = quantityPerSale.multiply(BigDecimal.valueOf(Math.abs((long) quantityDelta)));
+        StockItem stockItem = findForUpdate(original.getStockItem().getId());
+
+        if (quantityDelta > 0) {
+            record(stockItem, StockMovementType.SALE, stockDelta.negate(), saleItem, null, null, user);
+        } else {
+            record(stockItem, StockMovementType.SALE_REVERSAL, stockDelta, saleItem, original, null, user);
+        }
+    }
+
     public void reverseSale(SaleItem saleItem, User user) {
-        movementRepository.findFirstBySaleItemIdAndType(saleItem.getId(), StockMovementType.SALE).ifPresent(original -> {
-            if (movementRepository.existsByReversedMovementId(original.getId())) return;
-            StockItem item = findForUpdate(original.getStockItem().getId());
-            record(item, StockMovementType.SALE_REVERSAL, original.getDeltaQuantity().abs(),
-                    saleItem, original, saleItem.getCancellationReason(), user);
-        });
+        List<StockMovement> movements = saleMovements(saleItem);
+        if (movements.isEmpty()) return;
+        BigDecimal consumed = netDelta(movements).negate();
+        if (consumed.signum() == 0) return;
+        if (consumed.signum() < 0) throw new BusinessException("Consumo de estoque da venda esta inconsistente");
+
+        StockMovement original = originalSaleMovement(movements);
+        StockItem item = findForUpdate(original.getStockItem().getId());
+        record(item, StockMovementType.SALE_REVERSAL, consumed,
+                saleItem, original, saleItem.getCancellationReason(), user);
+    }
+
+    private List<StockMovement> saleMovements(SaleItem saleItem) {
+        return movementRepository.findAllBySaleItemIdOrderByCreatedAtAscIdAsc(saleItem.getId());
+    }
+
+    private StockMovement originalSaleMovement(List<StockMovement> movements) {
+        return movements.stream().filter(movement -> movement.getType() == StockMovementType.SALE)
+                .findFirst().orElseThrow(() -> new BusinessException("Movimento original da venda nao encontrado"));
+    }
+
+    private BigDecimal netDelta(List<StockMovement> movements) {
+        return movements.stream().map(StockMovement::getDeltaQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private StockMovement manual(Long stockItemId, StockMovementType type, BigDecimal delta, String reason) {

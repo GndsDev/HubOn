@@ -218,9 +218,23 @@ export class CashierPageComponent implements OnInit {
 
   saveMovement(): void {
     const shift = this.currentShift();
-    if (!shift || this.movementForm.amount <= 0 || !this.movementForm.note.trim() || this.saving()) return;
+    if (this.saving()) return;
+    if (!shift) {
+      this.feedback.error('Abra o caixa antes de registrar uma movimentação.');
+      return;
+    }
+    const amount = Number(this.movementForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      this.feedback.error('Informe um valor maior que zero.');
+      return;
+    }
+    const note = this.movementForm.note.trim();
+    if (!note) {
+      this.feedback.error('Informe uma observação para a movimentação.');
+      return;
+    }
     this.saving.set(true);
-    this.api.addMovement(shift.id, { ...this.movementForm, amount: Number(this.movementForm.amount), note: this.movementForm.note.trim() })
+    this.api.addMovement(shift.id, { ...this.movementForm, amount, note })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: (updated) => { this.currentShift.set(updated); this.movementOpen.set(false); this.feedback.success('Movimentação registrada.'); },
