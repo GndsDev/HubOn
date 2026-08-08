@@ -5,6 +5,7 @@ import { finalize } from 'rxjs';
 import { SalesApiService } from '../../core/services/sales-api.service';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { PaymentMethod, Sale, SaleStatus, SaleType } from '../../shared/models/sale.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
@@ -12,435 +13,255 @@ import { apiErrorMessage } from '../../shared/util/api-error';
 @Component({
   selector: 'app-sales-history-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, StatusBadgeComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    EmptyStateComponent,
+    PageHeaderComponent,
+    SectionCardComponent,
+    StatusBadgeComponent,
+  ],
   template: `
     <app-page-header
       kicker="Consulta"
       title="Histórico de vendas"
-      description="Vendas fechadas e canceladas de mesas e balcão."
+      description="Vendas concluídas e canceladas de mesas e balcão."
     >
       <div page-actions class="page-header-actions">
-        <button
-          type="button"
-          class="secondary-button"
-          (click)="load()"
-          [disabled]="loading()"
-        >
+        <button type="button" class="secondary-button" (click)="load()" [disabled]="loading()">
           <i class="pi pi-refresh"></i>
           Atualizar
         </button>
       </div>
     </app-page-header>
 
-    <section class="history-panel">
-      <div class="history-toolbar">
-        <label class="field compact-field">
-          <span>De</span>
-          <input type="date" [(ngModel)]="from" />
-        </label>
+    <div class="counter-history-filters">
+      <label class="field">
+        <span>De</span>
+        <input type="date" [(ngModel)]="from" />
+      </label>
 
-        <label class="field compact-field">
-          <span>Até</span>
-          <input type="date" [(ngModel)]="to" />
-        </label>
+      <label class="field">
+        <span>Até</span>
+        <input type="date" [(ngModel)]="to" />
+      </label>
 
-        <label class="field compact-field">
-          <span>Origem</span>
-          <select [(ngModel)]="type">
-            <option value="ALL">Todas</option>
-            <option value="TABLE">Mesa</option>
-            <option value="COUNTER">Balcão</option>
-          </select>
-        </label>
+      <label class="field">
+        <span>Origem</span>
+        <select [(ngModel)]="type">
+          <option value="ALL">Todas</option>
+          <option value="TABLE">Mesa</option>
+          <option value="COUNTER">Balcão</option>
+        </select>
+      </label>
 
-        <label class="field compact-field">
-          <span>Situação</span>
-          <select [(ngModel)]="status">
-            <option value="ALL">Todas</option>
-            <option value="CLOSED">Fechada</option>
-            <option value="CANCELLED">Cancelada</option>
-          </select>
-        </label>
+      <label class="field">
+        <span>Situação</span>
+        <select [(ngModel)]="status">
+          <option value="ALL">Todas</option>
+          <option value="CLOSED">Fechada</option>
+          <option value="CANCELLED">Cancelada</option>
+        </select>
+      </label>
+    </div>
 
-        <span class="history-count">
+    @if (loading()) {
+      <div class="loading-grid">
+        <div class="loading-row"></div>
+        <div class="loading-row"></div>
+        <div class="loading-row"></div>
+      </div>
+    } @else if (error()) {
+      <div class="error-panel" role="alert">
+        <i class="pi pi-exclamation-triangle"></i>
+        <div>
+          <strong>Não foi possível carregar o histórico</strong>
+          <p>{{ error() }}</p>
+        </div>
+      </div>
+    } @else if (!visibleSales().length) {
+      <app-empty-state
+        icon="pi pi-history"
+        title="Nenhuma venda encontrada"
+        description="Ajuste os filtros ou aguarde o fechamento das primeiras vendas."
+      />
+    } @else {
+      <app-section-card eyebrow="Operação" title="Vendas concluídas">
+        <span card-action class="report-sales-count">
           {{ visibleSales().length }} venda{{ visibleSales().length === 1 ? '' : 's' }}
         </span>
-      </div>
 
-      @if (loading()) {
-        <div class="loading-grid">
-          <div class="loading-row"></div>
-          <div class="loading-row"></div>
-          <div class="loading-row"></div>
-        </div>
-      } @else if (error()) {
-        <div class="error-panel" role="alert">
-          <i class="pi pi-exclamation-triangle"></i>
-          <div>
-            <strong>Não foi possível carregar o histórico</strong>
-            <p>{{ error() }}</p>
-          </div>
-        </div>
-      } @else if (!visibleSales().length) {
-        <app-empty-state
-          icon="pi pi-history"
-          title="Nenhuma venda encontrada"
-          description="Ajuste os filtros ou aguarde o fechamento das primeiras vendas."
-        />
-      } @else {
-        <div class="history-table">
-          <div class="history-head" aria-hidden="true">
-            <span>Data</span>
-            <span>Origem</span>
-            <span>Itens</span>
-            <span>Total</span>
-            <span>Pagamento</span>
-            <span>Situação</span>
-            <span></span>
-          </div>
+        <div class="report-sales-table" role="region" aria-label="Histórico de vendas" tabindex="0">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Origem</th>
+                <th>Itens</th>
+                <th>Total</th>
+                <th>Pagamento</th>
+                <th>Situação</th>
+                <th>Detalhes</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (sale of visibleSales(); track sale.id) {
+                <tr>
+                  <td>{{ dateTime(sale.closedAt || sale.cancelledAt || sale.openedAt) }}</td>
+                  <td>
+                    <strong>{{ origin(sale) }}</strong>
+                    <small>#{{ sale.id }} · {{ sale.openedByUserName }}</small>
+                  </td>
+                  <td>{{ activeItemCount(sale) }}</td>
+                  <td><strong>{{ currency(sale.finalAmount) }}</strong></td>
+                  <td>{{ paymentSummary(sale) }}</td>
+                  <td>
+                    <app-status-badge
+                      [label]="statusLabel(sale.status)"
+                      [tone]="sale.status === 'CLOSED' ? 'success' : 'danger'"
+                    />
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      class="icon-button"
+                      [title]="expandedId() === sale.id ? 'Ocultar detalhes' : 'Ver detalhes'"
+                      [attr.aria-label]="'Ver detalhes da venda ' + sale.id"
+                      [attr.aria-expanded]="expandedId() === sale.id"
+                      (click)="toggleDetails(sale.id)"
+                    >
+                      <i [class]="expandedId() === sale.id ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"></i>
+                    </button>
+                  </td>
+                </tr>
 
-          @for (sale of visibleSales(); track sale.id) {
-            <article class="history-row" [class.expanded]="expandedId() === sale.id">
-              <time>{{ dateTime(sale.closedAt || sale.cancelledAt || sale.openedAt) }}</time>
-              <strong class="history-origin">{{ origin(sale) }}</strong>
-              <span>{{ activeItemCount(sale) }}</span>
-              <strong class="money-cell">{{ currency(sale.finalAmount) }}</strong>
-              <span class="payment-cell">{{ paymentSummary(sale) }}</span>
-              <app-status-badge
-                [label]="statusLabel(sale.status)"
-                [tone]="sale.status === 'CLOSED' ? 'success' : 'danger'"
-              />
-              <button
-                type="button"
-                class="icon-button"
-                [attr.aria-label]="'Ver detalhes da venda ' + sale.id"
-                (click)="toggleDetails(sale.id)"
-              >
-                <i [class]="expandedId() === sale.id ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"></i>
-              </button>
-
-              @if (expandedId() === sale.id) {
-                <div class="history-detail">
-                  <section class="detail-block detail-summary">
-                    <h3>Resumo</h3>
-                    <dl>
-                      <div>
-                        <dt>Aberta por</dt>
-                        <dd>{{ sale.openedByUserName }}</dd>
-                      </div>
-                      <div>
-                        <dt>Subtotal</dt>
-                        <dd>{{ currency(sale.subtotal) }}</dd>
-                      </div>
-                      <div>
-                        <dt>Taxa</dt>
-                        <dd>{{ currency(sale.serviceFee) }}</dd>
-                      </div>
-                      <div>
-                        <dt>Desconto</dt>
-                        <dd>{{ currency(sale.discountAmount) }}</dd>
-                      </div>
-                      <div class="summary-total">
-                        <dt>Total</dt>
-                        <dd>{{ currency(sale.finalAmount) }}</dd>
-                      </div>
-                    </dl>
-                  </section>
-
-                  <section class="detail-block detail-items">
-                    <h3>Itens</h3>
-                    @for (item of sale.items; track item.id) {
-                      <div class="detail-line" [class.cancelled]="item.cancelledAt">
-                        <span>{{ item.quantity }}x</span>
-                        <div>
-                          <strong>{{ item.productName }}</strong>
-                          @if (item.options.length) {
-                            <small>{{ optionSummary(item.options) }}</small>
-                          }
-                          @if (item.cancelledAt) {
-                            <small>Cancelado: {{ item.cancellationReason }}</small>
-                          }
+                @if (expandedId() === sale.id) {
+                  <tr class="history-detail-row">
+                    <td colspan="7">
+                      <div class="history-expanded-detail">
+                        <div class="detail-grid tab-detail-summary">
+                          <div>
+                            <span>Responsável</span>
+                            <strong>{{ sale.openedByUserName }}</strong>
+                          </div>
+                          <div>
+                            <span>Subtotal</span>
+                            <strong>{{ currency(sale.subtotal) }}</strong>
+                          </div>
+                          <div>
+                            <span>Taxa</span>
+                            <strong>{{ currency(sale.serviceFee) }}</strong>
+                          </div>
+                          <div>
+                            <span>Desconto</span>
+                            <strong>{{ currency(sale.discountAmount) }}</strong>
+                          </div>
+                          <div>
+                            <span>Recebido</span>
+                            <strong>{{ currency(sale.paidAmount) }}</strong>
+                          </div>
+                          <div>
+                            <span>Total</span>
+                            <strong>{{ currency(sale.finalAmount) }}</strong>
+                          </div>
                         </div>
-                        <strong class="money-cell">{{ currency(item.subtotal) }}</strong>
-                      </div>
-                    }
-                  </section>
 
-                  <section class="detail-block detail-payments">
-                    <h3>Pagamentos</h3>
-                    @for (payment of sale.payments; track payment.id) {
-                      <div class="detail-line">
-                        <i class="pi pi-wallet"></i>
-                        <div>
-                          <strong>{{ methodLabel(payment.method) }}</strong>
-                          <small>{{ dateTime(payment.paidAt) }} · {{ payment.receivedByUserName }}</small>
+                        <div class="history-detail-columns">
+                          <section class="history-detail-section detail-items">
+                            <h3>Itens</h3>
+                            <div class="detailed-order-items">
+                              @for (item of sale.items; track item.id) {
+                                <div class="detailed-order-item" [class.cancelled]="item.cancelledAt">
+                                  <div>
+                                    <strong>{{ item.quantity }}x {{ item.productName }}</strong>
+                                    @if (item.options.length) {
+                                      <small>{{ optionSummary(item.options) }}</small>
+                                    }
+                                    @if (item.cancelledAt) {
+                                      <small>Cancelado: {{ item.cancellationReason }}</small>
+                                    }
+                                  </div>
+                                  <div class="order-item-side">
+                                    <strong>{{ currency(item.subtotal) }}</strong>
+                                  </div>
+                                </div>
+                              }
+                            </div>
+                          </section>
+
+                          <section class="history-detail-section payment-history detail-payments">
+                            <h3>Pagamentos</h3>
+                            @for (payment of sale.payments; track payment.id) {
+                              <div>
+                                <p>
+                                  <strong>{{ methodLabel(payment.method) }}</strong><br />
+                                  {{ dateTime(payment.paidAt) }} · {{ payment.receivedByUserName }}
+                                </p>
+                                <strong>{{ currency(payment.amount) }}</strong>
+                              </div>
+                            } @empty {
+                              <p>Nenhum pagamento registrado.</p>
+                            }
+                          </section>
                         </div>
-                        <strong class="money-cell">{{ currency(payment.amount) }}</strong>
-                      </div>
-                    } @empty {
-                      <p class="muted-line">Nenhum pagamento registrado.</p>
-                    }
-                  </section>
 
-                  @if (sale.cancellationReason) {
-                    <p class="cancellation-note">
-                      <strong>Motivo:</strong>
-                      {{ sale.cancellationReason }}
-                    </p>
-                  }
-                </div>
+                        @if (sale.cancellationReason) {
+                          <p class="cancellation-note">
+                            <strong>Motivo do cancelamento:</strong>
+                            {{ sale.cancellationReason }}
+                          </p>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
               }
-            </article>
-          }
+            </tbody>
+          </table>
         </div>
-      }
-    </section>
+      </app-section-card>
+    }
   `,
   styles: `
-    .history-panel {
+    .history-detail-row > td {
+      padding: 0 var(--space-sm) var(--space-lg);
+    }
+
+    .history-expanded-detail {
       display: grid;
-      gap: 1rem;
-      max-width: 84rem;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      background: var(--gradient-card), var(--surface-card-bg);
-      box-shadow: var(--shadow-card);
-      padding: 1rem;
-    }
-
-    .history-toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: end;
-      gap: .65rem;
-      border-bottom: 1px solid var(--color-border-soft);
-      padding-bottom: .9rem;
-    }
-
-    .history-toolbar .compact-field {
-      width: clamp(8.75rem, 14vw, 11rem);
-    }
-
-    .history-count {
-      margin-left: auto;
-      color: var(--color-text-muted);
-      font-size: .82rem;
-      font-weight: 800;
-    }
-
-    .history-table {
-      display: grid;
-      gap: .35rem;
-      min-width: 0;
-    }
-
-    .history-head,
-    .history-row {
-      display: grid;
-      grid-template-columns: 9rem minmax(10rem, 1.25fr) 4.25rem 8rem minmax(9rem, .9fr) 7.5rem 2.5rem;
-      gap: .75rem;
-      align-items: center;
-    }
-
-    .history-head {
-      border-bottom: 1px solid var(--color-border-soft);
-      color: var(--color-text-muted);
-      padding: .4rem .85rem .7rem;
-      font-size: .72rem;
-      font-weight: 900;
-      text-transform: uppercase;
-    }
-
-    .history-row {
-      border: 1px solid var(--color-border-soft);
-      border-radius: var(--radius-sm);
-      background: var(--surface-row-bg);
-      padding: .72rem .85rem;
-      box-shadow: var(--shadow-row);
-      transition: border-color var(--duration-fast) ease, background var(--duration-fast) ease;
-    }
-
-    .history-row:hover,
-    .history-row.expanded {
-      border-color: var(--border-interactive);
-      background: var(--surface-row-hover-bg);
-    }
-
-    .history-row time,
-    .history-row > span {
-      color: var(--color-text-muted);
-      font-size: .86rem;
-    }
-
-    .history-origin {
-      min-width: 0;
-    }
-
-    .money-cell {
-      justify-self: end;
-      color: var(--color-text-strong);
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-
-    .payment-cell {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .history-detail {
-      grid-column: 1 / -1;
-      display: grid;
-      grid-template-columns: minmax(14rem, .75fr) minmax(18rem, 1.3fr) minmax(16rem, 1fr);
-      gap: .8rem;
+      gap: var(--space-lg);
       border-top: 1px solid var(--color-border-soft);
-      margin-top: .25rem;
-      padding-top: .85rem;
+      padding-top: var(--space-lg);
     }
 
-    .detail-block {
+    .history-detail-columns {
       display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(16rem, .8fr);
+      gap: var(--space-xl);
+    }
+
+    .history-detail-section {
+      display: grid;
+      min-width: 0;
       align-content: start;
-      gap: .55rem;
-      border: 1px solid var(--color-border-soft);
-      border-radius: var(--radius-sm);
-      background: var(--surface-subtle-bg);
-      padding: .75rem;
+      gap: var(--space-sm);
     }
 
-    .detail-block h3 {
+    .history-detail-section h3,
+    .history-detail-section p,
+    .cancellation-note {
       margin: 0;
-      color: var(--color-text-strong);
-      font-size: .82rem;
-    }
-
-    .detail-summary dl {
-      display: grid;
-      gap: .35rem;
-      margin: 0;
-    }
-
-    .detail-summary div,
-    .detail-line {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
-      align-items: start;
-      gap: .6rem;
-    }
-
-    .detail-summary div {
-      grid-template-columns: minmax(0, 1fr) auto;
-    }
-
-    .detail-summary dt,
-    .detail-line small,
-    .muted-line {
-      color: var(--color-text-muted);
-      font-size: .8rem;
-    }
-
-    .detail-summary dd {
-      margin: 0;
-      color: var(--color-text-strong);
-      font-weight: 800;
-    }
-
-    .summary-total {
-      border-top: 1px solid var(--color-border-soft);
-      padding-top: .45rem;
-    }
-
-    .summary-total dd {
-      color: var(--color-value-accent);
-      font-size: 1rem;
-    }
-
-    .detail-line {
-      border-bottom: 1px solid var(--color-border-soft);
-      padding-bottom: .45rem;
-    }
-
-    .detail-line:last-child {
-      border-bottom: 0;
-      padding-bottom: 0;
-    }
-
-    .detail-line > div {
-      display: grid;
-      gap: .15rem;
-      min-width: 0;
-    }
-
-    .detail-line.cancelled {
-      opacity: .58;
-    }
-
-    .detail-line.cancelled strong:first-child,
-    .detail-line.cancelled div > strong {
-      text-decoration: line-through;
-    }
-
-    .detail-payments i {
-      color: var(--color-icon);
-      padding-top: .15rem;
     }
 
     .cancellation-note {
-      grid-column: 1 / -1;
-      margin: 0;
-      border: 1px solid var(--border-danger);
-      border-radius: var(--radius-sm);
-      background: var(--status-danger-bg);
+      border-top: 1px solid var(--border-danger);
       color: var(--color-danger-text);
-      padding: .7rem .8rem;
+      padding-top: var(--space-md);
     }
 
-    @media (max-width: 1100px) {
-      .history-head,
-      .history-row {
-        grid-template-columns: 8.5rem minmax(9rem, 1fr) 4rem 7rem 7rem 2.5rem;
-      }
-
-      .history-head > :nth-child(5),
-      .history-row > .payment-cell {
-        display: none;
-      }
-
-      .history-detail {
+    @media (max-width: 980px) {
+      .history-detail-columns {
         grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 760px) {
-      .history-panel {
-        padding: .8rem;
-      }
-
-      .history-toolbar .compact-field {
-        width: calc(50% - .35rem);
-      }
-
-      .history-count {
-        width: 100%;
-        margin-left: 0;
-      }
-
-      .history-head {
-        display: none;
-      }
-
-      .history-row {
-        grid-template-columns: 1fr auto;
-      }
-
-      .history-row > :nth-child(3),
-      .history-row > .payment-cell {
-        display: none;
-      }
-
-      .money-cell {
-        justify-self: start;
       }
     }
   `,
@@ -466,7 +287,9 @@ export class SalesHistoryPageComponent implements OnInit {
         return (!this.from || date >= this.from) && (!this.to || date <= this.to);
       })
       .sort((a, b) =>
-        (b.closedAt || b.cancelledAt || b.openedAt).localeCompare(a.closedAt || a.cancelledAt || a.openedAt),
+        (b.closedAt || b.cancelledAt || b.openedAt).localeCompare(
+          a.closedAt || a.cancelledAt || a.openedAt,
+        ),
       );
   }
 

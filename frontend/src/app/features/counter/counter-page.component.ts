@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, forkJoin, of, switchMap, tap } from 'rxjs';
 import { CounterActivityService } from '../../core/services/counter-activity.service';
 import { FeedbackService } from '../../core/services/feedback.service';
@@ -11,6 +11,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { PaymentDialogComponent } from '../../shared/components/payment-dialog/payment-dialog.component';
 import { SaleProductPickerComponent } from '../../shared/components/sale-product-picker/sale-product-picker.component';
+import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
 import { Product } from '../../shared/models/product.model';
 import { AddSaleItemRequest, PaymentMethod, Sale, SaleItem } from '../../shared/models/sale.model';
@@ -23,142 +24,282 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
   imports: [
     CommonModule,
     FormsModule,
+    RouterLink,
     EmptyStateComponent,
     PageHeaderComponent,
     PaymentDialogComponent,
     SaleProductPickerComponent,
+    StatusBadgeComponent,
     AccessibleDialogDirective,
   ],
   template: `
-    <app-page-header
-      kicker="Venda rápida"
-      title="Balcão"
-      description="Adicione produtos, receba e siga para a próxima venda."
-    >
-      <div page-actions class="page-header-actions">
-        <button type="button" class="secondary-button" (click)="newSale()" [disabled]="saving()">
-          <i class="pi pi-plus"></i>
-          Nova venda
-        </button>
-      </div>
-    </app-page-header>
-
-    @if (openSales().length > 1 || (openSales().length === 1 && currentSale()?.id !== openSales()[0].id)) {
-      <nav class="active-counter-sales" aria-label="Vendas em andamento">
-        <span>Em andamento</span>
-        @for (sale of openSales(); track sale.id) {
-          <button
-            type="button"
-            [class.active]="currentSale()?.id === sale.id"
-            (click)="resume(sale)"
-          >
-            Venda #{{ sale.id }}
-            <small>{{ currency(sale.finalAmount) }}</small>
+    @if (!currentSale()) {
+      <app-page-header
+        kicker="Operação"
+        title="Balcão"
+        description="Acompanhe as vendas em andamento e retome cada atendimento."
+      >
+        <div page-actions class="page-header-actions">
+          <button type="button" class="primary-button" (click)="newSale()" [disabled]="saving()">
+            <i class="pi pi-plus"></i>
+            {{ saving() ? 'Abrindo...' : 'Nova venda no balcão' }}
           </button>
-        }
-      </nav>
-    }
-
-    @if (loading()) {
-      <div class="loading-grid">
-        <div class="loading-row"></div>
-        <div class="loading-row"></div>
-        <div class="loading-row"></div>
-      </div>
-    } @else if (error()) {
-      <div class="error-panel" role="alert">
-        <i class="pi pi-exclamation-triangle"></i>
-        <div>
-          <strong>Não foi possível carregar o balcão</strong>
-          <p>{{ error() }}</p>
         </div>
-        <button type="button" class="ghost-button" (click)="load()">Tentar novamente</button>
-      </div>
-    } @else {
-      <div class="counter-workspace">
-        <section class="counter-catalog-panel" aria-label="Catálogo">
-          <header class="workspace-panel-header">
-            <div>
-              <span>Catálogo</span>
-              <strong>Produtos para venda</strong>
-            </div>
-          </header>
+      </app-page-header>
 
-          <app-sale-product-picker
-            [products]="products()"
-            [disabled]="Boolean(currentSale()) && !canChangeItems()"
-            [busyProductId]="busyProductId()"
-            (addItem)="addProduct($event)"
-          />
+      @if (loading()) {
+        <div class="loading-grid counter-loading-grid" aria-label="Carregando vendas">
+          <div class="loading-card"></div>
+          <div class="loading-card"></div>
+          <div class="loading-card"></div>
+        </div>
+      } @else if (error()) {
+        <div class="error-panel" role="alert">
+          <i class="pi pi-exclamation-triangle"></i>
+          <div>
+            <strong>Não foi possível carregar o Balcão</strong>
+            <p>{{ error() }}</p>
+          </div>
+          <button type="button" class="ghost-button" (click)="load()">
+            <i class="pi pi-refresh"></i>
+            Tentar novamente
+          </button>
+        </div>
+      } @else {
+        <section class="counter-overview" aria-label="Resumo das vendas abertas">
+          <article>
+            <span>Ativas</span>
+            <strong>{{ openSales().length }}</strong>
+            <small>permanecem aqui até o fechamento</small>
+          </article>
+          <article>
+            <span>Itens</span>
+            <strong>{{ openItemCount() }}</strong>
+            <small>nas vendas em andamento</small>
+          </article>
+          <article>
+            <span>A receber</span>
+            <strong>{{ currency(openReceivable()) }}</strong>
+            <small>saldo das vendas abertas</small>
+          </article>
+          <article>
+            <span>Ticket aberto</span>
+            <strong>{{ currency(openAverageTicket()) }}</strong>
+            <small>média das vendas em andamento</small>
+          </article>
         </section>
 
-        <aside class="counter-sale-panel" aria-label="Venda atual">
-          @if (currentSale(); as sale) {
-            <header class="workspace-panel-header">
+        <div class="counter-center-toolbar">
+          <div>
+            <strong>Vendas em andamento</strong>
+            <small>Abra uma venda para continuar o atendimento.</small>
+          </div>
+          <button type="button" class="icon-button" aria-label="Atualizar vendas" title="Atualizar" (click)="load()">
+            <i class="pi pi-refresh"></i>
+          </button>
+        </div>
+
+        @if (openSales().length === 0) {
+          <app-empty-state
+            icon="pi pi-shopping-bag"
+            title="Nenhuma venda em andamento"
+            description="Inicie uma nova venda no balcão."
+          />
+        } @else {
+          <section class="counter-sale-grid" aria-label="Lista de vendas em andamento">
+            @for (sale of openSales(); track sale.id) {
+              <article class="counter-sale-card">
+                <header>
+                  <div>
+                    <span>Venda #{{ sale.id }}</span>
+                    <h2>{{ sale.customerName || 'Venda de balcão' }}</h2>
+                    <small>{{ relativeTime(sale.openedAt) }} · {{ sale.openedByUserName }}</small>
+                  </div>
+                  <app-status-badge
+                    [label]="sale.paidAmount > 0 ? 'Parcial' : 'Aberta'"
+                    [tone]="sale.paidAmount > 0 ? 'info' : 'warning'"
+                  />
+                </header>
+
+                <div class="counter-state-row">
+                  <span>
+                    <small>Itens</small>
+                    <strong>{{ saleItemQuantity(sale) }}</strong>
+                  </span>
+                  <span>
+                    <small>Pagamento</small>
+                    <strong>{{ paymentState(sale) }}</strong>
+                  </span>
+                </div>
+
+                <div class="counter-sale-values">
+                  <span>
+                    <small>Total</small>
+                    <strong>{{ currency(sale.finalAmount) }}</strong>
+                  </span>
+                  <span>
+                    <small>Pago</small>
+                    <strong>{{ currency(sale.paidAmount) }}</strong>
+                  </span>
+                  <span>
+                    <small>Restante</small>
+                    <strong>{{ currency(sale.remainingAmount) }}</strong>
+                  </span>
+                </div>
+
+                <footer>
+                  <div>
+                    <small>Próxima ação</small>
+                    <strong>{{ nextAction(sale) }}</strong>
+                  </div>
+                  <a class="primary-button" [routerLink]="['/balcao', sale.id]">
+                    <i class="pi pi-arrow-right"></i>
+                    Continuar atendimento
+                  </a>
+                </footer>
+              </article>
+            }
+          </section>
+        }
+      }
+    } @else if (currentSale(); as sale) {
+      <app-page-header
+        kicker="Atendimento de balcão"
+        [title]="'Venda #' + sale.id"
+        description="Adicione os produtos, confira os itens e receba o pagamento."
+      >
+        <div page-actions class="page-header-actions">
+          <a class="secondary-button" routerLink="/balcao">
+            <i class="pi pi-arrow-left"></i>
+            Atendimentos
+          </a>
+          <button type="button" class="icon-button" aria-label="Atualizar venda" title="Atualizar" (click)="load(sale.id)">
+            <i class="pi pi-refresh"></i>
+          </button>
+        </div>
+      </app-page-header>
+
+      @if (error()) {
+        <div class="error-panel" role="alert">
+          <i class="pi pi-exclamation-triangle"></i>
+          <div>
+            <strong>Não foi possível atualizar o atendimento</strong>
+            <p>{{ error() }}</p>
+          </div>
+          <button type="button" class="ghost-button" (click)="load(sale.id)">
+            <i class="pi pi-refresh"></i>
+            Tentar novamente
+          </button>
+        </div>
+      } @else {
+        <section class="counter-detail-status" aria-label="Situação do atendimento">
+          <div>
+            <small>Atendimento</small>
+            <app-status-badge label="Em andamento" tone="info" />
+          </div>
+          <div>
+            <small>Itens</small>
+            <strong>{{ saleItemQuantity(sale) }}</strong>
+          </div>
+          <div>
+            <small>Financeiro</small>
+            <app-status-badge
+              [label]="paymentState(sale)"
+              [tone]="sale.remainingAmount === 0 ? 'success' : sale.paidAmount > 0 ? 'info' : 'warning'"
+            />
+          </div>
+          <div class="counter-next-action">
+            <small>Próxima ação</small>
+            <strong>{{ nextAction(sale) }}</strong>
+          </div>
+        </section>
+
+        <div class="counter-workspace">
+          <section class="counter-catalog" aria-label="Cardápio do balcão">
+            <app-sale-product-picker
+              [products]="products()"
+              [disabled]="!canChangeItems()"
+              [busyProductId]="busyProductId()"
+              (addItem)="addProduct($event)"
+            />
+          </section>
+
+          <aside class="counter-sale-panel" aria-label="Resumo da venda">
+            <header class="counter-sale-header">
               <div>
                 <span>Venda atual</span>
-                <strong>Venda #{{ sale.id }}</strong>
+                <h2>Venda #{{ sale.id }}</h2>
               </div>
-              @if (sale.payments.length > 0) {
-                <span class="locked-label">
-                  <i class="pi pi-lock"></i>
-                  Itens bloqueados
-                </span>
-              }
+              <span class="counter-sync-state">
+                <i class="pi" [class.pi-spin]="saving()" [class.pi-spinner]="saving()" [class.pi-cloud]="!saving()"></i>
+                {{ saving() ? 'Salvando...' : 'Salvo no sistema' }}
+              </span>
             </header>
 
-            <div class="sale-item-list">
+            @if (!canChangeItems()) {
+              <p class="order-state-note">
+                <i class="pi pi-lock"></i>
+                A venda possui pagamento e os itens estão bloqueados.
+              </p>
+            }
+
+            <div class="counter-cart-list">
               @for (item of activeItems(); track item.id) {
-                <article class="sale-line">
-                  <div class="sale-line-copy">
+                <article class="counter-cart-item">
+                  <div>
                     <strong>{{ item.productName }}</strong>
                     @if (optionSummary(item)) {
-                      <small>{{ optionSummary(item) }}</small>
+                      <span>{{ optionSummary(item) }}</span>
                     }
                     @if (item.notes) {
-                      <small>{{ item.notes }}</small>
+                      <small>Observação: {{ item.notes }}</small>
                     }
                   </div>
 
-                  <div class="quantity-control">
-                    <button
-                      type="button"
-                      aria-label="Diminuir quantidade"
-                      (click)="changeQuantity(item, item.quantity - 1)"
-                      [disabled]="!canChangeItems() || item.quantity <= 1 || actionItemId() === item.id"
-                    >
-                      <i class="pi pi-minus"></i>
-                    </button>
-                    <b>{{ item.quantity }}</b>
-                    <button
-                      type="button"
-                      aria-label="Aumentar quantidade"
-                      (click)="changeQuantity(item, item.quantity + 1)"
-                      [disabled]="!canChangeItems() || actionItemId() === item.id"
-                    >
-                      <i class="pi pi-plus"></i>
-                    </button>
+                  <div class="counter-cart-side">
+                    <b>{{ currency(item.subtotal) }}</b>
+                    @if (canChangeItems()) {
+                      <div class="counter-quantity-stepper">
+                        <button
+                          type="button"
+                          class="icon-button"
+                          aria-label="Diminuir quantidade"
+                          title="Diminuir"
+                          (click)="changeQuantity(item, item.quantity - 1)"
+                          [disabled]="item.quantity <= 1 || actionItemId() === item.id"
+                        >
+                          <i class="pi pi-minus"></i>
+                        </button>
+                        <span>{{ item.quantity }}</span>
+                        <button
+                          type="button"
+                          class="icon-button"
+                          aria-label="Aumentar quantidade"
+                          title="Aumentar"
+                          (click)="changeQuantity(item, item.quantity + 1)"
+                          [disabled]="actionItemId() === item.id"
+                        >
+                          <i class="pi pi-plus"></i>
+                        </button>
+                        <button
+                          type="button"
+                          class="icon-button danger"
+                          aria-label="Cancelar item"
+                          title="Cancelar item"
+                          (click)="openItemCancellation(item)"
+                          [disabled]="saving()"
+                        >
+                          <i class="pi pi-trash"></i>
+                        </button>
+                      </div>
+                    }
                   </div>
-
-                  <strong class="line-total">{{ currency(item.subtotal) }}</strong>
-
-                  @if (canChangeItems()) {
-                    <button
-                      type="button"
-                      class="icon-button danger-icon"
-                      title="Cancelar item"
-                      [attr.aria-label]="'Cancelar ' + item.productName"
-                      (click)="openItemCancellation(item)"
-                    >
-                      <i class="pi pi-trash"></i>
-                    </button>
-                  }
                 </article>
               } @empty {
                 <app-empty-state
-                  icon="pi pi-shopping-bag"
+                  icon="pi pi-shopping-cart"
                   title="Venda vazia"
-                  description="Clique em um produto para começar."
+                  description="Adicione o primeiro produto do atendimento."
                 />
               }
             </div>
@@ -166,56 +307,63 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
             <div class="counter-total">
               <span>Total</span>
               <strong>{{ currency(sale.finalAmount) }}</strong>
-              @if (sale.paidAmount > 0) {
-                <small>Pago {{ currency(sale.paidAmount) }} · Restante {{ currency(sale.remainingAmount) }}</small>
-              }
             </div>
 
-            @if (sale.status === 'OPEN' && activeItems().length > 0 && sale.remainingAmount > 0) {
-              <div class="quick-pay">
-                <button type="button" (click)="quickPay('PIX')" [disabled]="saving()">
+            @if (sale.paidAmount > 0) {
+              <div class="counter-sale-values">
+                <span>
+                  <small>Pago</small>
+                  <strong>{{ currency(sale.paidAmount) }}</strong>
+                </span>
+                <span>
+                  <small>Restante</small>
+                  <strong>{{ currency(sale.remainingAmount) }}</strong>
+                </span>
+              </div>
+            }
+
+            @if (activeItems().length > 0 && sale.remainingAmount > 0) {
+              <div class="action-cluster">
+                <button type="button" class="secondary-button compact-button" (click)="quickPay('PIX')" [disabled]="saving()">
                   <i class="pi pi-qrcode"></i>
                   PIX
                 </button>
-                <button type="button" (click)="quickPay('CASH')" [disabled]="saving()">
+                <button type="button" class="secondary-button compact-button" (click)="quickPay('CASH')" [disabled]="saving()">
                   <i class="pi pi-money-bill"></i>
                   Dinheiro
                 </button>
-                <button type="button" (click)="quickPay('DEBIT_CARD')" [disabled]="saving()">
+                <button type="button" class="secondary-button compact-button" (click)="quickPay('DEBIT_CARD')" [disabled]="saving()">
                   <i class="pi pi-credit-card"></i>
                   Débito
                 </button>
-                <button type="button" (click)="quickPay('CREDIT_CARD')" [disabled]="saving()">
+                <button type="button" class="secondary-button compact-button" (click)="quickPay('CREDIT_CARD')" [disabled]="saving()">
                   <i class="pi pi-credit-card"></i>
                   Crédito
                 </button>
               </div>
 
-              <button type="button" class="ghost-button full-action" (click)="paymentOpen.set(true)" [disabled]="saving()">
+              <button type="button" class="primary-button counter-primary-action" (click)="paymentOpen.set(true)" [disabled]="saving()">
                 <i class="pi pi-wallet"></i>
                 Pagamento parcial ou outro
               </button>
             }
 
-            @if (sale.status === 'OPEN' && canClose()) {
-              <button type="button" class="success-button full-action" (click)="finishZeroSale()" [disabled]="saving()">
+            @if (canClose()) {
+              <button type="button" class="primary-button counter-primary-action" (click)="finishZeroSale()" [disabled]="saving()">
                 <i class="pi pi-check"></i>
                 Finalizar venda
               </button>
             }
 
-            @if (sale.status === 'OPEN' && sale.payments.length === 0) {
-              <button type="button" class="text-danger-button" (click)="openSaleCancellation()">Cancelar venda</button>
+            @if (sale.payments.length === 0) {
+              <button type="button" class="danger-button counter-secondary-action" (click)="openSaleCancellation()" [disabled]="saving()">
+                <i class="pi pi-times"></i>
+                Cancelar venda
+              </button>
             }
-          } @else {
-            <app-empty-state
-              icon="pi pi-shopping-bag"
-              title="Pronto para vender"
-              description="Clique em um produto. A venda será aberta automaticamente."
-            />
-          }
-        </aside>
-      </div>
+          </aside>
+        </div>
+      }
     }
 
     @if (paymentOpen() && currentSale(); as sale) {
@@ -300,243 +448,6 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
       </div>
     }
   `,
-  styles: `
-    .active-counter-sales {
-      display: flex;
-      align-items: center;
-      gap: .45rem;
-      overflow-x: auto;
-    }
-
-    .active-counter-sales > span {
-      color: var(--color-text-muted);
-      font-size: .8rem;
-      font-weight: 900;
-      text-transform: uppercase;
-    }
-
-    .active-counter-sales button {
-      display: flex;
-      flex: 0 0 auto;
-      gap: .5rem;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-pill);
-      background: var(--surface-control-bg);
-      color: var(--color-text);
-      cursor: pointer;
-      padding: .45rem .7rem;
-    }
-
-    .active-counter-sales button.active {
-      border-color: var(--border-interactive);
-      background: var(--surface-selected-bg);
-    }
-
-    .active-counter-sales small {
-      color: var(--color-text-muted);
-    }
-
-    .counter-workspace {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(22rem, 26rem);
-      gap: 1rem;
-      align-items: start;
-    }
-
-    .counter-catalog-panel,
-    .counter-sale-panel {
-      display: grid;
-      gap: .9rem;
-      min-width: 0;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      background: var(--gradient-card), var(--surface-card-bg);
-      box-shadow: var(--shadow-card);
-      padding: 1rem;
-    }
-
-    .counter-sale-panel {
-      position: sticky;
-      top: 1rem;
-      max-height: calc(100vh - 9rem);
-    }
-
-    .workspace-panel-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: .75rem;
-      border-bottom: 1px solid var(--color-border-soft);
-      padding-bottom: .75rem;
-    }
-
-    .workspace-panel-header div {
-      display: grid;
-      gap: .15rem;
-    }
-
-    .workspace-panel-header span,
-    .locked-label {
-      color: var(--color-text-muted);
-      font-size: .75rem;
-      font-weight: 900;
-      text-transform: uppercase;
-    }
-
-    .workspace-panel-header strong {
-      color: var(--color-text-strong);
-    }
-
-    .locked-label {
-      display: inline-flex;
-      align-items: center;
-      gap: .35rem;
-      color: var(--color-warning-text);
-    }
-
-    .sale-item-list {
-      display: grid;
-      gap: .45rem;
-      min-height: 10rem;
-      overflow: auto;
-    }
-
-    .sale-line {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto auto auto;
-      align-items: center;
-      gap: .55rem;
-      border: 1px solid var(--color-border-soft);
-      border-radius: var(--radius-sm);
-      background: var(--surface-row-bg);
-      padding: .65rem;
-    }
-
-    .sale-line-copy {
-      display: grid;
-      gap: .12rem;
-      min-width: 0;
-    }
-
-    .sale-line-copy small {
-      overflow: hidden;
-      color: var(--color-text-muted);
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .quantity-control {
-      display: grid;
-      grid-template-columns: 1.8rem 1.8rem 1.8rem;
-      align-items: center;
-      border: 1px solid var(--color-border-soft);
-      border-radius: var(--radius-xs);
-      overflow: hidden;
-      text-align: center;
-    }
-
-    .quantity-control button {
-      height: 1.8rem;
-      border: 0;
-      background: var(--surface-control-bg);
-      color: var(--color-text);
-      cursor: pointer;
-    }
-
-    .quantity-control b {
-      color: var(--color-text-strong);
-      font-size: .85rem;
-    }
-
-    .line-total {
-      color: var(--color-text-strong);
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-
-    .counter-total {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      align-items: end;
-      border: 1px solid var(--border-interactive);
-      border-radius: var(--radius-md);
-      background: var(--surface-selected-bg);
-      padding: .85rem;
-    }
-
-    .counter-total span,
-    .counter-total small {
-      color: var(--color-text-muted);
-    }
-
-    .counter-total strong {
-      color: var(--color-value-accent);
-      font-size: 1.6rem;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .counter-total small {
-      grid-column: 1 / -1;
-      margin-top: .2rem;
-    }
-
-    .quick-pay {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: .5rem;
-    }
-
-    .quick-pay button {
-      display: flex;
-      min-height: 2.8rem;
-      align-items: center;
-      justify-content: center;
-      gap: .45rem;
-      border: 1px solid var(--border-interactive);
-      border-radius: var(--radius-control);
-      background: var(--button-primary-bg);
-      color: var(--button-primary-color);
-      cursor: pointer;
-      font: inherit;
-      font-weight: 800;
-    }
-
-    .full-action {
-      width: 100%;
-      justify-content: center;
-    }
-
-    .text-danger-button {
-      border: 0;
-      background: transparent;
-      color: var(--color-danger-text);
-      cursor: pointer;
-      font: inherit;
-      font-weight: 800;
-    }
-
-    @media (max-width: 1100px) {
-      .counter-workspace {
-        grid-template-columns: 1fr;
-      }
-
-      .counter-sale-panel {
-        position: static;
-        max-height: none;
-      }
-    }
-
-    @media (max-width: 620px) {
-      .sale-line {
-        grid-template-columns: 1fr auto;
-      }
-
-      .sale-line .quantity-control {
-        grid-column: 1;
-        justify-self: start;
-      }
-    }
-  `,
 })
 export class CounterPageComponent implements OnInit {
   private readonly api = inject(SalesApiService);
@@ -560,7 +471,11 @@ export class CounterPageComponent implements OnInit {
   readonly activeItems = computed(() => activeSaleItems(this.currentSale()));
   readonly canChangeItems = computed(() => saleCanChangeItems(this.currentSale()));
   readonly canClose = computed(() => saleCanClose(this.currentSale()));
-  readonly Boolean = Boolean;
+  readonly openItemCount = computed(() => this.openSales().reduce((total, sale) => total + this.saleItemQuantity(sale), 0));
+  readonly openReceivable = computed(() => this.openSales().reduce((total, sale) => total + sale.remainingAmount, 0));
+  readonly openAverageTicket = computed(() => this.openSales().length
+    ? this.openSales().reduce((total, sale) => total + sale.finalAmount, 0) / this.openSales().length
+    : 0);
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => this.load(Number(params.get('saleId')) || undefined));
@@ -732,6 +647,28 @@ export class CounterPageComponent implements OnInit {
 
   optionSummary(item: SaleItem): string {
     return item.options.map((option) => option.optionName).join(', ');
+  }
+
+  saleItemQuantity(sale: Sale): number {
+    return activeSaleItems(sale).reduce((total, item) => total + item.quantity, 0);
+  }
+
+  paymentState(sale: Sale): string {
+    if (sale.remainingAmount === 0) return 'Pago';
+    return sale.paidAmount > 0 ? 'Parcial' : 'Pendente';
+  }
+
+  nextAction(sale: Sale): string {
+    if (this.saleItemQuantity(sale) === 0) return 'Adicionar produtos';
+    if (sale.remainingAmount > 0) return sale.paidAmount > 0 ? 'Completar pagamento' : 'Receber';
+    return 'Finalizar venda';
+  }
+
+  relativeTime(value: string): string {
+    const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60_000));
+    if (!Number.isFinite(minutes)) return 'Horário indisponível';
+    if (minutes < 60) return `há ${minutes} min`;
+    return `há ${Math.floor(minutes / 60)}h ${minutes % 60}min`;
   }
 
   currency(value: number): string {
