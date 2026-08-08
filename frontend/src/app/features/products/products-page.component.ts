@@ -176,6 +176,62 @@ interface OptionEditor {
     .option-row { min-height: 2.8rem; padding: .35rem .5rem .35rem .75rem; background: var(--surface-subtle); border-radius: 5px; }
     .option-row > span { flex: 1; }
     .nested-dialog { z-index: calc(var(--z-modal, 1000) + 2); }
+    .simple-product-table {
+      gap: .35rem;
+      max-width: 88rem;
+    }
+
+    .simple-product-head {
+      border-bottom: 1px solid var(--color-border-soft);
+      padding: .45rem 1rem .7rem;
+    }
+
+    .simple-product-row {
+      border-color: var(--color-border-soft);
+      border-radius: var(--radius-sm);
+      background: var(--surface-row-bg);
+      box-shadow: var(--shadow-row);
+      transition: border-color var(--duration-fast) ease, background var(--duration-fast) ease;
+    }
+
+    .simple-product-row:hover {
+      border-color: var(--border-interactive);
+      background: var(--surface-row-hover-bg);
+    }
+
+    .simple-product-name strong {
+      color: var(--color-text-strong);
+    }
+
+    .simple-product-row > strong {
+      color: var(--color-value-accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .availability-toggle {
+      width: fit-content;
+      border: 1px solid var(--color-border-soft);
+      border-radius: var(--radius-pill);
+      background: var(--surface-control-bg);
+      padding: .35rem .6rem;
+      font-size: .78rem;
+      font-weight: 850;
+    }
+
+    .option-manager-intro {
+      border: 1px solid var(--color-border-soft);
+      border-radius: var(--radius-sm);
+      background: var(--surface-subtle-bg);
+      padding: .8rem;
+    }
+
+    .option-group-row {
+      border: 1px solid var(--color-border-soft);
+      border-radius: var(--radius-sm);
+      background: var(--surface-row-bg);
+      padding: .85rem;
+    }
+
     @media (max-width: 980px) { .simple-product-head { display: none; } .simple-product-row { grid-template-columns: 1fr auto; } .simple-product-row > :not(.simple-product-name):not(.row-actions) { display: none; } }
   `,
 })

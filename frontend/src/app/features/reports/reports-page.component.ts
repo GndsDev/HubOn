@@ -47,7 +47,81 @@ import { apiErrorMessage } from '../../shared/util/api-error';
     .report-controls { display: flex; align-items: end; gap: .6rem; margin-bottom: 1rem; padding: .75rem; border: 1px solid var(--border-subtle); border-radius: 6px; background: var(--surface-panel); } .compact-field { min-width: 9rem; } .report-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: .7rem; margin-bottom: 1rem; } .report-metrics article { display: grid; gap: .2rem; padding: 1rem; border: 1px solid var(--border-subtle); border-radius: 6px; background: var(--surface-panel); } .report-metrics span, .report-metrics small { color: var(--text-muted); } .report-metrics strong { font-size: 1.25rem; } .report-grid { display: grid; grid-template-columns: 2fr 1fr; gap: .8rem; } .report-grid app-section-card:first-child { grid-column: 1 / -1; }
     .report-sales-table { display: grid; gap: .25rem; } .report-sales-head, .report-sales-row { display: grid; grid-template-columns: minmax(9rem, 1.2fr) 9rem minmax(8rem, 1fr) 4rem 7rem 7rem minmax(8rem, 1fr); gap: .6rem; align-items: center; } .report-sales-head { padding: .5rem; color: var(--text-muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; } .report-sales-row { padding: .6rem .5rem; border-top: 1px solid var(--border-subtle); } .report-sales-row > div { display: grid; } .report-sales-row small, .report-sales-row time, .report-sales-row span { color: var(--text-secondary); }
     .report-simple-list { display: grid; gap: .3rem; } .report-simple-list article { display: grid; grid-template-columns: 1fr auto auto; gap: .7rem; align-items: center; padding: .55rem 0; border-bottom: 1px solid var(--border-subtle); } .report-simple-list article > div { display: grid; } .report-simple-list small, .report-simple-list span { color: var(--text-muted); } .report-cancellations { display: flex; align-items: center; gap: .7rem; margin-top: .8rem; padding: .8rem 1rem; border: 1px solid var(--danger-border); border-radius: 6px; color: var(--danger-text); } .report-cancellations strong { margin-left: auto; } .report-cancellations small { color: var(--text-muted); }
-    @media (max-width: 900px) { .report-controls { flex-wrap: wrap; } .report-metrics, .report-grid { grid-template-columns: 1fr 1fr; } .report-grid app-section-card { grid-column: 1 / -1; } .report-sales-head { display: none; } .report-sales-row { grid-template-columns: 1fr auto; } .report-sales-row > :not(:first-child):not(strong) { display: none; } } @media (max-width: 560px) { .report-metrics { grid-template-columns: 1fr; } }
+    .report-controls {
+      width: fit-content;
+      max-width: 100%;
+      border-color: var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--gradient-card), var(--surface-card-bg);
+      box-shadow: var(--shadow-row);
+      padding: .75rem;
+    }
+
+    .report-metrics {
+      gap: .85rem;
+    }
+
+    .report-metrics article {
+      min-height: 7.6rem;
+      border-color: var(--color-border-soft);
+      border-radius: var(--radius-md);
+      background: var(--gradient-card), var(--surface-card-bg);
+      box-shadow: var(--shadow-row);
+    }
+
+    .report-metrics strong {
+      color: var(--color-text-strong);
+      font-size: 1.35rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .report-grid {
+      gap: 1rem;
+    }
+
+    .report-sales-table {
+      gap: .35rem;
+      overflow-x: auto;
+    }
+
+    .report-sales-head {
+      border-bottom: 1px solid var(--color-border-soft);
+      padding: .45rem .65rem .7rem;
+    }
+
+    .report-sales-row {
+      border: 1px solid var(--color-border-soft);
+      border-radius: var(--radius-sm);
+      background: var(--surface-row-bg);
+      box-shadow: var(--shadow-row);
+      padding: .7rem .65rem;
+    }
+
+    .report-sales-row:hover {
+      border-color: var(--border-interactive);
+      background: var(--surface-row-hover-bg);
+    }
+
+    .report-sales-row > strong {
+      color: var(--color-text-strong);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .report-simple-list article {
+      border: 1px solid var(--color-border-soft);
+      border-radius: var(--radius-sm);
+      background: var(--surface-row-bg);
+      padding: .65rem .75rem;
+    }
+
+    .report-cancellations {
+      border-color: var(--border-danger);
+      border-radius: var(--radius-md);
+      background: var(--status-danger-bg);
+      padding: .85rem 1rem;
+    }
+
+    @media (max-width: 900px) { .report-controls { flex-wrap: wrap; width: 100%; } .report-metrics, .report-grid { grid-template-columns: 1fr 1fr; } .report-grid app-section-card { grid-column: 1 / -1; } .report-sales-head { display: none; } .report-sales-row { grid-template-columns: 1fr auto; } .report-sales-row > :not(:first-child):not(strong) { display: none; } } @media (max-width: 560px) { .report-metrics { grid-template-columns: 1fr; } }
   `,
 })
 export class ReportsPageComponent implements OnInit {
