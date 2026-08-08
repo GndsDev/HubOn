@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize, forkJoin, of, switchMap } from 'rxjs';
+import { finalize, forkJoin, of, switchMap, tap } from 'rxjs';
 import { CounterActivityService } from '../../core/services/counter-activity.service';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { ProductApiService } from '../../core/services/product-api.service';
@@ -100,9 +100,28 @@ export class CounterPageComponent implements OnInit {
   newSale(): void { if (this.saving()) return; this.saving.set(true); this.api.open(this.openRequest()).pipe(finalize(() => this.saving.set(false))).subscribe({ next: (sale) => { this.currentSale.set(sale); this.openSales.update((items) => [...items, sale]); this.router.navigate(['/balcao', sale.id]); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); }
   resume(sale: Sale): void { this.router.navigate(['/balcao', sale.id]); }
   addProduct(request: AddSaleItemRequest): void {
-    if (this.saving()) return;
+    if (this.saving() || this.busyProductId()) return;
     const sale = this.currentSale();
-    if (!sale) { this.busyProductId.set(request.productId); this.api.open(this.openRequest()).pipe(switchMap((opened) => this.api.addItem(opened.id, request)), finalize(() => this.busyProductId.set(null))).subscribe({ next: (updated) => { this.currentSale.set(updated); this.openSales.update((items) => [...items.filter((item) => item.id !== updated.id), updated]); this.router.navigate(['/balcao', updated.id]); this.feedback.success('Produto adicionado.'); }, error: (error) => this.feedback.error(apiErrorMessage(error)) }); return; }
+    if (!sale) {
+      this.busyProductId.set(request.productId);
+      this.api.open(this.openRequest()).pipe(
+        tap((opened) => {
+          this.currentSale.set(opened);
+          this.openSales.update((items) => [...items.filter((item) => item.id !== opened.id), opened]);
+          this.router.navigate(['/balcao', opened.id]);
+        }),
+        switchMap((opened) => this.api.addItem(opened.id, request)),
+        finalize(() => this.busyProductId.set(null)),
+      ).subscribe({
+        next: (updated) => {
+          this.currentSale.set(updated);
+          this.openSales.update((items) => [...items.filter((item) => item.id !== updated.id), updated]);
+          this.feedback.success('Produto adicionado.');
+        },
+        error: (error) => this.feedback.error(apiErrorMessage(error)),
+      });
+      return;
+    }
     if (!this.canChangeItems()) return;
     const matching = this.activeItems().find((item) => itemMatchesRequest(item, request));
     if (matching) { this.changeQuantity(matching, matching.quantity + request.quantity); return; }

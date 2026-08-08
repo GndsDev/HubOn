@@ -27,6 +27,10 @@ describe('ProductsPageComponent', () => {
     getAll: vi.fn(() => of([uncategorizedProduct])),
     create: vi.fn(() => of(uncategorizedProduct)),
     update: vi.fn(() => of(uncategorizedProduct)),
+    createOptionGroup: vi.fn(),
+    updateOptionGroup: vi.fn(),
+    createOption: vi.fn(),
+    updateOption: vi.fn(),
   };
   const feedback = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 
@@ -54,9 +58,49 @@ describe('ProductsPageComponent', () => {
   it('updates the product filter immediately while typing', () => {
     const component = TestBed.createComponent(ProductsPageComponent).componentInstance;
     component.products.set([uncategorizedProduct, { ...uncategorizedProduct, id: 2, name: 'Jantinha', categoryName: 'Refeições' }]);
-    component.searchTerm = 'janta';
+    component.searchTerm = 'janti';
     expect(component.filteredProducts().map((product) => product.name)).toEqual(['Jantinha']);
     component.searchTerm = 'coca';
     expect(component.filteredProducts().map((product) => product.name)).toEqual(['Coca-Cola 350ml']);
+  });
+
+  it('creates option groups with the current selection limits', () => {
+    const group = {
+      id: 4,
+      productId: 1,
+      name: 'Tamanho',
+      minimumSelections: 1,
+      maximumSelections: 1,
+      displayOrder: 0,
+      active: true,
+      options: [],
+      createdAt: '',
+      updatedAt: '',
+    };
+    api.createOptionGroup.mockReturnValueOnce(of(group));
+    const component = TestBed.createComponent(ProductsPageComponent).componentInstance;
+    component.products.set([uncategorizedProduct]);
+    component.openOptions(uncategorizedProduct);
+
+    component.saveGroup({ id: null, name: '  Tamanho  ', minimumSelections: 1, maximumSelections: 1, displayOrder: 0, active: true });
+
+    expect(api.createOptionGroup).toHaveBeenCalledWith(1, {
+      name: 'Tamanho',
+      minimumSelections: 1,
+      maximumSelections: 1,
+      displayOrder: 0,
+      active: true,
+      options: [],
+    });
+    expect(component.optionsProduct()?.optionGroups).toEqual([group]);
+  });
+
+  it('does not send option limits rejected by the backend contract', () => {
+    const component = TestBed.createComponent(ProductsPageComponent).componentInstance;
+    component.openOptions(uncategorizedProduct);
+
+    component.saveGroup({ id: null, name: 'Opcional', minimumSelections: 0, maximumSelections: 0, displayOrder: 0, active: true });
+
+    expect(api.createOptionGroup).not.toHaveBeenCalled();
   });
 });

@@ -140,7 +140,7 @@ interface OptionEditor {
         <form class="modal-panel compact" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="group-editor-title" [dialogCloseDisabled]="saving()" (dialogClose)="groupEditor.set(null)" (ngSubmit)="saveGroup(editor)">
           <div class="modal-header"><div class="modal-heading"><span class="modal-eyebrow">Opções</span><h2 id="group-editor-title">{{ editor.id ? 'Editar grupo' : 'Novo grupo' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar grupo" (click)="groupEditor.set(null)"><i class="pi pi-times"></i></button></div>
           <div class="modal-body"><label class="field"><span>Nome do grupo</span><input name="groupName" maxlength="120" [(ngModel)]="editor.name" required autofocus /></label><div class="form-grid"><label class="field"><span>Mínimo</span><input name="groupMin" type="number" min="0" [(ngModel)]="editor.minimumSelections" required /></label><label class="field"><span>Máximo</span><input name="groupMax" type="number" min="1" [(ngModel)]="editor.maximumSelections" required /></label></div><label class="toggle-field"><input name="groupActive" type="checkbox" [(ngModel)]="editor.active" /><span>Grupo ativo</span></label></div>
-          <div class="modal-footer modal-actions"><button type="button" class="ghost-button" (click)="groupEditor.set(null)">Cancelar</button><button type="submit" class="primary-button" [disabled]="saving() || !editor.name.trim() || editor.maximumSelections < editor.minimumSelections"><i class="pi pi-save"></i>Salvar grupo</button></div>
+          <div class="modal-footer modal-actions"><button type="button" class="ghost-button" (click)="groupEditor.set(null)">Cancelar</button><button type="submit" class="primary-button" [disabled]="saving() || !editor.name.trim() || editor.minimumSelections < 0 || editor.maximumSelections < 1 || editor.maximumSelections < editor.minimumSelections"><i class="pi pi-save"></i>Salvar grupo</button></div>
         </form>
       </div>
     }
@@ -269,7 +269,7 @@ export class ProductsPageComponent implements OnInit {
 
   saveGroup(editor: GroupEditor): void {
     const product = this.optionsProduct();
-    if (!product || !editor.name.trim() || editor.maximumSelections < editor.minimumSelections || this.saving()) return;
+    if (!product || !editor.name.trim() || editor.minimumSelections < 0 || editor.maximumSelections < 1 || editor.maximumSelections < editor.minimumSelections || this.saving()) return;
     const request: ProductOptionGroupRequest = { name: editor.name.trim(), minimumSelections: Number(editor.minimumSelections), maximumSelections: Number(editor.maximumSelections), displayOrder: Number(editor.displayOrder), active: editor.active, options: [] };
     this.saving.set(true);
     const operation = editor.id ? this.api.updateOptionGroup(product.id, editor.id, request) : this.api.createOptionGroup(product.id, request);

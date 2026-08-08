@@ -1,435 +1,297 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
+import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
+import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CounterActivityService } from '../../core/services/counter-activity.service';
 import { FeedbackService } from '../../core/services/feedback.service';
-import { OrderApiService } from '../../core/services/order-api.service';
-import { PaymentApiService } from '../../core/services/payment-api.service';
 import { ProductApiService } from '../../core/services/product-api.service';
-import { TabApiService } from '../../core/services/tab-api.service';
-import { RestaurantOrder } from '../../shared/models/order.model';
+import { SalesApiService } from '../../core/services/sales-api.service';
 import { Product } from '../../shared/models/product.model';
-import { CounterSaleDetail, CounterSaleSummary, Tab } from '../../shared/models/tab.model';
+import { Sale, SaleItem } from '../../shared/models/sale.model';
 import { CounterPageComponent } from './counter-page.component';
 
-describe('CounterPageComponent', () => {
-  const product: Product = {
-    id: 10,
-    categoryId: 1,
-    categoryName: 'Bebidas',
-    categoryActive: true,
-    name: 'Suco',
-    description: null,
-    preparationFlow: 'DIRECT_SERVICE',
-    active: true,
-    available: true,
-    displayOrder: 1,
-    imageUrl: null,
-    variantCount: 1,
-    activeVariantCount: 1,
-    sellableVariantCount: 1,
-    minimumVariantPrice: 8,
-    maximumVariantPrice: 8,
-    hasAutomaticStockLink: false,
-    complete: true,
-    variants: [{
-      id: 20, productId: 10, productName: 'Suco', name: 'Copo', sku: null, price: 8,
-      active: true, available: true, displayOrder: 1, stockLinkActive: false, stockLinkId: null,
-      stockItemId: null, stockItemName: null, quantityPerSale: null, createdAt: '', updatedAt: '',
-    }],
-    optionGroups: [{
-      id: 30, productId: 10, name: 'Açúcar', required: true, minimumSelections: 1,
-      maximumSelections: 1, displayOrder: 1, active: true,
-      options: [{
-        id: 40, groupId: 30, name: 'Sem açúcar', additionalPrice: 0,
-        displayOrder: 1, active: true, createdAt: '', updatedAt: '',
-      }],
-      createdAt: '', updatedAt: '',
-    }],
-    createdAt: '', updatedAt: '',
-  };
+const product: Product = {
+  id: 10,
+  categoryId: 2,
+  categoryName: 'Bebidas',
+  name: 'Suco',
+  description: null,
+  price: 8,
+  active: true,
+  available: true,
+  displayOrder: 0,
+  optionGroups: [],
+  createdAt: '',
+  updatedAt: '',
+};
 
-  const summary: CounterSaleSummary = {
+const item: SaleItem = {
+  id: 70,
+  productId: 10,
+  productName: 'Suco',
+  categoryName: 'Bebidas',
+  baseUnitPrice: 8,
+  unitPrice: 8,
+  quantity: 1,
+  subtotal: 8,
+  notes: null,
+  options: [],
+  createdByUserId: 1,
+  createdByUserName: 'Gerente',
+  createdAt: '2026-08-07T12:00:00',
+  cancelledAt: null,
+  cancelledByUserId: null,
+  cancelledByUserName: null,
+  cancellationReason: null,
+};
+
+function sale(overrides: Partial<Sale> = {}): Sale {
+  return {
     id: 50,
-    number: 50,
-    displayLabel: 'Balcão #50 - Ana',
-    customerName: 'Ana',
-    openedAt: '2026-07-30T10:00:00',
-    closedAt: null,
-    openedByUserName: 'Operadora',
-    tabStatus: 'OPEN',
-    totalAmount: 0,
-    paidAmount: 0,
-    remainingAmount: 0,
-    itemCount: 2,
-    draftItemCount: 2,
-    waitingItemCount: 0,
-    inPreparationItemCount: 0,
-    readyItemCount: 0,
-    deliveredItemCount: 0,
-    attendanceState: 'ASSEMBLING',
-    preparationState: 'NOT_APPLICABLE',
-    financialState: 'UNPAID',
-    nextAction: 'CONFIRM_ORDER',
-    cancellationAllowed: true,
-  };
-
-  const draftOrder: RestaurantOrder = {
-    id: 60,
-    tabId: 50,
-    tabStatus: 'OPEN',
-    tabType: 'COUNTER',
-    tabDisplayLabel: 'Balcão #50 - Ana',
-    tableId: null,
-    tableNumber: null,
-    status: 'CREATED',
     type: 'COUNTER',
-    createdByUserId: 1,
-    createdByUserName: 'Operadora',
-    notes: null,
-    confirmedAt: null,
+    status: 'OPEN',
+    restaurantTableId: null,
+    tableNumber: null,
+    tableLabel: null,
+    customerName: null,
+    customerPhone: null,
+    subtotal: 8,
+    serviceFee: 0,
+    discountAmount: 0,
+    finalAmount: 8,
+    paidAmount: 0,
+    remainingAmount: 8,
+    items: [item],
+    payments: [],
+    openedByUserId: 1,
+    openedByUserName: 'Gerente',
+    openedAt: '2026-08-07T12:00:00',
+    closedByUserId: null,
+    closedByUserName: null,
+    closedAt: null,
+    closedBusinessDate: null,
+    cancelledByUserId: null,
+    cancelledByUserName: null,
+    cancelledAt: null,
     cancellationReason: null,
-    createdAt: '2026-07-30T10:00:00',
-    updatedAt: '2026-07-30T10:00:00',
-    items: [{
-      id: 70,
-      productId: 10,
-      variantId: 20,
-      productNameSnapshot: 'Suco',
-      variantNameSnapshot: 'Copo',
-      displayNameSnapshot: 'Suco - Copo',
-      categoryNameSnapshot: 'Bebidas',
-      preparationFlow: 'DIRECT_SERVICE',
-      unitPriceSnapshot: 8,
-      quantity: 2,
-      notes: 'Sem gelo',
-      status: 'DRAFT',
-      subtotal: 16,
-      options: [{ id: 80, optionId: 40, groupName: 'Açúcar', optionName: 'Sem açúcar', additionalPrice: 0 }],
-      cancellationReason: null,
-    }],
+    ...overrides,
   };
+}
 
-  const detail: CounterSaleDetail = {
-    summary,
-    customerPhone: '11999999999',
-    identificationNote: 'Retirada no balcão',
-    orders: [draftOrder],
+describe('CounterPageComponent', () => {
+  const api = {
+    list: vi.fn(() => of([] as Sale[])),
+    get: vi.fn(() => of(sale())),
+    open: vi.fn(() => of(sale({ items: [], subtotal: 0, finalAmount: 0, remainingAmount: 0 }))),
+    addItem: vi.fn(() => of(sale())),
+    cancelItem: vi.fn(() => of(sale())),
+    pay: vi.fn(() => of(sale())),
+    close: vi.fn(() => of(sale({ status: 'CLOSED' }))),
+    cancel: vi.fn(() => of(sale({ status: 'CANCELLED' }))),
   };
-
-  const openTab: Tab = {
-    id: 50, type: 'COUNTER', tableId: null, tableNumber: null, tableName: null,
-    customerName: null, customerPhone: null, identificationNote: null, displayLabel: 'Balcão #50',
-    status: 'OPEN', openedByUserId: 1, openedByUserName: 'Operadora', openedAt: '', closedAt: null,
-    totalAmount: 0, serviceFee: 0, discountAmount: 0, finalAmount: 0, paidAmount: 0, remainingAmount: 0,
-  };
-
-  let routeParams: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
   const productApi = { getAll: vi.fn(() => of([product])) };
-  const tabApi = {
-    getActiveCounterSales: vi.fn(() => of([summary])),
-    getCounterSalesFinishedToday: vi.fn(() => of([])),
-    getCounterHistory: vi.fn(() => of([])),
-    getCounterSale: vi.fn(() => of(detail)),
-    openCounter: vi.fn(() => of(openTab)),
-    updateCounterSale: vi.fn(() => of(detail)),
-    finishCounterSale: vi.fn(() => of(detail)),
-    cancel: vi.fn(() => of({ ...openTab, status: 'CANCELLED' as const })),
-  };
-  const orderApi = {
-    create: vi.fn(() => of(draftOrder)),
-    updateDraft: vi.fn(() => of(draftOrder)),
-    confirm: vi.fn(() => of({ ...draftOrder, status: 'READY' as const })),
-    updateStatus: vi.fn(() => of({ ...draftOrder, status: 'DELIVERED' as const })),
-    updateItemStatus: vi.fn(() => of({ ...draftOrder, status: 'DELIVERED' as const })),
-    cancel: vi.fn(() => of({ ...draftOrder, status: 'CANCELLED' as const })),
-  };
-  const paymentApi = { create: vi.fn(() => of({})) };
   const feedback = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
   const activity = { refresh: vi.fn() };
-  const router = { navigate: vi.fn(), navigateByUrl: vi.fn() };
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    api.list.mockReturnValue(of([]));
+    api.get.mockReturnValue(of(sale()));
+    api.open.mockReturnValue(of(sale({ items: [], subtotal: 0, finalAmount: 0, remainingAmount: 0 })));
+    api.addItem.mockReturnValue(of(sale()));
+    api.cancelItem.mockReturnValue(of(sale()));
+    api.pay.mockReturnValue(of(sale()));
+    api.close.mockReturnValue(of(sale({ status: 'CLOSED' })));
+    api.cancel.mockReturnValue(of(sale({ status: 'CANCELLED' })));
     productApi.getAll.mockReturnValue(of([product]));
-    tabApi.getActiveCounterSales.mockReturnValue(of([summary]));
-    tabApi.getCounterSalesFinishedToday.mockReturnValue(of([]));
-    tabApi.getCounterHistory.mockReturnValue(of([]));
-    tabApi.getCounterSale.mockReturnValue(of(detail));
-    tabApi.openCounter.mockReturnValue(of(openTab));
-    tabApi.updateCounterSale.mockReturnValue(of(detail));
-    tabApi.finishCounterSale.mockReturnValue(of(detail));
-    orderApi.create.mockReturnValue(of(draftOrder));
-    orderApi.updateDraft.mockReturnValue(of(draftOrder));
-    orderApi.confirm.mockReturnValue(of({ ...draftOrder, status: 'READY' as const }));
-    orderApi.updateStatus.mockReturnValue(of({ ...draftOrder, status: 'DELIVERED' as const }));
-    orderApi.updateItemStatus.mockReturnValue(of({ ...draftOrder, status: 'DELIVERED' as const }));
-    paymentApi.create.mockReturnValue(of({}));
-    routeParams = new BehaviorSubject(convertToParamMap({}));
+
     await TestBed.configureTestingModule({
       imports: [CounterPageComponent],
       providers: [
-        { provide: ActivatedRoute, useValue: { paramMap: routeParams.asObservable() } },
-        { provide: Router, useValue: router },
+        provideRouter([]),
+        { provide: SalesApiService, useValue: api },
         { provide: ProductApiService, useValue: productApi },
-        { provide: TabApiService, useValue: tabApi },
-        { provide: OrderApiService, useValue: orderApi },
-        { provide: PaymentApiService, useValue: paymentApi },
-        { provide: CounterActivityService, useValue: activity },
         { provide: FeedbackService, useValue: feedback },
+        { provide: CounterActivityService, useValue: activity },
       ],
     }).compileComponents();
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
   });
 
-  function createComponent(counterTabId?: number): CounterPageComponent {
-    return createFixture(counterTabId).componentInstance;
+  function component(): CounterPageComponent {
+    return TestBed.createComponent(CounterPageComponent).componentInstance;
   }
 
-  function createFixture(counterTabId?: number): ComponentFixture<CounterPageComponent> {
-    if (counterTabId) routeParams.next(convertToParamMap({ counterTabId }));
-    const fixture = TestBed.createComponent(CounterPageComponent);
-    fixture.detectChanges();
-    return fixture;
-  }
+  it('loads only open COUNTER sales and the current sale', () => {
+    const existing = sale();
+    api.list.mockReturnValueOnce(of([existing]));
+    const instance = component();
 
-  it('shows active sales in the counter center and creates a persistent tab before navigating', () => {
-    const component = createComponent();
+    instance.load(existing.id);
 
-    expect(component.activeSales()).toEqual([summary]);
-    component.startSale();
+    expect(api.list).toHaveBeenCalledWith('OPEN', 'COUNTER');
+    expect(api.get).toHaveBeenCalledWith(50);
+    expect(instance.products()).toEqual([product]);
+    expect(instance.openSales()).toEqual([existing]);
+    expect(instance.currentSale()).toEqual(existing);
+  });
 
-    expect(tabApi.openCounter).toHaveBeenCalledWith({
+  it('creates a persistent COUNTER sale before navigation', () => {
+    const instance = component();
+    const router = TestBed.inject(Router);
+
+    instance.newSale();
+
+    expect(api.open).toHaveBeenCalledWith({
+      type: 'COUNTER',
+      restaurantTableId: null,
       customerName: null,
       customerPhone: null,
-      identificationNote: null,
       serviceFee: 0,
       discountAmount: 0,
     });
     expect(router.navigate).toHaveBeenCalledWith(['/balcao', 50]);
   });
 
-  it('keeps the counter cards visible while refreshing and ignores repeated clicks', () => {
-    const fixture = createFixture();
-    const component = fixture.componentInstance;
-    const refresh = new Subject<CounterSaleSummary[]>();
+  it('opens a sale and adds a simple product in one operational action', () => {
+    const opened = sale({ items: [], subtotal: 0, finalAmount: 0, remainingAmount: 0 });
+    const updated = sale();
+    api.open.mockReturnValueOnce(of(opened));
+    api.addItem.mockReturnValueOnce(of(updated));
+    const instance = component();
 
-    tabApi.getActiveCounterSales.mockReturnValue(refresh);
+    instance.addProduct({ productId: 10, quantity: 1, notes: null, optionIds: [] });
 
-    component.loadCenter();
-    component.loadCenter();
-    fixture.detectChanges();
-
-    expect(tabApi.getActiveCounterSales).toHaveBeenCalledTimes(2);
-    expect(component.loading()).toBe(false);
-    expect(component.refreshing()).toBe(true);
-    expect(fixture.nativeElement.querySelector('.counter-loading-grid')).toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('Venda #50');
-    expect(fixture.nativeElement.textContent).toContain('Ana');
-
-    refresh.next([summary]);
-    refresh.complete();
-    fixture.detectChanges();
-
-    expect(component.refreshing()).toBe(false);
+    expect(api.open).toHaveBeenCalledOnce();
+    expect(api.addItem).toHaveBeenCalledWith(50, { productId: 10, quantity: 1, notes: null, optionIds: [] });
+    expect(instance.currentSale()).toBe(updated);
+    expect(instance.openSales()).toEqual([updated]);
   });
 
-  it('keeps previous counter data when a refresh fails', () => {
-    const fixture = createFixture();
-    const component = fixture.componentInstance;
+  it('ignores repeated product clicks while the current action is in progress', () => {
+    const instance = component();
+    instance.busyProductId.set(10);
 
-    tabApi.getActiveCounterSales.mockReturnValue(
-      throwError(() => new Error('indisponível')),
-    );
+    instance.addProduct({ productId: 11, quantity: 1, notes: null, optionIds: [] });
 
-    component.loadCenter();
-    fixture.detectChanges();
-
-    expect(component.activeSales()).toEqual([summary]);
-    expect(component.error()).toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('Venda #50');
-    expect(fixture.nativeElement.textContent).toContain('Ana');
-    expect(feedback.error).toHaveBeenCalledWith(
-      expect.stringContaining('foram mantidos'),
-    );
+    expect(api.open).not.toHaveBeenCalled();
+    expect(api.addItem).not.toHaveBeenCalled();
   });
 
-  it('restores a saved draft from the backend when opening the sale URL', () => {
-    const component = createComponent(50);
+  it('increases quantity by replacing the matching item with its snapshots', () => {
+    const cancelled = sale({ items: [{ ...item, cancelledAt: '2026-08-07T12:10:00' }] });
+    const updated = sale({ items: [{ ...item, id: 71, quantity: 2, subtotal: 16 }], subtotal: 16, finalAmount: 16, remainingAmount: 16 });
+    api.cancelItem.mockReturnValueOnce(of(cancelled));
+    api.addItem.mockReturnValueOnce(of(updated));
+    const instance = component();
+    instance.currentSale.set(sale());
 
-    expect(tabApi.getCounterSale).toHaveBeenCalledWith(50);
-    expect(component.saleId()).toBe(50);
-    expect(component.cart()).toHaveLength(1);
-    expect(component.cart()[0]).toMatchObject({ productId: 10, variantId: 20, quantity: 2, notes: 'Sem gelo' });
-    expect(component.customer.name).toBe('Ana');
+    instance.addProduct({ productId: 10, quantity: 1, notes: null, optionIds: [] });
+
+    expect(api.cancelItem).toHaveBeenCalledWith(50, 70, { reason: 'Ajuste de quantidade' });
+    expect(api.addItem).toHaveBeenCalledWith(50, { productId: 10, quantity: 2, notes: null, optionIds: [] });
+    expect(instance.currentSale()).toBe(updated);
   });
 
-  it('keeps long category buttons whole inside an accessible horizontal strip', () => {
-    productApi.getAll.mockReturnValue(of([
-      product,
-      { ...product, id: 11, name: 'Carreteiro', categoryName: 'Carreteiro Completo' },
-      { ...product, id: 12, name: 'Espetinho', categoryName: 'Espetinhos - Diversos' },
-    ]));
-    const fixture = createFixture(50);
-    const component = fixture.componentInstance;
-    const nativeElement = fixture.nativeElement as HTMLElement;
-    const shell = nativeElement.querySelector('.counter-category-filter-shell') as HTMLElement;
-    const buttons = Array.from(
-      nativeElement.querySelectorAll<HTMLButtonElement>('.counter-category-filter button'),
-    );
+  it('cancels an item with a required reason', () => {
+    const instance = component();
+    instance.currentSale.set(sale());
+    instance.cancellationReason = 'Lancamento duplicado';
 
-    expect(shell.getAttribute('aria-label')).toBe('Filtrar produtos por categoria');
-    expect(buttons.map((button) => button.textContent?.trim())).toEqual([
-      'Todos',
-      'Bebidas',
-      'Carreteiro Completo',
-      'Espetinhos - Diversos',
-    ]);
-    expect(buttons[0].getAttribute('aria-pressed')).toBe('true');
+    instance.cancelItem(item);
 
-    buttons[2].click();
-    fixture.detectChanges();
-    expect(component.categoryFilter).toBe('Carreteiro Completo');
-    expect(buttons[2].getAttribute('aria-pressed')).toBe('true');
+    expect(api.cancelItem).toHaveBeenCalledWith(50, 70, { reason: 'Lancamento duplicado' });
+    expect(instance.cancelItemTarget()).toBeNull();
   });
 
-  it('persists quantity changes and confirms the existing draft without recreating the sale', () => {
-    const component = createComponent(50);
-    const key = component.cart()[0].key;
-
-    component.changeQuantity(key, 1);
-    expect(orderApi.updateDraft).toHaveBeenCalledWith(60, expect.objectContaining({
-      tabId: 50,
-      items: [expect.objectContaining({ productId: 10, quantity: 3 })],
-    }));
-    expect(orderApi.create).not.toHaveBeenCalled();
-
-    component.confirmOrder();
-    expect(orderApi.confirm).toHaveBeenCalledWith(60);
-  });
-
-  it('keeps a paid sale in preparation active with one clear primary action', () => {
-    const preparationOrder: RestaurantOrder = {
-      ...draftOrder,
-      status: 'PREPARING',
-      items: [{ ...draftOrder.items[0], status: 'IN_PREPARATION', preparationFlow: 'REQUIRES_PREPARATION' }],
-    };
-    tabApi.getCounterSale.mockReturnValue(of({
-      ...detail,
-      summary: {
-        ...summary,
-        totalAmount: 16,
-        paidAmount: 16,
-        remainingAmount: 0,
-        draftItemCount: 0,
-        inPreparationItemCount: 2,
-        attendanceState: 'IN_PROGRESS',
-        preparationState: 'IN_PREPARATION',
-        financialState: 'PAID',
-        nextAction: 'FOLLOW_PREPARATION',
-        cancellationAllowed: false,
-      },
-      orders: [preparationOrder],
-    }));
-
-    const fixture = createFixture(50);
-    const text = fixture.nativeElement.textContent as string;
-
-    expect(text).toContain('Acompanhar preparo');
-    expect(text).toContain('Marque cada item como pronto');
-    expect(text).toContain('Marcar como pronto');
-    expect(text).not.toContain('Iniciar preparo');
-    expect(text).not.toContain('Finalizar venda');
-    expect(fixture.nativeElement.querySelectorAll('.counter-primary-action')).toHaveLength(0);
-  });
-
-  it('registers a partial payment without closing or leaving the active sale', () => {
-    const payableDetail: CounterSaleDetail = {
-      ...detail,
-      summary: {
-        ...summary,
-        totalAmount: 16,
-        paidAmount: 6,
-        remainingAmount: 10,
-        draftItemCount: 0,
-        readyItemCount: 2,
-        attendanceState: 'CONFIRMED',
-        preparationState: 'NOT_APPLICABLE',
-        financialState: 'PARTIALLY_PAID',
-        nextAction: 'COMPLETE_PAYMENT',
-      },
-      orders: [{ ...draftOrder, status: 'READY' }],
-    };
-    tabApi.getCounterSale.mockReturnValue(of(payableDetail));
-    const component = createComponent(50);
-
-    component.paymentOpen.set(true);
-    component.onPaymentCompleted();
-
-    expect(component.paymentOpen()).toBe(false);
-    expect(tabApi.getCounterSale).toHaveBeenCalledWith(50);
-    expect(activity.refresh).toHaveBeenCalled();
-    expect(tabApi.finishCounterSale).not.toHaveBeenCalled();
-    expect(router.navigateByUrl).not.toHaveBeenCalled();
-  });
-
-  it('delivers ready orders and finalizes the sale in separate operations', () => {
-    const readyOrder: RestaurantOrder = {
-      ...draftOrder,
-      status: 'READY',
-      items: [{ ...draftOrder.items[0], status: 'READY' }],
-    };
-    const readyDetail: CounterSaleDetail = {
-      ...detail,
-      summary: {
-        ...summary,
-        totalAmount: 16,
-        paidAmount: 16,
-        remainingAmount: 0,
-        draftItemCount: 0,
-        readyItemCount: 2,
-        attendanceState: 'IN_PROGRESS',
-        preparationState: 'READY',
-        financialState: 'PAID',
-        nextAction: 'DELIVER',
-        cancellationAllowed: false,
-      },
-      orders: [readyOrder],
-    };
-    tabApi.getCounterSale.mockReturnValue(of(readyDetail));
-    const component = createComponent(50);
-
-    component.deliverItem(60, 70);
-
-    expect(orderApi.updateItemStatus).toHaveBeenCalledWith(60, 70, 'DELIVERED');
-    expect(tabApi.finishCounterSale).not.toHaveBeenCalled();
-
-    component.detail.set({
-      ...readyDetail,
-      summary: {
-        ...readyDetail.summary,
-        readyItemCount: 0,
-        deliveredItemCount: 2,
-        attendanceState: 'READY_TO_FINISH',
-        preparationState: 'DELIVERED',
-        nextAction: 'FINALIZE',
-      },
-      orders: [{ ...readyOrder, status: 'DELIVERED' }],
+  it('keeps a partial payment in the active sale and updates the remaining amount', () => {
+    const partial = sale({
+      paidAmount: 3,
+      remainingAmount: 5,
+      payments: [{ id: 1, saleId: 50, method: 'PIX', amount: 3, paidAt: '', receivedByUserId: 1, receivedByUserName: 'Gerente' }],
     });
-    component.finalizeSale();
+    api.pay.mockReturnValueOnce(of(partial));
+    const instance = component();
+    instance.currentSale.set(sale());
 
-    expect(tabApi.finishCounterSale).toHaveBeenCalledWith(50);
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/balcao');
+    instance.quickPay('PIX');
+
+    expect(api.pay).toHaveBeenCalledWith(50, { method: 'PIX', amount: 8 });
+    expect(instance.currentSale()).toBe(partial);
+    expect(instance.currentSale()?.remainingAmount).toBe(5);
+    expect(activity.refresh).not.toHaveBeenCalled();
   });
 
-  it('loads filtered history separately from active and finished-today sales', () => {
-    const component = createComponent();
-    component.historyFilters = { from: '2026-07-01', to: '2026-07-30', number: 104, customer: 'Ana', status: 'CLOSED', operator: 'Operadora' };
+  it('automatically clears a positively settled sale after the backend closes it', () => {
+    const closed = sale({ status: 'CLOSED', paidAmount: 8, remainingAmount: 0 });
+    api.pay.mockReturnValueOnce(of(closed));
+    const instance = component();
+    const router = TestBed.inject(Router);
+    instance.currentSale.set(sale());
+    instance.openSales.set([sale()]);
 
-    component.selectCenterView('HISTORY');
+    instance.quickPay('CASH');
 
-    expect(tabApi.getCounterHistory).toHaveBeenCalledWith(component.historyFilters);
-    expect(component.centerView()).toBe('HISTORY');
-    expect(component.emptyCenterTitle()).toBe('Nenhum atendimento encontrado');
+    expect(instance.currentSale()).toBeNull();
+    expect(instance.openSales()).toEqual([]);
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/balcao');
+    expect(activity.refresh).toHaveBeenCalledOnce();
+  });
+
+  it('closes a zero-value sale without creating a zero payment', () => {
+    const freeItem = { ...item, baseUnitPrice: 0, unitPrice: 0, subtotal: 0 };
+    const zeroSale = sale({ subtotal: 0, finalAmount: 0, remainingAmount: 0, items: [freeItem] });
+    const instance = component();
+    instance.currentSale.set(zeroSale);
+
+    instance.quickPay('PIX');
+    instance.finishZeroSale();
+
+    expect(api.pay).not.toHaveBeenCalled();
+    expect(api.close).toHaveBeenCalledWith(50);
+  });
+
+  it('blocks product changes as soon as any payment exists', () => {
+    const paid = sale({
+      paidAmount: 3,
+      remainingAmount: 5,
+      payments: [{ id: 1, saleId: 50, method: 'PIX', amount: 3, paidAt: '', receivedByUserId: 1, receivedByUserName: 'Gerente' }],
+    });
+    const instance = component();
+    instance.currentSale.set(paid);
+
+    instance.addProduct({ productId: 10, quantity: 1, notes: null, optionIds: [] });
+    instance.changeQuantity(item, 2);
+
+    expect(api.addItem).not.toHaveBeenCalled();
+    expect(api.cancelItem).not.toHaveBeenCalled();
+  });
+
+  it('preserves the opened sale when adding the first item fails', () => {
+    const opened = sale({ items: [], subtotal: 0, finalAmount: 0, remainingAmount: 0 });
+    api.open.mockReturnValueOnce(of(opened));
+    api.addItem.mockReturnValueOnce(throwError(() => ({ error: { message: 'Produto indisponivel' } })));
+    const instance = component();
+
+    instance.addProduct({ productId: 10, quantity: 1, notes: null, optionIds: [] });
+
+    expect(instance.currentSale()).toBe(opened);
+    expect(instance.openSales()).toEqual([opened]);
+    expect(feedback.error).toHaveBeenCalled();
+  });
+
+  it('keeps an existing sale intact when an API operation fails', () => {
+    const existing = sale();
+    api.addItem.mockReturnValueOnce(throwError(() => ({ error: { message: 'Falha controlada' } })));
+    const instance = component();
+    instance.currentSale.set(existing);
+
+    instance.addProduct({ productId: 11, quantity: 1, notes: null, optionIds: [] });
+
+    expect(instance.currentSale()).toBe(existing);
+    expect(feedback.error).toHaveBeenCalled();
+    expect(instance.busyProductId()).toBeNull();
   });
 });
