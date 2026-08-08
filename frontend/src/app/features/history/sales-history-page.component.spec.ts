@@ -117,13 +117,22 @@ describe('SalesHistoryPageComponent', () => {
   });
 
   it('presents immutable item and payment snapshots from the Sale response', () => {
-    const instance = component();
+    const fixture = TestBed.createComponent(SalesHistoryPageComponent);
+    const instance = fixture.componentInstance;
+    instance.sales.set([closedTable]);
+    instance.loading.set(false);
+    instance.toggleDetails(closedTable.id);
+    fixture.detectChanges();
 
     expect(instance.origin(closedTable)).toBe('Mesa 2');
     expect(instance.activeItemCount(closedTable)).toBe(2);
     expect(instance.optionSummary(item.options)).toBe('Carne');
     expect(instance.paymentSummary(closedTable)).toBe('PIX');
     expect(instance.statusLabel('CANCELLED')).toBe('Cancelada');
+    const paymentDetails = fixture.nativeElement.querySelector('.detail-payments').textContent;
+    expect(paymentDetails).toContain('PIX');
+    expect(paymentDetails).toContain('R$\u00a064,00');
+    expect(paymentDetails).toContain('Gerente');
   });
 
   it('surfaces API errors without manufacturing legacy order statuses', () => {

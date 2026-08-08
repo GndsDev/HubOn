@@ -49,7 +49,8 @@ public class DashboardService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal cancelled = itemRepository
                 .findAllByCancelledAtGreaterThanEqualAndCancelledAtLessThanOrderByCancelledAtAsc(start, end)
-                .stream().map(SaleItem::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+                .stream().filter(SaleItem::isOperationalCancellation)
+                .map(SaleItem::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
         long activeTables = tableRepository.countByActiveTrue();
         long disabledTables = tableRepository.countByActiveFalse();
         DashboardSummaryResponse.TableSummary tables = new DashboardSummaryResponse.TableSummary(

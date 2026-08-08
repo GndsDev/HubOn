@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class SaleItem {
+    public static final String QUANTITY_ADJUSTMENT_REASON = "Ajuste de quantidade";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -73,5 +75,9 @@ public class SaleItem {
 
     public boolean isActive() {
         return cancelledAt == null;
+    }
+
+    public boolean isOperationalCancellation() {
+        return cancelledAt != null && !QUANTITY_ADJUSTMENT_REASON.equals(cancellationReason);
     }
 }

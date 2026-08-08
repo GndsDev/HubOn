@@ -195,7 +195,8 @@ public class MonthlyReportService {
                 .findAllByStatusAndCancelledAtGreaterThanEqualAndCancelledAtLessThanOrderByCancelledAtAscIdAsc(
                         SaleStatus.CANCELLED, start, end);
         List<SaleItem> cancelledItems = itemRepository
-                .findAllByCancelledAtGreaterThanEqualAndCancelledAtLessThanOrderByCancelledAtAsc(start, end);
+                .findAllByCancelledAtGreaterThanEqualAndCancelledAtLessThanOrderByCancelledAtAsc(start, end)
+                .stream().filter(SaleItem::isOperationalCancellation).toList();
         Map<String, Long> reasons = new HashMap<>();
         cancelledSales.forEach(sale -> reasons.merge(sale.getCancellationReason(), 1L, Long::sum));
         cancelledItems.forEach(item -> reasons.merge(item.getCancellationReason(), 1L, Long::sum));

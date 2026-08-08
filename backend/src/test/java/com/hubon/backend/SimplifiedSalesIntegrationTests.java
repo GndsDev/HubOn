@@ -9,6 +9,7 @@ import com.hubon.backend.cash.service.CashShiftService;
 import com.hubon.backend.category.dto.CategoryRequest;
 import com.hubon.backend.category.dto.CategoryResponse;
 import com.hubon.backend.category.service.CategoryService;
+import com.hubon.backend.dashboard.service.DashboardService;
 import com.hubon.backend.payment.domain.PaymentMethod;
 import com.hubon.backend.payment.dto.PaymentRequest;
 import com.hubon.backend.payment.service.PaymentService;
@@ -20,6 +21,7 @@ import com.hubon.backend.report.service.MonthlyReportService;
 import com.hubon.backend.role.domain.Role;
 import com.hubon.backend.role.repository.RoleRepository;
 import com.hubon.backend.sale.domain.SaleStatus;
+import com.hubon.backend.sale.domain.SaleItem;
 import com.hubon.backend.sale.domain.SaleType;
 import com.hubon.backend.sale.dto.*;
 import com.hubon.backend.sale.repository.SaleItemRepository;
@@ -72,6 +74,7 @@ class SimplifiedSalesIntegrationTests {
     @Autowired StockItemService stockItemService;
     @Autowired ProductStockLinkService stockLinkService;
     @Autowired CashShiftService cashShiftService;
+    @Autowired DashboardService dashboardService;
     @Autowired SaleRepository saleRepository;
     @Autowired SaleItemRepository saleItemRepository;
     @Autowired MonthlyReportService reportService;
@@ -249,12 +252,16 @@ class SimplifiedSalesIntegrationTests {
     void reportsIgnoreCancelledItemsAndCashReconcilesPaymentsAndManualMovements() {
         ProductResponse cancelledProduct = product(null, "Cancelado", "10.00");
         ProductResponse soldProduct = product(null, "Vendido", "5.00");
+        var shift = openCash("5.00");
         SaleResponse sale = counter();
         SaleItemResponse cancelled = saleService.addItem(sale.id(),
                 new AddSaleItemRequest(cancelledProduct.id(), 1, null, List.of())).items().getFirst();
+        SaleItemResponse sold = saleService.addItem(sale.id(),
+                new AddSaleItemRequest(soldProduct.id(), 2, null, List.of())).items().stream()
+                .filter(item -> item.productId().equals(soldProduct.id())).findFirst().orElseThrow();
+        saleService.cancelItem(sale.id(), sold.id(), new CancellationRequest(SaleItem.QUANTITY_ADJUSTMENT_REASON));
         saleService.addItem(sale.id(), new AddSaleItemRequest(soldProduct.id(), 2, null, List.of()));
         saleService.cancelItem(sale.id(), cancelled.id(), new CancellationRequest("Cliente mudou de ideia"));
-        var shift = openCash("5.00");
         cashShiftService.addMovement(shift.id(), new CashMovementRequest(CashMovementType.SUPPLY, money("2.00"), "Troco"));
         cashShiftService.addMovement(shift.id(), new CashMovementRequest(CashMovementType.WITHDRAWAL, money("1.00"), "Sangria"));
         paymentService.create(sale.id(), new PaymentRequest(PaymentMethod.CASH, money("10.00"), null));
@@ -265,10 +272,17 @@ class SimplifiedSalesIntegrationTests {
         assertThat(report.products()).singleElement().satisfies(value -> assertThat(value.productName()).isEqualTo("Vendido"));
         assertThat(report.cancellations().cancelledItems()).isEqualTo(1);
         assertThat(report.cancellations().cancelledAmount()).isEqualByComparingTo("10.00");
+        assertThat(dashboardService.getSummary().cashSummary().cancelledAmount()).isEqualByComparingTo("10.00");
 
         var current = cashShiftService.getCurrent().orElseThrow();
         assertThat(current.receivedTotal()).isEqualByComparingTo("10.00");
         assertThat(current.expectedCash()).isEqualByComparingTo("16.00");
+        assertThat(current.cancellationAmount()).isEqualByComparingTo("10.00");
+        assertThat(current.movements().stream().filter(movement -> movement.type().equals("CANCELLATION")))
+                .singleElement().satisfies(movement -> {
+                    assertThat(movement.amount()).isEqualByComparingTo("10.00");
+                    assertThat(movement.observation()).isEqualTo("Cliente mudou de ideia");
+                });
         var closedShift = cashShiftService.close(shift.id(), new CloseCashShiftRequest(money("16.00"), null));
         assertThat(closedShift.differenceAmount()).isZero();
     }

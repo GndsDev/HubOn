@@ -100,7 +100,8 @@ public class CashShiftService {
         List<Payment> payments = paymentRepository.findAllByCashShiftIdOrderByPaidAtAsc(shift.getId());
         List<CashMovement> manual = cashMovementRepository.findAllByCashShiftIdOrderByOccurredAtAsc(shift.getId());
         List<SaleItem> cancellations = saleItemRepository
-                .findAllByCancelledAtGreaterThanEqualAndCancelledAtLessThanOrderByCancelledAtAsc(shift.getOpenedAt(), end);
+                .findAllByCancelledAtGreaterThanEqualAndCancelledAtLessThanOrderByCancelledAtAsc(shift.getOpenedAt(), end)
+                .stream().filter(SaleItem::isOperationalCancellation).toList();
         EnumMap<PaymentMethod, BigDecimal> byMethod = new EnumMap<>(PaymentMethod.class);
         for (PaymentMethod method : PaymentMethod.values()) byMethod.put(method, BigDecimal.ZERO);
         payments.forEach(payment -> byMethod.merge(payment.getMethod(), payment.getAmount(), BigDecimal::add));
