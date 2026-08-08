@@ -10,15 +10,15 @@ As capturas usam resolução de `1440x900`, tema escuro e dados reais da API:
 ```text
 docs/media/screenshots/
 ├── 01-dashboard.png
-├── 02-mesas.png
-├── 03-categorias.png
-├── 04-produtos.png
-├── 05-comandas.png
-├── 06-pedidos.png
-├── 07-cozinha.png
+├── 02-comandas.png
+├── 03-balcao.png
+├── 04-historico.png
+├── 05-categorias.png
+├── 06-produtos.png
+├── 07-estoque.png
 ├── 08-caixa.png
-├── 09-usuarios.png
-└── 10-relatorios.png
+├── 09-relatorios.png
+└── 10-usuarios.png
 ```
 
 O vídeo de navegação fica em:
@@ -81,19 +81,17 @@ Antes da captura, o script verifica a API e prepara dados idempotentes:
 - categoria `Portfólio HubOn`;
 - produto `Menu Portfólio`;
 - mesa `9901`, identificada como `Mesa Demo Portfólio`;
-- uma comanda aberta para essa mesa;
-- pedidos nos estados recebido, preparando e pronto.
+- uma venda de mesa aberta;
+- um item ativo nessa venda.
 
 O script autentica em `POST /api/auth/login`, guarda a sessão no
 `localStorage` com a mesma chave usada pelo frontend (`hubon-auth-session`) e
 envia `Authorization: Bearer <token>` em todas as chamadas diretas à API. A
 automação não usa `permit-all` e não depende do antigo operador manual.
 
-Regenerar as mídias não duplica os registros que já estiverem no estado
-esperado. Para manter o material atual, uma comanda demo sem pagamentos e
-aberta há mais de quatro horas tem seus pedidos exclusivos de portfólio
-cancelados e é substituída por uma nova. A automação não fecha comandas, não
-registra pagamentos e não apaga histórico.
+Regenerar as mídias reutiliza a categoria, o produto, a mesa, a venda aberta e
+o item de demonstração quando eles já existem. A automação não fecha vendas,
+não registra pagamentos, não cancela itens e não apaga histórico.
 
 ## Configuração opcional
 

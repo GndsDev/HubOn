@@ -33,22 +33,22 @@ const { chromium } = await import('playwright-core');
 
 const routes = [
   ['01-dashboard.png', '/dashboard', 'Operação em tempo real'],
-  ['02-mesas.png', '/mesas', 'Mesas'],
-  ['03-categorias.png', '/categorias', 'Categorias'],
-  ['04-produtos.png', '/produtos', 'Produtos'],
-  ['05-comandas.png', '/comandas', 'Comandas'],
-  ['06-pedidos.png', '/pedidos', 'Pedidos'],
-  ['07-cozinha.png', '/cozinha', 'Cozinha'],
+  ['02-comandas.png', '/comandas', 'Comandas'],
+  ['03-balcao.png', '/balcao', 'Balcão'],
+  ['04-historico.png', '/historico', 'Histórico de vendas'],
+  ['05-categorias.png', '/categorias', 'Categorias'],
+  ['06-produtos.png', '/produtos', 'Produtos'],
+  ['07-estoque.png', '/stock', 'Estoque'],
   ['08-caixa.png', '/caixa', 'Caixa'],
-  ['09-usuarios.png', '/usuarios', 'Usuários'],
-  ['10-relatorios.png', '/relatorios', 'Relatórios'],
+  ['09-relatorios.png', '/relatorios', 'Relatórios'],
+  ['10-usuarios.png', '/usuarios', 'Usuários'],
 ];
 
 const videoRouteLabels = [
-  ['Mesas', '/mesas'],
   ['Comandas', '/comandas'],
-  ['Pedidos', '/pedidos'],
-  ['Cozinha', '/cozinha'],
+  ['Balcão', '/balcao'],
+  ['Produtos', '/produtos'],
+  ['Estoque', '/stock'],
   ['Caixa', '/caixa'],
   ['Dashboard', '/dashboard'],
 ];
@@ -57,12 +57,8 @@ const demo = {
   categoryName: 'Portfólio HubOn',
   productName: 'Menu Portfólio',
   tableNumber: 9901,
-  tableName: 'Mesa Demo Portfólio',
-  notes: {
-    received: '[PORTFOLIO] Pedido recebido',
-    preparing: '[PORTFOLIO] Pedido em preparo',
-    ready: '[PORTFOLIO] Pedido pronto',
-  },
+  tableLabel: 'Mesa Demo Portfólio',
+  itemNotes: '[PORTFOLIO] Item de demonstração',
 };
 
 try {
@@ -199,15 +195,18 @@ async function prepareDemoData(currentUser) {
       method: 'POST',
       body: {
         name: demo.categoryName,
-        description: 'Categoria estável usada pela automação de portfólio.',
         displayOrder: 99,
         active: true,
       },
     });
   } else if (!category.active) {
-    category = await apiRequest(`/categories/${category.id}/activate`, {
-      method: 'PATCH',
-      body: {},
+    category = await apiRequest(`/categories/${category.id}`, {
+      method: 'PUT',
+      body: {
+        name: category.name,
+        displayOrder: category.displayOrder,
+        active: true,
+      },
     });
   }
 
@@ -225,13 +224,22 @@ async function prepareDemoData(currentUser) {
         description: 'Produto de demonstração para screenshots e vídeo.',
         price: 34.9,
         active: true,
-        imageUrl: null,
+        available: true,
+        displayOrder: 99,
       },
     });
-  } else if (!product.active) {
-    product = await apiRequest(`/products/${product.id}/activate`, {
-      method: 'PATCH',
-      body: {},
+  } else if (!product.active || !product.available) {
+    product = await apiRequest(`/products/${product.id}`, {
+      method: 'PUT',
+      body: {
+        categoryId: category.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        active: true,
+        available: true,
+        displayOrder: product.displayOrder,
+      },
     });
   }
 
@@ -242,146 +250,67 @@ async function prepareDemoData(currentUser) {
       method: 'POST',
       body: {
         number: demo.tableNumber,
-        name: demo.tableName,
-        status: 'AVAILABLE',
+        label: demo.tableLabel,
         active: true,
       },
     });
   }
 
-  if (!table.active || ['DISABLED', 'RESERVED'].includes(table.status)) {
-    table = await apiRequest(`/tables/${table.id}/status`, {
-      method: 'PATCH',
-      body: { status: 'AVAILABLE' },
+  if (!table.active) {
+    table = await apiRequest(`/tables/${table.id}`, {
+      method: 'PUT',
+      body: {
+        number: table.number,
+        label: table.label,
+        active: true,
+      },
     });
   }
 
-  const orders = await apiRequest('/orders');
-  const openTabs = await apiRequest('/tabs/open');
-  let tab = openTabs.find((item) => item.tableId === table.id);
-  if (
-    tab &&
-    tab.paidAmount === 0 &&
-    Date.now() - new Date(tab.openedAt).getTime() > 4 * 60 * 60 * 1000
-  ) {
-    const tabOrders = orders.filter((order) => order.tabId === tab.id);
-    const canRefreshTab = tabOrders.every(
-      (order) =>
-        order.status !== 'DELIVERED' &&
-        order.notes?.startsWith('[PORTFOLIO]'),
-    );
-
-    if (canRefreshTab) {
-      for (const order of tabOrders) {
-        if (order.status !== 'CANCELLED') {
-          await apiRequest(`/orders/${order.id}/cancel`, {
-            method: 'POST',
-            body: {},
-          });
-        }
-      }
-      await apiRequest(`/tabs/${tab.id}/cancel`, {
-        method: 'POST',
-        body: {},
-      });
-      table = await apiRequest(`/tables/${table.id}`);
-      tab = null;
-    }
-  }
-
-  if (!tab) {
-    if (table.status !== 'AVAILABLE') {
+  const openSales = await apiRequest('/sales?status=OPEN&type=TABLE');
+  let sale = openSales.find((item) => item.restaurantTableId === table.id);
+  if (!sale) {
+    if (table.state !== 'FREE') {
       throw new Error(
-        `A mesa demo está em ${table.status} sem comanda aberta. Ajuste a mesa ${demo.tableNumber} antes de regenerar a mídia.`,
+        `A mesa demo está em ${table.state} sem venda aberta. Ajuste a mesa ${demo.tableNumber} antes de regenerar a mídia.`,
       );
     }
-    tab = await apiRequest('/tabs/open', {
+    sale = await apiRequest('/sales', {
       method: 'POST',
       body: {
-        tableId: table.id,
+        type: 'TABLE',
+        restaurantTableId: table.id,
+        customerName: null,
+        customerPhone: null,
         serviceFee: 0,
         discountAmount: 0,
       },
     });
   }
 
-  await ensureOrderStatus(
-    orders,
-    tab.id,
-    product.id,
-    demo.notes.received,
-    'SENT_TO_KITCHEN',
+  const demoItem = sale.items.find(
+    (item) => item.productId === product.id && !item.cancelledAt,
   );
-  await ensureOrderStatus(
-    orders,
-    tab.id,
-    product.id,
-    demo.notes.preparing,
-    'PREPARING',
-  );
-  await ensureOrderStatus(
-    orders,
-    tab.id,
-    product.id,
-    demo.notes.ready,
-    'READY',
-  );
+  if (!demoItem) {
+    if (sale.paidAmount > 0) {
+      throw new Error(
+        `A venda demo #${sale.id} já possui pagamento e não pode receber o item de portfólio.`,
+      );
+    }
+    sale = await apiRequest(`/sales/${sale.id}/items`, {
+      method: 'POST',
+      body: {
+        productId: product.id,
+        quantity: 1,
+        notes: demo.itemNotes,
+        optionIds: [],
+      },
+    });
+  }
 
   console.log(
-    `Dados demo prontos: mesa ${demo.tableNumber}, comanda #${tab.id}.`,
+    `Dados demo prontos: mesa ${demo.tableNumber}, venda #${sale.id}.`,
   );
-}
-
-async function ensureOrderStatus(
-  existingOrders,
-  tabId,
-  productId,
-  notes,
-  targetStatus,
-) {
-  const exact = existingOrders.find(
-    (order) =>
-      order.tabId === tabId &&
-      order.notes === notes &&
-      order.status === targetStatus,
-  );
-  if (exact) return exact;
-
-  let order = await apiRequest('/orders', {
-    method: 'POST',
-    body: {
-      tabId,
-      type: 'TABLE',
-      notes,
-      items: [
-        {
-          productId,
-          quantity: 1,
-          notes: 'Apresentação do fluxo operacional.',
-        },
-      ],
-    },
-  });
-
-  order = await apiRequest(`/orders/${order.id}/send-to-kitchen`, {
-    method: 'POST',
-    body: {},
-  });
-
-  if (targetStatus === 'PREPARING' || targetStatus === 'READY') {
-    order = await apiRequest(`/orders/${order.id}/status`, {
-      method: 'PATCH',
-      body: { status: 'PREPARING' },
-    });
-  }
-  if (targetStatus === 'READY') {
-    order = await apiRequest(`/orders/${order.id}/status`, {
-      method: 'PATCH',
-      body: { status: 'READY' },
-    });
-  }
-
-  return order;
 }
 
 async function apiRequest(pathname, options = {}) {
@@ -476,7 +405,7 @@ async function captureVideo(executablePath, session) {
       await link.click();
       await page.waitForURL(`${baseUrl}${route}`);
       await waitUntilStable(page);
-      await delay(label === 'Cozinha' ? 2200 : 1500);
+      await delay(label === 'Balcão' ? 1800 : 1500);
     }
   } finally {
     await context.close();

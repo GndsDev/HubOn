@@ -64,12 +64,8 @@ acompanha a operação e o Caixa controla o turno e o dinheiro.
 
 ![Dashboard operacional do HubOn](docs/media/screenshots/01-dashboard.png)
 
-### Mesas
-
-![Mapa de mesas do HubOn](docs/media/screenshots/02-mesas.png)
-
-O produto atual não possui uma tela exclusiva de Cozinha. O preparo é
-acompanhado em Pedidos e Balcão; o Caixa é exclusivamente financeiro.
+O fluxo atual é organizado em Comandas, Balcão, Histórico, Estoque e Caixa,
+sem estados de preparo ou uma tela separada de cozinha.
 
 [Assistir à demonstração navegável em WebM](docs/media/videos/hubon-demo.webm)
 
