@@ -30,6 +30,35 @@ CREATE DATABASE hubon_db OWNER hubon_user;
 O Flyway cria as tabelas automaticamente ao iniciar o backend. O Hibernate
 apenas valida o esquema com `ddl-auto=validate`.
 
+### Recriacao da baseline local
+
+Enquanto o HubOn nao possui dados reais em desenvolvimento, a baseline
+`V1__initial_schema.sql` pode ser ajustada para acompanhar a simplificacao do
+dominio. Quando isso acontecer, os bancos locais que ja aplicaram a V1 antiga
+devem ser recriados do zero.
+
+Recrie tanto `hubon_test` quanto `hubon_db` quando a V1 mudar em uma fase sem
+dados reais. Nao use `flyway repair` para corrigir checksum nesse caso: isso
+apenas faria o Flyway aceitar um schema antigo como se fosse o schema novo.
+
+No container local `hubon-postgres`, recrie somente o banco necessario:
+
+```sql
+DROP DATABASE IF EXISTS hubon_db WITH (FORCE);
+CREATE DATABASE hubon_db OWNER hubon_user;
+```
+
+Para o banco de testes:
+
+```sql
+DROP DATABASE IF EXISTS hubon_test WITH (FORCE);
+CREATE DATABASE hubon_test OWNER hubon_user;
+```
+
+Depois inicie o backend normalmente e deixe o Flyway aplicar as migrations.
+Nunca altere uma migration ja aplicada em ambiente com dados reais; nesses
+ambientes, crie uma nova migration incremental.
+
 Para usar outros valores:
 
 ```powershell
