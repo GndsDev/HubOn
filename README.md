@@ -79,44 +79,52 @@ HubOn/
 ├── backend/    API Spring Boot, regras de negócio e migrations
 ├── frontend/   aplicação Angular
 ├── docs/       documentação funcional e técnica
+├── scripts/    instalação e inicialização automática no Windows
 ├── .env.example
-└── docker-compose.yml
+├── docker-compose.yml
+└── docker-compose.dev.yml
 ```
 
-## Execução completa com Docker
+## Instalação Windows para cliente
 
-A forma recomendada de iniciar o HubOn inteiro é pela stack Docker. Ela cria os
-serviços `hubon-postgres`, `hubon-backend` e `hubon-frontend` em uma rede interna
-e mantém os dados do banco em volume persistente.
+A instalação do cliente é feita uma única vez por um responsável técnico. Ela
+copia o HubOn para `C:\HubOn`, cria a tarefa agendada `HubOn`, prepara os
+containers e adiciona um atalho opcional na Área de Trabalho.
 
-Na primeira execução, crie o arquivo local de configuração e substitua todos os
-valores `change-me` por senhas e segredos próprios:
+Antes de executar, configure um `.env` real a partir do modelo. Em seguida, abra
+o PowerShell como administrador na raiz do pacote e execute:
 
 ```powershell
 Copy-Item .env.example .env
-docker compose up -d --build
-docker compose ps
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\install-hubon-windows.ps1
 ```
 
-| Serviço | Endereço local |
-| --- | --- |
-| Interface | `http://localhost:4200` |
-| API | `http://localhost:8080/api` |
-| PostgreSQL | `localhost:5432` |
+O instalador valida Docker Desktop, Docker Compose e segredos, preserva um
+`.env` já instalado, reutiliza o volume `hubon_hubon_postgres_data`, constrói a
+stack e só conclui depois que os três containers ficam saudáveis. Ele nunca cria
+`hubon_test`.
 
-O frontend usa `/api` e o Nginx encaminha as requisições ao backend pela rede
-interna. O volume `hubon_hubon_postgres_data` é reutilizado nas próximas
-inicializações; não execute `docker compose down -v` se quiser preservar os
-dados.
+Depois disso, o uso diário é apenas:
 
-Em uma instalação nova, essa stack cria somente o banco operacional definido
-por `POSTGRES_DB`, cujo padrão é `hubon_db`. O banco `hubon_test` não faz parte da
-execução do cliente; ele é usado apenas por desenvolvedores e pela CI.
+1. ligar o computador e entrar no Windows;
+2. abrir o atalho **HubOn** ou acessar `http://localhost:4200`.
 
-Todos os serviços usam `restart: unless-stopped`. Depois da primeira criação,
-eles voltam automaticamente quando o Docker iniciar. No Windows, habilite uma
-única vez **Settings > General > Start Docker Desktop when you sign in to your
-computer**.
+A tarefa agendada inicia o Docker Desktop silenciosamente quando necessário,
+executa `docker compose up -d` pelo caminho absoluto instalado e aguarda a saúde
+da stack. Todos os containers também usam `restart: always`.
+
+Somente `127.0.0.1:4200` é publicado no cliente. Nginx encaminha `/api` para
+`backend:8080`, e o backend acessa `postgres:5432` pela rede interna. Banco e API
+não ficam expostos no host.
+
+Mantenha habilitado no Docker Desktop:
+**Settings > General > Start Docker Desktop when you sign in to your computer**.
+A tarefa do Windows também consegue iniciar o Docker Desktop, tornando o boot
+resiliente mesmo sem interação do cliente.
+
+Detalhes de instalação, manutenção e desenvolvimento estão em
+[deployment-local.md](docs/deployment/deployment-local.md).
 
 ## Pré-requisitos
 

@@ -4,13 +4,13 @@ services:
   postgres:
     image: postgres:16
     container_name: hubon-postgres
-    restart: unless-stopped
+    restart: always
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-hubon_db}
       POSTGRES_USER: ${POSTGRES_USER:-hubon_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD no arquivo .env}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    expose:
+      - "5432"
     volumes:
       - hubon_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -28,7 +28,7 @@ services:
       dockerfile: Dockerfile
     image: hubon-backend:local
     container_name: hubon-backend
-    restart: unless-stopped
+    restart: always
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-hubon_db}
@@ -44,8 +44,8 @@ services:
       HUBON_SEED_ADMIN_NAME: ${HUBON_SEED_ADMIN_NAME:-Administrador}
       HUBON_SEED_ADMIN_EMAIL: ${HUBON_SEED_ADMIN_EMAIL:-admin@hubon.local}
       HUBON_SEED_ADMIN_PASSWORD: ${HUBON_SEED_ADMIN_PASSWORD:?Configure HUBON_SEED_ADMIN_PASSWORD no arquivo .env}
-    ports:
-      - "${BACKEND_PORT:-8080}:8080"
+    expose:
+      - "8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,9 +64,9 @@ services:
       dockerfile: Dockerfile
     image: hubon-frontend:local
     container_name: hubon-frontend
-    restart: unless-stopped
+    restart: always
     ports:
-      - "${FRONTEND_PORT:-4200}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-4200}:80"
     depends_on:
       backend:
         condition: service_healthy
