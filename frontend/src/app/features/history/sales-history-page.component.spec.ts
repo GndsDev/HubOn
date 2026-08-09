@@ -123,7 +123,7 @@ describe('SalesHistoryPageComponent', () => {
 
     expect(instance.origin(closedTable)).toBe('Mesa 2');
     expect(instance.activeItemCount(closedTable)).toBe(2);
-    expect(instance.optionSummary(item.options)).toBe('Carne');
+    expect(instance.optionSummary(item.options)).toBe('Espeto: Carne');
     expect(instance.paymentSummary(closedTable)).toBe('PIX');
     expect(instance.statusLabel('CANCELLED')).toBe('Cancelada');
     const paymentDetails = fixture.nativeElement.querySelector('.detail-payments').textContent;

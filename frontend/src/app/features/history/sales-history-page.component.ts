@@ -9,6 +9,7 @@ import { SectionCardComponent } from '../../shared/components/section-card/secti
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { PaymentMethod, Sale, SaleStatus, SaleType } from '../../shared/models/sale.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
+import { saleChoiceSummary } from '../../shared/util/sale-workflow';
 
 @Component({
   selector: 'app-sales-history-page',
@@ -23,9 +24,9 @@ import { apiErrorMessage } from '../../shared/util/api-error';
   ],
   template: `
     <app-page-header
-      kicker="Consulta"
-      title="Histórico de vendas"
-      description="Vendas concluídas e canceladas de mesas e balcão."
+      kicker="Vendas"
+      title="Histórico"
+      description="Consulte comandas e vendas de balcão concluídas ou canceladas."
     >
       <div page-actions class="page-header-actions">
         <button type="button" class="secondary-button" (click)="load()" [disabled]="loading()">
@@ -35,22 +36,21 @@ import { apiErrorMessage } from '../../shared/util/api-error';
       </div>
     </app-page-header>
 
-    <div class="counter-history-filters">
-      <label class="field">
-        <span>De</span>
-        <input type="date" [(ngModel)]="from" />
-      </label>
+    <section class="report-filters history-filters" aria-label="Filtros do histórico">
+      <div class="field report-reference-filter">
+        <span>Período</span>
+        <div class="report-reference-controls">
+          <input type="date" aria-label="Data inicial" [(ngModel)]="from" />
+          <span>até</span>
+          <input type="date" aria-label="Data final" [(ngModel)]="to" />
+        </div>
+      </div>
 
-      <label class="field">
-        <span>Até</span>
-        <input type="date" [(ngModel)]="to" />
-      </label>
-
-      <label class="field">
+      <label class="field report-channel-filter">
         <span>Origem</span>
         <select [(ngModel)]="type">
           <option value="ALL">Todas</option>
-          <option value="TABLE">Mesa</option>
+          <option value="TABLE">Comandas</option>
           <option value="COUNTER">Balcão</option>
         </select>
       </label>
@@ -63,35 +63,38 @@ import { apiErrorMessage } from '../../shared/util/api-error';
           <option value="CANCELLED">Cancelada</option>
         </select>
       </label>
-    </div>
+    </section>
 
     @if (loading()) {
-      <div class="loading-grid">
+      <div class="loading-grid history-state-panel">
         <div class="loading-row"></div>
         <div class="loading-row"></div>
         <div class="loading-row"></div>
       </div>
     } @else if (error()) {
-      <div class="error-panel" role="alert">
+      <div class="error-panel history-state-panel" role="alert">
         <i class="pi pi-exclamation-triangle"></i>
         <div>
           <strong>Não foi possível carregar o histórico</strong>
           <p>{{ error() }}</p>
         </div>
+        <button type="button" class="ghost-button" (click)="load()">
+          <i class="pi pi-refresh"></i>
+          Tentar novamente
+        </button>
       </div>
     } @else if (!visibleSales().length) {
       <app-empty-state
+        class="history-state-panel"
         icon="pi pi-history"
         title="Nenhuma venda encontrada"
         description="Ajuste os filtros ou aguarde o fechamento das primeiras vendas."
       />
     } @else {
-      <app-section-card eyebrow="Operação" title="Vendas concluídas">
-        <span card-action class="report-sales-count">
-          {{ visibleSales().length }} venda{{ visibleSales().length === 1 ? '' : 's' }}
-        </span>
+      <app-section-card class="history-results" eyebrow="Resultados" title="Vendas encontradas">
+        <app-status-badge card-action [label]="resultCountLabel()" tone="neutral" />
 
-        <div class="report-sales-table" role="region" aria-label="Histórico de vendas" tabindex="0">
+        <div class="report-sales-table history-table" role="region" aria-label="Histórico de vendas" tabindex="0">
           <table>
             <thead>
               <tr>
@@ -106,14 +109,18 @@ import { apiErrorMessage } from '../../shared/util/api-error';
             </thead>
             <tbody>
               @for (sale of visibleSales(); track sale.id) {
-                <tr>
-                  <td>{{ dateTime(sale.closedAt || sale.cancelledAt || sale.openedAt) }}</td>
-                  <td>
-                    <strong>{{ origin(sale) }}</strong>
-                    <small>#{{ sale.id }} · {{ sale.openedByUserName }}</small>
+                <tr class="history-sale-row" [class.expanded]="expandedId() === sale.id">
+                  <td class="history-date-cell">
+                    <time>{{ dateTime(sale.closedAt || sale.cancelledAt || sale.openedAt) }}</time>
                   </td>
-                  <td>{{ activeItemCount(sale) }}</td>
-                  <td><strong>{{ currency(sale.finalAmount) }}</strong></td>
+                  <td class="history-origin-cell">
+                    <strong>{{ origin(sale) }}</strong>
+                    <small>Venda #{{ sale.id }} · {{ sale.openedByUserName }}</small>
+                  </td>
+                  <td>{{ activeItemCount(sale) }} un.</td>
+                  <td class="history-money-cell">
+                    <strong>{{ currency(sale.finalAmount) }}</strong>
+                  </td>
                   <td>{{ paymentSummary(sale) }}</td>
                   <td>
                     <app-status-badge
@@ -121,7 +128,7 @@ import { apiErrorMessage } from '../../shared/util/api-error';
                       [tone]="sale.status === 'CLOSED' ? 'success' : 'danger'"
                     />
                   </td>
-                  <td>
+                  <td class="history-actions-cell">
                     <button
                       type="button"
                       class="icon-button"
@@ -139,7 +146,15 @@ import { apiErrorMessage } from '../../shared/util/api-error';
                   <tr class="history-detail-row">
                     <td colspan="7">
                       <div class="history-expanded-detail">
-                        <div class="detail-grid tab-detail-summary">
+                        <header class="history-detail-heading">
+                          <div>
+                            <span>Resumo da venda</span>
+                            <strong>{{ origin(sale) }}</strong>
+                          </div>
+                          <small>Aberta em {{ dateTime(sale.openedAt) }}</small>
+                        </header>
+
+                        <div class="detail-grid history-summary-grid">
                           <div>
                             <span>Responsável</span>
                             <strong>{{ sale.openedByUserName }}</strong>
@@ -160,25 +175,42 @@ import { apiErrorMessage } from '../../shared/util/api-error';
                             <span>Recebido</span>
                             <strong>{{ currency(sale.paidAmount) }}</strong>
                           </div>
-                          <div>
+                          <div class="financial-detail total">
                             <span>Total</span>
                             <strong>{{ currency(sale.finalAmount) }}</strong>
                           </div>
                         </div>
 
                         <div class="history-detail-columns">
-                          <section class="history-detail-section detail-items">
-                            <h3>Itens</h3>
+                          <section class="history-detail-section history-items">
+                            <header>
+                              <div>
+                                <h3>Itens</h3>
+                                <small>{{ activeItemCount(sale) }} unidade{{ activeItemCount(sale) === 1 ? '' : 's' }}</small>
+                              </div>
+                            </header>
+
                             <div class="detailed-order-items">
                               @for (item of sale.items; track item.id) {
                                 <div class="detailed-order-item" [class.cancelled]="item.cancelledAt">
                                   <div>
                                     <strong>{{ item.quantity }}x {{ item.productName }}</strong>
-                                    @if (item.options.length) {
-                                      <small>{{ optionSummary(item.options) }}</small>
+                                    @if (item.categoryName || item.options.length) {
+                                      <small>
+                                        {{ item.categoryName || 'Sem categoria' }}
+                                        @if (item.options.length) {
+                                          · {{ optionSummary(item.options) }}
+                                        }
+                                      </small>
+                                    }
+                                    @if (item.notes) {
+                                      <small class="auxiliary-note">
+                                        <i class="pi pi-comment"></i>
+                                        {{ item.notes }}
+                                      </small>
                                     }
                                     @if (item.cancelledAt) {
-                                      <small>Cancelado: {{ item.cancellationReason }}</small>
+                                      <small class="history-cancelled-item">Cancelado: {{ item.cancellationReason }}</small>
                                     }
                                   </div>
                                   <div class="order-item-side">
@@ -190,7 +222,13 @@ import { apiErrorMessage } from '../../shared/util/api-error';
                           </section>
 
                           <section class="history-detail-section payment-history detail-payments">
-                            <h3>Pagamentos</h3>
+                            <header>
+                              <div>
+                                <h3>Pagamentos</h3>
+                                <small>{{ sale.payments.length }} registro{{ sale.payments.length === 1 ? '' : 's' }}</small>
+                              </div>
+                            </header>
+
                             @for (payment of sale.payments; track payment.id) {
                               <div>
                                 <p>
@@ -200,15 +238,18 @@ import { apiErrorMessage } from '../../shared/util/api-error';
                                 <strong>{{ currency(payment.amount) }}</strong>
                               </div>
                             } @empty {
-                              <p>Nenhum pagamento registrado.</p>
+                              <p class="history-muted-message">Nenhum pagamento registrado.</p>
                             }
                           </section>
                         </div>
 
                         @if (sale.cancellationReason) {
-                          <p class="cancellation-note">
-                            <strong>Motivo do cancelamento:</strong>
-                            {{ sale.cancellationReason }}
+                          <p class="history-cancellation-note">
+                            <i class="pi pi-info-circle"></i>
+                            <span>
+                              <strong>Motivo do cancelamento</strong>
+                              {{ sale.cancellationReason }}
+                            </span>
                           </p>
                         }
                       </div>
@@ -223,21 +264,119 @@ import { apiErrorMessage } from '../../shared/util/api-error';
     }
   `,
   styles: `
-    .history-detail-row > td {
-      padding: 0 var(--space-sm) var(--space-lg);
+    .history-filters,
+    .history-results,
+    .history-state-panel {
+      width: min(100%, 92rem);
+    }
+
+    .history-filters {
+      grid-template-columns: minmax(22rem, 1.35fr) repeat(2, minmax(11rem, .65fr));
+    }
+
+    .history-table table {
+      min-width: 54rem;
+    }
+
+    .history-table th:first-child {
+      width: 9rem;
+    }
+
+    .history-table th:nth-child(2) {
+      width: 13rem;
+    }
+
+    .history-table th:nth-child(3),
+    .history-table th:last-child {
+      width: 4rem;
+    }
+
+    .history-table th:nth-child(4),
+    .history-table th:nth-child(6) {
+      width: 7rem;
+    }
+
+    .history-table th:nth-child(5) {
+      width: 9rem;
+    }
+
+    .history-sale-row.expanded > td {
+      background: var(--surface-row-hover-bg);
+    }
+
+    .history-date-cell,
+    .history-money-cell,
+    .history-actions-cell {
+      white-space: nowrap;
+    }
+
+    .history-date-cell time {
+      color: var(--color-text-muted);
+    }
+
+    .history-origin-cell strong,
+    .history-money-cell strong {
+      color: var(--color-text-strong);
+    }
+
+    .history-money-cell strong {
+      font-size: .9rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .history-actions-cell {
+      text-align: right;
+    }
+
+    .history-detail-row > td,
+    .history-detail-row:hover > td {
+      background: var(--surface-subtle-bg);
+      padding: 0 var(--space-lg) var(--space-xl);
     }
 
     .history-expanded-detail {
       display: grid;
-      gap: var(--space-lg);
-      border-top: 1px solid var(--color-border-soft);
+      gap: var(--space-xl);
+      border-top: 1px solid var(--color-border);
       padding-top: var(--space-lg);
+    }
+
+    .history-detail-heading,
+    .history-detail-section > header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-md);
+    }
+
+    .history-detail-heading > div,
+    .history-detail-section > header > div {
+      display: grid;
+      gap: var(--space-2xs);
+    }
+
+    .history-detail-heading span,
+    .history-detail-heading small,
+    .history-detail-section header small,
+    .history-muted-message {
+      color: var(--color-text-muted);
+    }
+
+    .history-detail-heading strong {
+      color: var(--color-text-strong);
+      font-size: 1rem;
+    }
+
+    .history-summary-grid {
+      margin: 0;
     }
 
     .history-detail-columns {
       display: grid;
-      grid-template-columns: minmax(0, 1.35fr) minmax(16rem, .8fr);
+      grid-template-columns: minmax(0, 1.35fr) minmax(17rem, .8fr);
       gap: var(--space-xl);
+      border-top: 1px solid var(--color-border-soft);
+      padding-top: var(--space-lg);
     }
 
     .history-detail-section {
@@ -247,21 +386,94 @@ import { apiErrorMessage } from '../../shared/util/api-error';
       gap: var(--space-sm);
     }
 
+    .history-detail-section + .history-detail-section {
+      border-left: 1px solid var(--color-border-soft);
+      padding-left: var(--space-xl);
+    }
+
     .history-detail-section h3,
     .history-detail-section p,
-    .cancellation-note {
+    .history-cancellation-note {
       margin: 0;
     }
 
-    .cancellation-note {
-      border-top: 1px solid var(--border-danger);
-      color: var(--color-danger-text);
-      padding-top: var(--space-md);
+    .history-detail-section h3 {
+      color: var(--color-text-strong);
+      font-size: .95rem;
     }
 
-    @media (max-width: 980px) {
+    .history-detail-section.payment-history {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .history-cancelled-item {
+      color: var(--color-danger-strong);
+    }
+
+    .history-cancellation-note {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-sm);
+      border: 1px solid var(--border-danger);
+      border-radius: var(--radius-sm);
+      background: var(--status-danger-bg);
+      color: var(--color-danger-text);
+      padding: var(--space-md);
+    }
+
+    .history-cancellation-note span {
+      display: grid;
+      gap: var(--space-2xs);
+    }
+
+    @media (max-width: 60rem) {
+      .history-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .history-filters .report-reference-filter {
+        grid-column: 1 / -1;
+      }
+
+      .history-filters .report-channel-filter {
+        grid-column: auto;
+      }
+
       .history-detail-columns {
         grid-template-columns: 1fr;
+      }
+
+      .history-detail-section + .history-detail-section {
+        border-top: 1px solid var(--color-border-soft);
+        border-left: 0;
+        padding-top: var(--space-lg);
+        padding-left: 0;
+      }
+    }
+
+    @media (max-width: 38rem) {
+      .history-filters {
+        grid-template-columns: 1fr;
+      }
+
+      .history-filters .report-reference-filter {
+        grid-column: auto;
+      }
+
+      .history-filters .report-reference-controls {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .history-filters .report-reference-controls > span {
+        display: none;
+      }
+
+      .history-detail-heading,
+      .history-detail-section > header {
+        align-items: flex-start;
+        flex-direction: column;
       }
     }
   `,
@@ -310,6 +522,11 @@ export class SalesHistoryPageComponent implements OnInit {
     this.expandedId.update((current) => current === id ? null : id);
   }
 
+  resultCountLabel(): string {
+    const count = this.visibleSales().length;
+    return `${count} venda${count === 1 ? '' : 's'}`;
+  }
+
   origin(sale: Sale): string {
     return sale.type === 'TABLE' ? `Mesa ${sale.tableNumber}` : `Balcão #${sale.id}`;
   }
@@ -325,7 +542,7 @@ export class SalesHistoryPageComponent implements OnInit {
   }
 
   optionSummary(options: Sale['items'][number]['options']): string {
-    return options.map((option) => option.optionName).join(', ');
+    return saleChoiceSummary(options);
   }
 
   statusLabel(status: SaleStatus): string {

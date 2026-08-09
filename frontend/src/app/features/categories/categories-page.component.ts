@@ -43,7 +43,7 @@ import { apiErrorMessage } from '../../shared/util/api-error';
           @for (category of categories(); track category.id) {
             <article class="category-card">
               <div class="category-card-header"><div class="category-icon"><i class="pi pi-tags"></i></div><app-status-badge [label]="category.active ? 'Ativa' : 'Inativa'" [tone]="category.active ? 'success' : 'neutral'" /></div>
-              <div class="category-content"><strong [title]="category.name">{{ category.name }}</strong><small>Ordem de exibição: {{ category.displayOrder }}</small></div>
+              <div class="category-content"><strong [title]="category.name">{{ category.name }}</strong><small>Organiza os produtos no cardápio</small></div>
               <div class="category-actions">
                 <button type="button" class="icon-action-button" title="Editar categoria" [attr.aria-label]="'Editar categoria ' + category.name" (click)="openEdit(category)"><i class="pi pi-pencil"></i></button>
                 <button type="button" class="icon-action-button" [class.danger]="category.active" [class.success]="!category.active" [title]="category.active ? 'Desativar categoria' : 'Ativar categoria'" [attr.aria-label]="(category.active ? 'Desativar categoria ' : 'Ativar categoria ') + category.name" (click)="toggle(category)"><i [class]="category.active ? 'pi pi-ban' : 'pi pi-check'"></i></button>
@@ -61,7 +61,6 @@ import { apiErrorMessage } from '../../shared/util/api-error';
           <div class="modal-body">
             <div class="form-grid">
               <label class="field full"><span>Nome</span><input name="name" [(ngModel)]="form.name" maxlength="120" required autofocus /></label>
-              <label class="field"><span>Ordem de exibição</span><input name="displayOrder" type="number" min="0" [(ngModel)]="form.displayOrder" /></label>
               <label class="toggle-field"><input name="active" type="checkbox" [(ngModel)]="form.active" /><span>Categoria ativa</span></label>
             </div>
           </div>
@@ -89,7 +88,9 @@ export class CategoriesPageComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     this.api.getAll().pipe(finalize(() => this.loading.set(false))).subscribe({
-      next: (categories) => this.categories.set(categories),
+      next: (categories) => this.categories.set(
+        [...categories].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+      ),
       error: (error) => this.error.set(apiErrorMessage(error)),
     });
   }

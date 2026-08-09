@@ -32,7 +32,7 @@ import { apiErrorMessage } from '../../shared/util/api-error';
         <div class="auth-copy">
           <span>Autenticação</span>
           <h1 id="login-title">Entrar no painel</h1>
-          <p>Use um perfil autorizado para acessar os módulos do restaurante.</p>
+          <p>Use um perfil autorizado para acessar os módulos da operação.</p>
         </div>
 
         <form class="auth-form" (ngSubmit)="login()">

@@ -46,6 +46,20 @@ describe('DashboardPageComponent', () => {
     fixture.destroy();
   });
 
+  it('uses one shared action primitive on every dashboard stat card', () => {
+    createFixture();
+
+    const actions = (fixture.nativeElement as HTMLElement).querySelectorAll('.dashboard-card-action');
+    expect(actions).toHaveLength(4);
+    expect([...actions].map((action) => action.textContent?.trim())).toEqual([
+      'Abrir relatórios',
+      'Abrir comandas',
+      'Abrir balcão',
+      'Abrir caixa',
+    ]);
+    fixture.destroy();
+  });
+
   it('maps only Sale statuses used by the current dashboard', () => {
     const instance = createFixture().componentInstance;
 

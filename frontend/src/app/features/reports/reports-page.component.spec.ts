@@ -192,6 +192,33 @@ describe('ReportsPageComponent', () => {
     expect(feedback.success).toHaveBeenCalledWith('XLSX gerado.');
   });
 
+  it('exposes summary, raw data and exports as internal report views', () => {
+    const fixture = TestBed.createComponent(ReportsPageComponent);
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Resumo');
+    expect(text).toContain('Dados brutos');
+    expect(text).toContain('Exportações');
+
+    const navigationButtons = fixture.nativeElement.querySelectorAll('.report-view-navigation button');
+    navigationButtons[1].click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Dados brutos das vendas');
+  });
+
+  it('generates CSV from the already loaded raw data without a new endpoint', () => {
+    const instance = component();
+    instance.report.set(monthlyReport);
+
+    instance.export('CSV');
+
+    expect(URL.createObjectURL).toHaveBeenCalledOnce();
+    expect(api.getMonthlyPdf).not.toHaveBeenCalled();
+    expect(api.getMonthlyXlsx).not.toHaveBeenCalled();
+    expect(feedback.success).toHaveBeenCalledWith('CSV gerado.');
+  });
+
   it('uses the daily and annual export endpoints for the selected period', () => {
     const instance = component();
     instance.date = '2026-08-07';
