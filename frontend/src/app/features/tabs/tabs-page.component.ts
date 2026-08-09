@@ -1,61 +1,339 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
-import { finalize, forkJoin } from 'rxjs';
-import { AuthService } from '../../core/services/auth.service';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { finalize, forkJoin, of } from 'rxjs';
 import { FeedbackService } from '../../core/services/feedback.service';
-import { TabApiService } from '../../core/services/tab-api.service';
-import { TableApiService } from '../../core/services/table-api.service';
-import { Tab } from '../../shared/models/tab.model';
-import { RestaurantTable } from '../../shared/models/table.model';
-import { apiErrorMessage } from '../../shared/util/api-error';
+import { ProductApiService } from '../../core/services/product-api.service';
+import { SalesApiService } from '../../core/services/sales-api.service';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { PaymentDialogComponent } from '../../shared/components/payment-dialog/payment-dialog.component';
+import { SaleProductPickerComponent } from '../../shared/components/sale-product-picker/sale-product-picker.component';
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
-import { PaymentDialogComponent } from '../../shared/components/payment-dialog/payment-dialog.component';
+import { Product } from '../../shared/models/product.model';
+import { AddSaleItemRequest, Sale, SaleItem } from '../../shared/models/sale.model';
+import { apiErrorMessage } from '../../shared/util/api-error';
+import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose, saleChoiceSummary } from '../../shared/util/sale-workflow';
 
 @Component({
   selector: 'app-tabs-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent, StatusBadgeComponent, AccessibleDialogDirective, PaymentDialogComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    EmptyStateComponent,
+    PageHeaderComponent,
+    PaymentDialogComponent,
+    SaleProductPickerComponent,
+    SectionCardComponent,
+    StatusBadgeComponent,
+    AccessibleDialogDirective,
+  ],
   template: `
-    <app-page-header kicker="Atendimento de mesas" title="Comandas" description="Atenda, receba e conclua as vendas das mesas em um único lugar.">
+    <app-page-header
+      kicker="Vendas abertas"
+      title="Comandas"
+      description="Abra e acompanhe comandas identificadas pelo número da mesa."
+    >
       <div page-actions class="page-header-actions">
-        <button type="button" class="primary-button" (click)="openForm()"><i class="pi pi-plus"></i>Abrir comanda</button>
+        @if (currentSale()) {
+          <a class="ghost-button" routerLink="/comandas">
+            <i class="pi pi-arrow-left"></i>
+            Voltar
+          </a>
+        }
+
+        <button type="button" class="primary-button" [disabled]="saving()" (click)="openForm()">
+          <i class="pi pi-plus"></i>
+          Nova comanda
+        </button>
       </div>
     </app-page-header>
 
-    <app-section-card eyebrow="Salão" title="Comandas abertas">
-      @if (loading()) {
-        <div class="collection-grid">@for (item of [1,2,3,4]; track item) { <div class="collection-card loading-card"></div> }</div>
-      } @else if (error()) {
-        <div class="error-panel"><i class="pi pi-exclamation-triangle"></i><div><strong>Não foi possível carregar</strong><p>{{ error() }}</p></div>
-          <button type="button" class="ghost-button" (click)="load()"><i class="pi pi-refresh"></i>Tentar novamente</button>
-        </div>
-      } @else if (tabs().length === 0) {
-        <app-empty-state icon="pi pi-receipt" title="Nenhuma comanda aberta" description="Abra uma comanda para uma mesa disponível." />
-      } @else {
-        <div class="collection-grid">
-          @for (tab of tabs(); track tab.id) {
-            <button type="button" class="collection-card clickable collection-card-button" (click)="showDetails(tab)">
-              <div class="collection-icon"><i class="pi pi-receipt"></i></div>
-              <div class="collection-main">
-                <strong>Comanda #{{ tab.id }} · {{ tab.displayLabel }}</strong>
-                <span>{{ tab.openedByUserName }}</span>
-                <small>Aberta {{ relativeTime(tab.openedAt) }}</small>
-              </div>
-              <div class="collection-side">
-                <app-status-badge [label]="tab.remainingAmount > 0 ? 'Em aberto' : 'Paga'" [tone]="tab.remainingAmount > 0 ? 'warning' : 'success'" />
-                <b>{{ currency(tab.finalAmount) }}</b>
-              </div>
+    @if (!currentSale()) {
+      <app-section-card eyebrow="Operação" title="Comandas abertas">
+        @if (loading()) {
+          <div class="collection-grid">
+            @for (item of [1, 2, 3, 4]; track item) {
+              <div class="collection-card loading-card"></div>
+            }
+          </div>
+        } @else if (error()) {
+          <div class="error-panel" role="alert">
+            <i class="pi pi-exclamation-triangle"></i>
+            <div>
+              <strong>Não foi possível carregar</strong>
+              <p>{{ error() }}</p>
+            </div>
+            <button type="button" class="ghost-button" (click)="load()">
+              <i class="pi pi-refresh"></i>
+              Tentar novamente
             </button>
+          </div>
+        } @else if (openSales().length === 0) {
+          <app-empty-state
+            icon="pi pi-receipt"
+            title="Nenhuma comanda aberta"
+            description="Abra uma comanda pelo número da mesa."
+          />
+        } @else {
+          <div class="collection-grid">
+            @for (sale of openSales(); track sale.id) {
+              <a
+                class="collection-card clickable collection-card-button"
+                [routerLink]="['/comandas', sale.id]"
+              >
+                <div class="collection-icon">
+                  <i class="pi pi-receipt"></i>
+                </div>
+
+                <div class="collection-main">
+                  <strong>Comanda #{{ sale.id }} · Mesa {{ sale.tableNumber ?? '-' }}</strong>
+                  <span>Aberta por {{ sale.openedByUserName }}</span>
+                  <small>{{ relativeTime(sale.openedAt) }}</small>
+                </div>
+
+                <div class="collection-side">
+                  <app-status-badge
+                    [label]="sale.paidAmount > 0 ? 'Parcial' : 'Aberta'"
+                    [tone]="sale.paidAmount > 0 ? 'info' : 'warning'"
+                  />
+                  <b>{{ currency(sale.finalAmount) }}</b>
+                  <small>{{ sale.remainingAmount > 0 ? 'Continuar comanda' : 'Fechar comanda' }}</small>
+                </div>
+              </a>
+            }
+          </div>
+        }
+      </app-section-card>
+    } @else if (currentSale(); as sale) {
+      <app-section-card class="tab-detail-card" eyebrow="Detalhe" [title]="saleTitle(sale)">
+        @if (loading()) {
+          <div class="loading-grid">
+            <div class="loading-row"></div>
+            <div class="loading-row"></div>
+            <div class="loading-row"></div>
+          </div>
+        } @else if (error()) {
+          <div class="error-panel" role="alert">
+            <i class="pi pi-exclamation-triangle"></i>
+            <div>
+              <strong>Não foi possível carregar a comanda</strong>
+              <p>{{ error() }}</p>
+            </div>
+            <button type="button" class="ghost-button" (click)="load(sale.id)">
+              <i class="pi pi-refresh"></i>
+              Tentar novamente
+            </button>
+          </div>
+        } @else {
+          <div class="tab-detail-summary">
+            <div class="detail-grid tab-context-summary">
+              <div>
+                <span>Comanda</span>
+                <strong>#{{ sale.id }}</strong>
+              </div>
+              <div>
+                <span>Número da mesa</span>
+                <strong>{{ sale.tableNumber ?? '-' }}</strong>
+              </div>
+              <div>
+                <span>Abertura</span>
+                <strong>{{ relativeTime(sale.openedAt) }}</strong>
+              </div>
+              <div>
+                <span>Estado</span>
+                <strong>{{ sale.paidAmount > 0 ? 'Pagamento parcial' : 'Em andamento' }}</strong>
+              </div>
+            </div>
+
+            <div class="detail-grid tab-financial-summary">
+              <div class="financial-detail total">
+                <span>Total</span>
+                <strong>{{ currency(sale.finalAmount) }}</strong>
+              </div>
+              <div class="financial-detail paid">
+                <span>Pago</span>
+                <strong>{{ currency(sale.paidAmount) }}</strong>
+              </div>
+              <div class="financial-detail remaining">
+                <span>Restante</span>
+                <strong>{{ currency(sale.remainingAmount) }}</strong>
+              </div>
+            </div>
+          </div>
+
+          @if (!canChangeItems()) {
+            <p class="order-state-note tab-wide-note">
+              <i class="pi pi-lock"></i>
+              A comanda possui pagamento e os itens estão bloqueados.
+            </p>
           }
-        </div>
-      }
-    </app-section-card>
+
+          <div class="split-actions tab-detail-toolbar">
+            <button
+              type="button"
+              class="secondary-button"
+              [class.active-toggle]="productPanelOpen()"
+              [attr.aria-expanded]="productPanelOpen()"
+              [disabled]="!canChangeItems() || saving()"
+              (click)="productPanelOpen.set(!productPanelOpen())"
+            >
+              <i [class]="productPanelOpen() ? 'pi pi-chevron-up' : 'pi pi-plus'"></i>
+              {{ productPanelOpen() ? 'Fechar cardápio' : 'Adicionar produtos' }}
+            </button>
+
+            <a class="ghost-button" routerLink="/historico">
+              <i class="pi pi-history"></i>
+              Ver histórico
+            </a>
+          </div>
+
+          <article
+            class="order-card tab-catalog-panel"
+            [class.tab-catalog-panel-hidden]="!productPanelOpen() || !canChangeItems()"
+            [attr.aria-hidden]="productPanelOpen() && canChangeItems() ? null : 'true'"
+          >
+            <div class="order-card-head">
+              <div>
+                <span>Cardápio</span>
+                <strong>Escolha os produtos da comanda</strong>
+              </div>
+              <button type="button" class="icon-button" aria-label="Ocultar produtos" (click)="productPanelOpen.set(false)">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+
+            <app-sale-product-picker
+              [products]="products()"
+              [disabled]="!canChangeItems()"
+              [busyProductId]="busyProductId()"
+              [confirmationMessage]="productFeedback()"
+              confirmLabel="Adicionar à comanda"
+              (addItem)="addProduct($event)"
+            />
+          </article>
+
+          @if (activeItems().length === 0) {
+            <app-empty-state
+              icon="pi pi-shopping-cart"
+              title="Comanda vazia"
+              description="Adicione produtos ou cancele a comanda vazia."
+            />
+          } @else {
+            <div class="order-list tab-order-list">
+              <article class="order-card">
+                <div class="order-card-head">
+                  <div>
+                    <span>Venda #{{ sale.id }}</span>
+                    <strong>Itens da comanda</strong>
+                  </div>
+                  <app-status-badge
+                    [label]="canChangeItems() ? 'Em atendimento' : 'Itens bloqueados'"
+                    [tone]="canChangeItems() ? 'info' : 'warning'"
+                  />
+                </div>
+
+                <div class="order-item-list detailed-order-items">
+                  @for (item of activeItems(); track item.id) {
+                    <div class="detailed-order-item">
+                      <div>
+                        <span>{{ item.quantity }}x {{ item.productName }}</span>
+                        @if (optionSummary(item)) {
+                          <small>{{ optionSummary(item) }}</small>
+                        }
+                        @if (item.notes) {
+                          <small class="auxiliary-note">
+                            <i class="pi pi-comment"></i>
+                            {{ item.notes }}
+                          </small>
+                        }
+                      </div>
+
+                      <div class="order-item-side">
+                        @if (canChangeItems()) {
+                          <div class="counter-quantity-stepper">
+                            <button
+                              type="button"
+                              class="icon-button"
+                              aria-label="Diminuir quantidade"
+                              title="Diminuir"
+                              (click)="changeQuantity(item, item.quantity - 1)"
+                              [disabled]="item.quantity <= 1 || actionItemId() === item.id"
+                            >
+                              <i class="pi pi-minus"></i>
+                            </button>
+                            <span>{{ item.quantity }}</span>
+                            <button
+                              type="button"
+                              class="icon-button"
+                              aria-label="Aumentar quantidade"
+                              title="Aumentar"
+                              (click)="changeQuantity(item, item.quantity + 1)"
+                              [disabled]="actionItemId() === item.id"
+                            >
+                              <i class="pi pi-plus"></i>
+                            </button>
+                          </div>
+                        }
+
+                        <b>{{ currency(item.subtotal) }}</b>
+
+                        @if (canChangeItems()) {
+                          <button
+                            type="button"
+                            class="text-action danger-text"
+                            [disabled]="saving()"
+                            (click)="openItemCancellation(item)"
+                          >
+                            Cancelar item
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <div class="order-card-footer">
+                  <strong>{{ currency(sale.finalAmount) }}</strong>
+                  <span>{{ activeItems().length }} item{{ activeItems().length === 1 ? '' : 's' }} lançado{{ activeItems().length === 1 ? '' : 's' }}</span>
+                </div>
+              </article>
+            </div>
+          }
+
+          <div class="tab-page-footer">
+            @if (sale.payments.length === 0) {
+              <button
+                type="button"
+                class="danger-button secondary-danger"
+                [disabled]="saving()"
+                (click)="openSaleCancellation()"
+              >
+                <i class="pi pi-times-circle"></i>
+                Cancelar comanda
+              </button>
+            }
+
+            @if (activeItems().length > 0 && sale.remainingAmount > 0) {
+              <button type="button" class="primary-button" [disabled]="saving()" (click)="paymentOpen.set(true)">
+                <i class="pi pi-wallet"></i>
+                {{ sale.paidAmount > 0 ? 'Completar pagamento' : 'Receber' }}
+              </button>
+            }
+
+            <button type="button" class="primary-button" [disabled]="!canClose() || saving()" (click)="closeSale()">
+              <i class="pi pi-check-circle"></i>
+              Fechar comanda
+            </button>
+          </div>
+        }
+      </app-section-card>
+    }
 
     @if (formOpen()) {
       <div class="modal-backdrop" (click)="formOpen.set(false)">
@@ -71,189 +349,344 @@ import { PaymentDialogComponent } from '../../shared/components/payment-dialog/p
           (ngSubmit)="create()"
         >
           <div class="modal-header">
-            <div class="modal-heading"><span class="modal-eyebrow">Atendimento</span><h2 id="tab-form-dialog-title">Abrir comanda</h2></div>
-            <button type="button" class="icon-button" aria-label="Fechar" (click)="formOpen.set(false)"><i class="pi pi-times"></i></button>
-          </div>
-          <div class="modal-body">
-            <div class="form-grid">
-              <label class="field full">
-                <span>Mesa disponível</span>
-                <select name="tableId" [(ngModel)]="form.tableId" required autofocus>
-                  <option [ngValue]="0" disabled>Selecione</option>
-                  @for (table of availableTables; track table.id) { <option [ngValue]="table.id">Mesa {{ table.number }} · {{ table.name }}</option> }
-                </select>
-              </label>
-              <label class="field"><span>Taxa de serviço</span><input name="serviceFee" type="number" min="0" step="0.01" [(ngModel)]="form.serviceFee" /></label>
-              <label class="field"><span>Desconto</span><input name="discount" type="number" min="0" step="0.01" [(ngModel)]="form.discountAmount" /></label>
+            <div class="modal-heading">
+              <span class="modal-eyebrow">Comanda</span>
+              <h2 id="tab-form-dialog-title">Nova comanda</h2>
             </div>
+            <button type="button" class="icon-button" aria-label="Fechar" [disabled]="saving()" (click)="formOpen.set(false)">
+              <i class="pi pi-times"></i>
+            </button>
           </div>
+
+          <div class="modal-body">
+            <label class="field full">
+              <span>Número da mesa</span>
+              <input
+                name="tableNumber"
+                type="number"
+                min="1"
+                step="1"
+                [(ngModel)]="form.tableNumber"
+                required
+                autofocus
+              />
+            </label>
+          </div>
+
           <div class="modal-footer modal-actions">
-            <button type="button" class="ghost-button" (click)="formOpen.set(false)">Cancelar</button>
-            <button type="submit" class="primary-button" [disabled]="saving()"><i class="pi pi-receipt"></i>{{ saving() ? 'Abrindo...' : 'Abrir comanda' }}</button>
+            <button type="button" class="ghost-button" [disabled]="saving()" (click)="formOpen.set(false)">Cancelar</button>
+            <button type="submit" class="primary-button" [disabled]="saving()">
+              <i class="pi pi-receipt"></i>
+              {{ saving() ? 'Abrindo...' : 'Abrir comanda' }}
+            </button>
           </div>
         </form>
       </div>
     }
 
-    @if (selected(); as tab) {
-      <div class="modal-backdrop" (click)="selected.set(null)">
-        <section
-          class="modal-panel"
+    @if (paymentOpen() && currentSale(); as sale) {
+      <app-payment-dialog
+        [saleId]="sale.id"
+        [originLabel]="tableTitle(sale)"
+        [totalAmount]="sale.finalAmount"
+        [paidAmount]="sale.paidAmount"
+        [remainingAmount]="sale.remainingAmount"
+        (completed)="paymentCompleted($event)"
+        (dismissed)="paymentOpen.set(false)"
+      />
+    }
+
+    @if (cancelItemTarget(); as item) {
+      <div class="modal-backdrop">
+        <form
+          class="modal-panel compact"
           appAccessibleDialog
           role="dialog"
           aria-modal="true"
-          aria-labelledby="tab-details-dialog-title"
-          (dialogClose)="selected.set(null)"
-          (click)="$event.stopPropagation()"
+          aria-labelledby="cancel-item-title"
+          [dialogCloseDisabled]="saving()"
+          (dialogClose)="cancelItemTarget.set(null)"
+          (ngSubmit)="cancelItem(item)"
         >
           <div class="modal-header">
-            <div class="modal-heading"><span class="modal-eyebrow">Detalhes</span><h2 id="tab-details-dialog-title">Comanda #{{ tab.id }} · {{ tab.displayLabel }}</h2></div>
-            <button type="button" class="icon-button" aria-label="Fechar" (click)="selected.set(null)"><i class="pi pi-times"></i></button>
-          </div>
-          <div class="modal-body tab-details-body">
-            <div class="detail-grid tab-financial-grid">
-              <div class="financial-detail secondary"><span>Itens</span><strong>{{ currency(tab.totalAmount) }}</strong></div>
-              <div class="financial-detail secondary"><span>Serviço</span><strong>{{ currency(tab.serviceFee) }}</strong></div>
-              <div class="financial-detail secondary"><span>Desconto</span><strong>{{ currency(tab.discountAmount) }}</strong></div>
-              <div class="financial-detail total"><span>Total final</span><strong>{{ currency(tab.finalAmount) }}</strong></div>
-              <div class="financial-detail paid"><span>Pago</span><strong>{{ currency(tab.paidAmount) }}</strong></div>
-              <div class="financial-detail remaining"><span>Restante</span><strong>{{ currency(tab.remainingAmount) }}</strong></div>
+            <div class="modal-heading">
+              <span class="modal-eyebrow">Cancelar item</span>
+              <h2 id="cancel-item-title">{{ item.productName }}</h2>
             </div>
+            <button type="button" class="icon-button" aria-label="Fechar cancelamento" (click)="cancelItemTarget.set(null)">
+              <i class="pi pi-times"></i>
+            </button>
           </div>
-          <div class="modal-footer modal-actions tab-details-actions">
-            @if (tab.paidAmount === 0) {
-              <button type="button" class="danger-button secondary-danger" (click)="pendingCancel.set(tab)"><i class="pi pi-times-circle"></i>Cancelar comanda</button>
-            }
-            @if (tab.remainingAmount === 0) {
-              <button type="button" class="primary-button" (click)="close(tab)"><i class="pi pi-check-circle"></i>Fechar comanda</button>
-            } @else if (canReceivePayment()) {
-              <button type="button" class="primary-button" (click)="paymentOpen.set(true)"><i class="pi pi-wallet"></i>{{ tab.paidAmount > 0 ? 'Completar pagamento' : 'Registrar pagamento' }}</button>
-            }
+          <div class="modal-body">
+            <label class="field">
+              <span>Motivo</span>
+              <textarea name="cancelReason" maxlength="500" [(ngModel)]="cancellationReason" required autofocus></textarea>
+            </label>
           </div>
-        </section>
+          <div class="modal-footer modal-actions">
+            <button type="button" class="ghost-button" (click)="cancelItemTarget.set(null)">Voltar</button>
+            <button type="submit" class="danger-button" [disabled]="saving() || !cancellationReason.trim()">Cancelar item</button>
+          </div>
+        </form>
       </div>
     }
 
-    @if (pendingCancel(); as tab) {
-      <div class="modal-backdrop" (click)="pendingCancel.set(null)">
-        <section class="modal-panel compact" appAccessibleDialog role="alertdialog" aria-modal="true" aria-labelledby="tab-cancel-title" (dialogClose)="pendingCancel.set(null)" (click)="$event.stopPropagation()">
-          <div class="modal-header"><div class="modal-heading"><span class="modal-eyebrow">Confirmação</span><h2 id="tab-cancel-title">Cancelar a comanda #{{ tab.id }}?</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="pendingCancel.set(null)"><i class="pi pi-times"></i></button></div>
-          <div class="modal-body"><p class="modal-description">Esta ação encerra a comanda sem registrar venda e só será aceita quando não houver pagamentos ou pedidos pendentes.</p></div>
-          <div class="modal-footer modal-actions"><button type="button" class="ghost-button" (click)="pendingCancel.set(null)">Voltar</button><button type="button" class="danger-button" (click)="cancel(tab)"><i class="pi pi-times-circle"></i>Confirmar cancelamento</button></div>
-        </section>
+    @if (cancelSaleOpen()) {
+      <div class="modal-backdrop">
+        <form
+          class="modal-panel compact"
+          appAccessibleDialog
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-sale-title"
+          [dialogCloseDisabled]="saving()"
+          (dialogClose)="cancelSaleOpen.set(false)"
+          (ngSubmit)="cancelSale()"
+        >
+          <div class="modal-header">
+            <div class="modal-heading">
+              <span class="modal-eyebrow">Comanda</span>
+              <h2 id="cancel-sale-title">Cancelar comanda</h2>
+            </div>
+            <button type="button" class="icon-button" aria-label="Fechar cancelamento" (click)="cancelSaleOpen.set(false)">
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <label class="field">
+              <span>Motivo</span>
+              <textarea name="cancelSaleReason" maxlength="500" [(ngModel)]="cancellationReason" required autofocus></textarea>
+            </label>
+          </div>
+          <div class="modal-footer modal-actions">
+            <button type="button" class="ghost-button" (click)="cancelSaleOpen.set(false)">Voltar</button>
+            <button type="submit" class="danger-button" [disabled]="saving() || !cancellationReason.trim()">Cancelar comanda</button>
+          </div>
+        </form>
       </div>
-    }
-
-    @if (paymentOpen() && selected(); as tab) {
-      <app-payment-dialog
-        [tabId]="tab.id"
-        [originLabel]="tab.displayLabel"
-        [totalAmount]="tab.finalAmount"
-        [paidAmount]="tab.paidAmount"
-        [remainingAmount]="tab.remainingAmount"
-        (dismissed)="paymentOpen.set(false)"
-        (completed)="onPaymentCompleted(tab.id)"
-      />
     }
   `,
 })
-export class TabsPageComponent implements OnInit {
-  private readonly api = inject(TabApiService);
-  private readonly tableApi = inject(TableApiService);
-  private readonly route = inject(ActivatedRoute);
-  private readonly auth = inject(AuthService);
+export class TabsPageComponent implements OnInit, OnDestroy {
+  private readonly api = inject(SalesApiService);
+  private readonly productApi = inject(ProductApiService);
   private readonly feedback = inject(FeedbackService);
-
-  readonly tabs = signal<Tab[]>([]);
-  readonly tables = signal<RestaurantTable[]>([]);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  readonly openSales = signal<Sale[]>([]);
+  readonly products = signal<Product[]>([]);
+  readonly currentSale = signal<Sale | null>(null);
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
-  readonly formOpen = signal(false);
-  readonly selected = signal<Tab | null>(null);
-  readonly pendingCancel = signal<Tab | null>(null);
+  readonly busyProductId = signal<number | null>(null);
+  readonly productFeedback = signal('');
+  readonly actionItemId = signal<number | null>(null);
   readonly paymentOpen = signal(false);
-  form = { tableId: 0, serviceFee: 0, discountAmount: 0 };
+  readonly productPanelOpen = signal(false);
+  readonly cancelItemTarget = signal<SaleItem | null>(null);
+  readonly cancelSaleOpen = signal(false);
+  readonly formOpen = signal(false);
+  form = { tableNumber: 1 };
+  cancellationReason = '';
+  readonly activeItems = computed(() => activeSaleItems(this.currentSale()));
+  readonly canChangeItems = computed(() => saleCanChangeItems(this.currentSale()));
+  readonly canClose = computed(() => saleCanClose(this.currentSale()));
+  private productFeedbackTimer?: ReturnType<typeof setTimeout>;
 
-  ngOnInit(): void { this.load(); }
-  get availableTables(): RestaurantTable[] { return this.tables().filter((table) => table.active && table.status === 'AVAILABLE'); }
+  ngOnInit(): void {
+    this.route.paramMap.subscribe((params) => this.load(Number(params.get('saleId')) || undefined));
+  }
 
-  load(): void {
+  ngOnDestroy(): void {
+    if (this.productFeedbackTimer) clearTimeout(this.productFeedbackTimer);
+  }
+
+  load(saleId?: number): void {
     this.loading.set(true);
     this.error.set(null);
-    forkJoin({ tabs: this.api.getOpen(), tables: this.tableApi.getAll() })
-      .pipe(finalize(() => this.loading.set(false)))
-      .subscribe({
-        next: ({ tabs, tables }) => {
-          const tableTabs = tabs.filter((tab) => tab.type === 'TABLE');
-          this.tabs.set(tableTabs);
-          this.tables.set(tables);
-          const requestedId = Number(this.route.snapshot.queryParamMap.get('tab'));
-          const requested = tableTabs.find((tab) => tab.id === requestedId);
-          if (requested) this.showDetails(requested);
-        },
-        error: (error) => this.error.set(apiErrorMessage(error)),
-      });
+    this.productPanelOpen.set(false);
+    forkJoin({
+      sales: this.api.list('OPEN', 'TABLE'),
+      products: this.productApi.getAll(),
+      current: saleId ? this.api.get(saleId) : of(null),
+    }).pipe(finalize(() => this.loading.set(false))).subscribe({
+      next: ({ sales, products, current }) => {
+        this.openSales.set(sales.filter((sale) => sale.type === 'TABLE' && sale.status === 'OPEN'));
+        this.products.set(products);
+        if (current && current.type !== 'TABLE') {
+          this.currentSale.set(null);
+          this.error.set('A venda informada não é uma comanda.');
+          return;
+        }
+        this.currentSale.set(current);
+      },
+      error: (error) => this.error.set(apiErrorMessage(error)),
+    });
   }
 
   openForm(): void {
-    if (!this.auth.currentUser()) {
-      this.feedback.error('Faça login antes de abrir a comanda.');
-      return;
-    }
-    if (this.availableTables.length === 0) { this.feedback.info('Nenhuma mesa livre disponível para abrir comanda.'); return; }
-    this.form = { tableId: this.availableTables[0].id, serviceFee: 0, discountAmount: 0 };
+    if (this.saving()) return;
+    this.form = { tableNumber: 1 };
     this.formOpen.set(true);
   }
 
   create(): void {
-    if (!this.auth.currentUser()) {
-      this.feedback.error('Faça login antes de abrir a comanda.');
+    if (this.saving()) return;
+    const tableNumber = Number(this.form.tableNumber);
+    if (!Number.isInteger(tableNumber) || tableNumber <= 0) {
+      this.feedback.error('Informe um número de mesa válido.');
       return;
     }
-    if (!this.form.tableId) { this.feedback.error('Selecione uma mesa disponível.'); return; }
+
     this.saving.set(true);
-    this.api.open(this.form).pipe(finalize(() => this.saving.set(false))).subscribe({
-      next: () => { this.feedback.success('Comanda aberta com sucesso.'); this.formOpen.set(false); this.load(); },
-      error: (error) => this.feedback.error(apiErrorMessage(error)),
-    });
+    this.api.open({ type: 'TABLE', tableNumber, customerName: null, customerPhone: null, serviceFee: 0, discountAmount: 0 })
+      .pipe(finalize(() => this.saving.set(false))).subscribe({
+        next: (sale) => {
+          this.formOpen.set(false);
+          this.openSales.update((items) => [sale, ...items.filter((item) => item.id !== sale.id)]);
+          this.feedback.success('Comanda aberta.');
+          this.router.navigate(['/comandas', sale.id]);
+        },
+        error: (error) => this.feedback.error(apiErrorMessage(error)),
+      });
   }
 
-  showDetails(tab: Tab): void {
-    this.paymentOpen.set(false);
-    this.api.getById(tab.id).subscribe({ next: (detail) => this.selected.set(detail), error: (error) => this.feedback.error(apiErrorMessage(error)) });
-  }
+  addProduct(request: AddSaleItemRequest): void {
+    const sale = this.currentSale();
+    if (!sale || !this.canChangeItems()) return;
 
-  canReceivePayment(): boolean { return this.auth.hasAnyRole(['OWNER', 'ADMIN', 'CASHIER']); }
+    const matching = this.activeItems().find((item) => itemMatchesRequest(item, request));
+    if (matching) {
+      this.changeQuantity(matching, matching.quantity + request.quantity, true);
+      return;
+    }
 
-  onPaymentCompleted(tabId: number): void {
-    this.paymentOpen.set(false);
-    this.api.getById(tabId).subscribe({
-      next: (detail) => {
-        this.selected.set(detail);
-        this.tabs.update((tabs) => tabs.map((tab) => tab.id === detail.id ? detail : tab));
+    this.busyProductId.set(request.productId);
+    this.api.addItem(sale.id, request).pipe(finalize(() => this.busyProductId.set(null))).subscribe({
+      next: (updated) => {
+        this.applySale(updated);
+        this.showProductFeedback(request.productId);
       },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
   }
 
-  close(tab: Tab): void {
-    this.api.close(tab.id).subscribe({
-      next: () => { this.feedback.success('Comanda fechada com sucesso.'); this.selected.set(null); this.load(); },
+  changeQuantity(item: SaleItem, quantity: number, fromCatalog = false): void {
+    const sale = this.currentSale();
+    if (!sale || !this.canChangeItems() || quantity < 1) return;
+
+    this.actionItemId.set(item.id);
+    this.api.updateItemQuantity(sale.id, item.id, { quantity }).pipe(
+      finalize(() => this.actionItemId.set(null)),
+    ).subscribe({
+      next: (updated) => {
+        this.applySale(updated, fromCatalog ? undefined : 'Quantidade atualizada.');
+        if (fromCatalog) this.showProductFeedback(item.productId);
+      },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
   }
 
-  cancel(tab: Tab): void {
-    this.api.cancel(tab.id).subscribe({
-      next: () => { this.feedback.success('Comanda cancelada com sucesso.'); this.pendingCancel.set(null); this.selected.set(null); this.load(); },
+  openItemCancellation(item: SaleItem): void {
+    this.cancellationReason = '';
+    this.cancelItemTarget.set(item);
+  }
+
+  cancelItem(item: SaleItem): void {
+    const sale = this.currentSale();
+    if (!sale || !this.cancellationReason.trim() || this.saving()) return;
+
+    this.saving.set(true);
+    this.api.cancelItem(sale.id, item.id, { reason: this.cancellationReason.trim() }).pipe(
+      finalize(() => this.saving.set(false)),
+    ).subscribe({
+      next: (updated) => {
+        this.cancelItemTarget.set(null);
+        this.applySale(updated, 'Item cancelado.');
+      },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
   }
 
-  currency(value: number): string { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
+  paymentCompleted(sale: Sale): void {
+    this.paymentOpen.set(false);
+    this.applySale(sale);
+  }
+
+  closeSale(): void {
+    const sale = this.currentSale();
+    if (!sale || !this.canClose() || this.saving()) return;
+
+    this.saving.set(true);
+    this.api.close(sale.id).pipe(finalize(() => this.saving.set(false))).subscribe({
+      next: () => {
+        this.feedback.success('Comanda fechada.');
+        this.openSales.update((items) => items.filter((item) => item.id !== sale.id));
+        this.router.navigateByUrl('/comandas');
+      },
+      error: (error) => this.feedback.error(apiErrorMessage(error)),
+    });
+  }
+
+  openSaleCancellation(): void {
+    this.cancellationReason = '';
+    this.cancelSaleOpen.set(true);
+  }
+
+  cancelSale(): void {
+    const sale = this.currentSale();
+    if (!sale || !this.cancellationReason.trim() || this.saving()) return;
+
+    this.saving.set(true);
+    this.api.cancel(sale.id, { reason: this.cancellationReason.trim() }).pipe(
+      finalize(() => this.saving.set(false)),
+    ).subscribe({
+      next: () => {
+        this.cancelSaleOpen.set(false);
+        this.feedback.success('Comanda cancelada.');
+        this.openSales.update((items) => items.filter((item) => item.id !== sale.id));
+        this.router.navigateByUrl('/comandas');
+      },
+      error: (error) => this.feedback.error(apiErrorMessage(error)),
+    });
+  }
+
+  saleTitle(sale: Sale): string {
+    return `Comanda #${sale.id} · Mesa ${sale.tableNumber ?? '-'}`;
+  }
+
+  tableTitle(sale: Sale): string {
+    return `Mesa ${sale.tableNumber ?? '-'}`;
+  }
+
+  optionSummary(item: SaleItem): string {
+    return saleChoiceSummary(item.options);
+  }
+
+  currency(value: number): string {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  }
+
   relativeTime(value: string): string {
-    const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000));
-    return minutes < 60 ? `há ${minutes} min` : `há ${Math.floor(minutes / 60)}h ${minutes % 60}min`;
+    const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60_000));
+    if (!Number.isFinite(minutes)) return 'Horário indisponível';
+    if (minutes < 60) return `há ${minutes} min`;
+    return `há ${Math.floor(minutes / 60)}h ${minutes % 60}min`;
+  }
+
+  private applySale(updated: Sale, message?: string): void {
+    this.currentSale.set(updated);
+    if (updated.status === 'OPEN') {
+      this.openSales.update((items) => [updated, ...items.filter((item) => item.id !== updated.id)]);
+    }
+    if (message) this.feedback.success(message);
+  }
+
+  private showProductFeedback(productId: number): void {
+    if (this.productFeedbackTimer) clearTimeout(this.productFeedbackTimer);
+    const productName = this.products().find((product) => product.id === productId)?.name ?? 'Produto';
+    this.productFeedback.set(`${productName} adicionado`);
+    this.productFeedbackTimer = setTimeout(() => this.productFeedback.set(''), 1800);
   }
 }

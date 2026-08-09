@@ -4,13 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { CategoryApiService } from '../../core/services/category-api.service';
 import { FeedbackService } from '../../core/services/feedback.service';
-import { Category, CategoryRequest } from '../../shared/models/category.model';
-import { apiErrorMessage } from '../../shared/util/api-error';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
+import { Category, CategoryRequest } from '../../shared/models/category.model';
+import { apiErrorMessage } from '../../shared/util/api-error';
 
 @Component({
   selector: 'app-categories-page',
@@ -25,137 +25,46 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
     AccessibleDialogDirective,
   ],
   template: `
-    <app-page-header
-      kicker="Cardápio"
-      title="Categorias"
-      description="Organize produtos por grupos de venda e disponibilidade."
-    >
+    <app-page-header kicker="Catálogo" title="Categorias" description="Organize os produtos para encontrá-los rapidamente durante a venda.">
       <div page-actions class="page-header-actions">
-        <button type="button" class="primary-button" (click)="openCreate()">
-          <i class="pi pi-plus"></i>
-          Nova categoria
-        </button>
+        <button type="button" class="primary-button" (click)="openCreate()"><i class="pi pi-plus"></i>Nova categoria</button>
       </div>
     </app-page-header>
 
-    <div class="categories-section">
-      <app-section-card eyebrow="Estrutura do cardápio" title="Categorias cadastradas">
-        @if (loading()) {
-          <div class="category-grid">
-            @for (item of [1, 2, 3, 4]; track item) {
-              <div class="category-card loading-card"></div>
-            }
-          </div>
-        } @else if (error()) {
-          <div class="error-panel" role="alert">
-            <i class="pi pi-exclamation-triangle"></i>
-            <div><strong>Não foi possível carregar</strong><p>{{ error() }}</p></div>
-            <button type="button" class="ghost-button" (click)="load()">
-              <i class="pi pi-refresh"></i> Tentar novamente
-            </button>
-          </div>
-        } @else if (categories().length === 0) {
-          <app-empty-state
-            icon="pi pi-tags"
-            title="Nenhuma categoria cadastrada"
-            description="Crie a primeira categoria para organizar o cardápio."
-          />
-        } @else {
-          <div class="category-grid">
-            @for (category of categories(); track category.id) {
-              <article class="category-card">
-                <div class="category-card-header">
-                  <div class="category-icon"><i class="pi pi-tags"></i></div>
-                  <app-status-badge
-                    [label]="category.active ? 'Ativa' : 'Inativa'"
-                    [tone]="category.active ? 'success' : 'neutral'"
-                  />
-                </div>
-                <div class="category-content">
-                  <strong [title]="category.name">{{ category.name }}</strong>
-                  <p [class.category-description-empty]="!category.description">
-                    {{ category.description || 'Sem descrição cadastrada.' }}
-                  </p>
-                  <small>Ordem de exibição: {{ category.displayOrder }}</small>
-                </div>
-                <div class="category-actions">
-                  <button
-                    type="button"
-                    class="icon-action-button"
-                    title="Editar categoria"
-                    [attr.aria-label]="'Editar categoria ' + category.name"
-                    (click)="openEdit(category)"
-                  >
-                    <i class="pi pi-pencil"></i>
-                  </button>
-                  <button
-                    type="button"
-                    class="icon-action-button"
-                    [class.danger]="category.active"
-                    [class.success]="!category.active"
-                    [title]="category.active ? 'Desativar categoria' : 'Ativar categoria'"
-                    [attr.aria-label]="(category.active ? 'Desativar categoria ' : 'Ativar categoria ') + category.name"
-                    (click)="toggle(category)"
-                  >
-                    <i [class]="category.active ? 'pi pi-ban' : 'pi pi-check'"></i>
-                  </button>
-                </div>
-              </article>
-            }
-          </div>
-        }
-      </app-section-card>
-    </div>
+    <app-section-card eyebrow="Organização" title="Categorias cadastradas">
+      @if (loading()) {
+        <div class="category-grid">@for (item of [1, 2, 3, 4]; track item) { <div class="category-card loading-card"></div> }</div>
+      } @else if (error()) {
+        <div class="error-panel" role="alert"><i class="pi pi-exclamation-triangle"></i><div><strong>Não foi possível carregar</strong><p>{{ error() }}</p></div><button type="button" class="ghost-button" (click)="load()"><i class="pi pi-refresh"></i>Tentar novamente</button></div>
+      } @else if (categories().length === 0) {
+        <app-empty-state icon="pi pi-tags" title="Nenhuma categoria cadastrada" description="Crie uma categoria para facilitar a busca de produtos." />
+      } @else {
+        <div class="category-grid">
+          @for (category of categories(); track category.id) {
+            <article class="category-card">
+              <div class="category-card-header"><div class="category-icon"><i class="pi pi-tags"></i></div><app-status-badge [label]="category.active ? 'Ativa' : 'Inativa'" [tone]="category.active ? 'success' : 'neutral'" /></div>
+              <div class="category-content"><strong [title]="category.name">{{ category.name }}</strong><small>Organiza os produtos no cardápio</small></div>
+              <div class="category-actions">
+                <button type="button" class="icon-action-button" title="Editar categoria" [attr.aria-label]="'Editar categoria ' + category.name" (click)="openEdit(category)"><i class="pi pi-pencil"></i></button>
+                <button type="button" class="icon-action-button" [class.danger]="category.active" [class.success]="!category.active" [title]="category.active ? 'Desativar categoria' : 'Ativar categoria'" [attr.aria-label]="(category.active ? 'Desativar categoria ' : 'Ativar categoria ') + category.name" (click)="toggle(category)"><i [class]="category.active ? 'pi pi-ban' : 'pi pi-check'"></i></button>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </app-section-card>
 
     @if (formOpen()) {
       <div class="modal-backdrop" (click)="closeForm()">
-        <form
-          class="modal-panel"
-          appAccessibleDialog
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="category-dialog-title"
-          [dialogCloseDisabled]="saving()"
-          (dialogClose)="closeForm()"
-          (click)="$event.stopPropagation()"
-          (ngSubmit)="save()"
-        >
-          <div class="modal-header">
-            <div class="modal-heading">
-              <span class="modal-eyebrow">Cardápio</span>
-              <h2 id="category-dialog-title">{{ editing() ? 'Editar categoria' : 'Nova categoria' }}</h2>
-            </div>
-            <button type="button" class="icon-button" aria-label="Fechar" (click)="closeForm()">
-              <i class="pi pi-times"></i>
-            </button>
-          </div>
+        <form class="modal-panel compact" appAccessibleDialog role="dialog" aria-modal="true" aria-labelledby="category-dialog-title" [dialogCloseDisabled]="saving()" (dialogClose)="closeForm()" (click)="$event.stopPropagation()" (ngSubmit)="save()">
+          <div class="modal-header"><div class="modal-heading"><span class="modal-eyebrow">Organização</span><h2 id="category-dialog-title">{{ editing() ? 'Editar categoria' : 'Nova categoria' }}</h2></div><button type="button" class="icon-button" aria-label="Fechar" (click)="closeForm()"><i class="pi pi-times"></i></button></div>
           <div class="modal-body">
             <div class="form-grid">
-              <label class="field full">
-                <span>Nome</span>
-                <input name="name" [(ngModel)]="form.name" maxlength="120" required autofocus />
-              </label>
-              <label class="field full">
-                <span>Descrição</span>
-                <textarea name="description" [(ngModel)]="form.description" maxlength="255"></textarea>
-              </label>
-              <label class="field">
-                <span>Ordem de exibição</span>
-                <input name="displayOrder" type="number" min="0" [(ngModel)]="form.displayOrder" />
-              </label>
-              <label class="toggle-field">
-                <input name="active" type="checkbox" [(ngModel)]="form.active" />
-                <span>Categoria ativa</span>
-              </label>
+              <label class="field full"><span>Nome</span><input name="name" [(ngModel)]="form.name" maxlength="120" required autofocus /></label>
+              <label class="toggle-field"><input name="active" type="checkbox" [(ngModel)]="form.active" /><span>Categoria ativa</span></label>
             </div>
           </div>
-          <div class="modal-footer modal-actions">
-            <button type="button" class="ghost-button" (click)="closeForm()">Cancelar</button>
-            <button type="submit" class="primary-button" [disabled]="saving()">
-              <i class="pi pi-check"></i>
-              {{ saving() ? 'Salvando...' : 'Salvar categoria' }}
-            </button>
-          </div>
+          <div class="modal-footer modal-actions"><button type="button" class="ghost-button" (click)="closeForm()">Cancelar</button><button type="submit" class="primary-button" [disabled]="saving()"><i class="pi pi-check"></i>{{ saving() ? 'Salvando...' : 'Salvar categoria' }}</button></div>
         </form>
       </div>
     }
@@ -171,59 +80,34 @@ export class CategoriesPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly formOpen = signal(false);
   readonly editing = signal<Category | null>(null);
-
   form: CategoryRequest = this.emptyForm();
 
-  ngOnInit(): void {
-    this.load();
-  }
+  ngOnInit(): void { this.load(); }
 
   load(): void {
     this.loading.set(true);
     this.error.set(null);
     this.api.getAll().pipe(finalize(() => this.loading.set(false))).subscribe({
-      next: (categories) => this.categories.set(categories),
+      next: (categories) => this.categories.set(
+        [...categories].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+      ),
       error: (error) => this.error.set(apiErrorMessage(error)),
     });
   }
 
-  openCreate(): void {
-    this.editing.set(null);
-    this.form = this.emptyForm();
-    this.formOpen.set(true);
-  }
-
-  openEdit(category: Category): void {
-    this.editing.set(category);
-    this.form = {
-      name: category.name,
-      description: category.description,
-      displayOrder: category.displayOrder,
-      active: category.active,
-    };
-    this.formOpen.set(true);
-  }
-
-  closeForm(): void {
-    this.formOpen.set(false);
-  }
+  openCreate(): void { this.editing.set(null); this.form = this.emptyForm(); this.formOpen.set(true); }
+  openEdit(category: Category): void { this.editing.set(category); this.form = { name: category.name, displayOrder: category.displayOrder, active: category.active }; this.formOpen.set(true); }
+  closeForm(): void { if (!this.saving()) this.formOpen.set(false); }
 
   save(): void {
-    if (!this.form.name.trim()) {
-      this.feedback.error('Informe o nome da categoria.');
-      return;
-    }
-
+    const name = this.form.name.trim();
+    if (!name) { this.feedback.error('Informe o nome da categoria.'); return; }
     this.saving.set(true);
     const current = this.editing();
-    const request = { ...this.form, name: this.form.name.trim() };
+    const request: CategoryRequest = { ...this.form, name };
     const operation = current ? this.api.update(current.id, request) : this.api.create(request);
     operation.pipe(finalize(() => this.saving.set(false))).subscribe({
-      next: () => {
-        this.feedback.success(current ? 'Registro atualizado com sucesso.' : 'Registro salvo com sucesso.');
-        this.closeForm();
-        this.load();
-      },
+      next: () => { this.feedback.success(current ? 'Categoria atualizada.' : 'Categoria cadastrada.'); this.formOpen.set(false); this.load(); },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
   }
@@ -231,17 +115,10 @@ export class CategoriesPageComponent implements OnInit {
   toggle(category: Category): void {
     const operation = category.active ? this.api.deactivate(category.id) : this.api.activate(category.id);
     operation.subscribe({
-      next: () => {
-        this.feedback.success(
-          category.active ? 'Registro desativado com sucesso.' : 'Registro atualizado com sucesso.',
-        );
-        this.load();
-      },
+      next: () => { this.feedback.success(category.active ? 'Categoria desativada.' : 'Categoria ativada.'); this.load(); },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
   }
 
-  private emptyForm(): CategoryRequest {
-    return { name: '', description: '', displayOrder: 0, active: true };
-  }
+  private emptyForm(): CategoryRequest { return { name: '', displayOrder: 0, active: true }; }
 }

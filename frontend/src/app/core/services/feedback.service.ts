@@ -33,6 +33,7 @@ export class FeedbackService {
       clearTimeout(this.timer);
     }
     this.message.set({ text, tone });
-    this.timer = setTimeout(() => this.message.set(null), 4200);
+    const duration = tone === 'error' ? 5200 : 2600;
+    this.timer = setTimeout(() => this.message.set(null), duration);
   }
 }

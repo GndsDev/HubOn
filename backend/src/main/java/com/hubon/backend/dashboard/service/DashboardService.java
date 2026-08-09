@@ -1,161 +1,60 @@
 package com.hubon.backend.dashboard.service;
 
 import com.hubon.backend.dashboard.dto.DashboardSummaryResponse;
-import com.hubon.backend.order.domain.OrderItemStatus;
-import com.hubon.backend.order.domain.OrderStatus;
-import com.hubon.backend.order.domain.RestaurantOrder;
-import com.hubon.backend.order.repository.OrderItemRepository;
-import com.hubon.backend.order.repository.RestaurantOrderRepository;
 import com.hubon.backend.payment.repository.PaymentRepository;
-import com.hubon.backend.tab.domain.TabStatus;
-import com.hubon.backend.tab.domain.TabType;
-import com.hubon.backend.tab.dto.CounterSaleSummaryResponse;
-import com.hubon.backend.tab.repository.TabRepository;
-import com.hubon.backend.tab.service.CounterSaleService;
-import com.hubon.backend.tab.service.TabService;
-import com.hubon.backend.table.domain.TableStatus;
-import com.hubon.backend.table.repository.RestaurantTableRepository;
+import com.hubon.backend.sale.domain.*;
+import com.hubon.backend.sale.repository.SaleItemRepository;
+import com.hubon.backend.sale.repository.SaleRepository;
+import com.hubon.backend.sale.service.SaleValueService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class DashboardService {
-
-    private final TabRepository tabRepository;
-    private final RestaurantOrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
+    private final SaleRepository saleRepository;
+    private final SaleItemRepository itemRepository;
     private final PaymentRepository paymentRepository;
-    private final RestaurantTableRepository tableRepository;
-    private final CounterSaleService counterSaleService;
-    private final TabService tabService;
+    private final SaleValueService valueService;
+    private final Clock businessClock;
 
     @Transactional(readOnly = true)
     public DashboardSummaryResponse getSummary() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(businessClock);
         LocalDateTime start = today.atStartOfDay();
         LocalDateTime end = today.plusDays(1).atStartOfDay();
-        long closedToday = tabRepository
-                .countByStatusAndClosedAtGreaterThanEqualAndClosedAtLessThan(
-                        TabStatus.CLOSED,
-                        start,
-                        end
-                );
-        BigDecimal todaySales = tabRepository.sumFinalAmountByStatusAndClosedAtBetween(
-                TabStatus.CLOSED,
-                start,
-                end
-        );
-        BigDecimal averageTicket = closedToday == 0
-                ? BigDecimal.ZERO
-                : todaySales.divide(BigDecimal.valueOf(closedToday), 2, RoundingMode.HALF_UP);
-        long openTabs = tabRepository.countByStatus(TabStatus.OPEN);
-        long ordersInPreparation = orderRepository.countByStatusIn(
-                List.of(OrderStatus.SENT_TO_KITCHEN, OrderStatus.PREPARING)
-        );
-        long readyOrders = orderRepository.countByStatusIn(List.of(OrderStatus.READY));
-        List<CounterSaleSummaryResponse> activeCounterSales = counterSaleService.listActive();
-        long pendingPayments = tabService.listOpen().stream()
-                .filter(tab -> tab.remainingAmount().signum() > 0)
-                .count();
-        BigDecimal openAmount = tabRepository.sumFinalAmountByStatus(TabStatus.OPEN);
-        BigDecimal receivedToday = paymentRepository.sumAmountBetween(start, end);
-        BigDecimal cancelledAmount = orderItemRepository.sumCancelledSubtotalBetween(
-                OrderStatus.CANCELLED,
-                start,
-                end
-        );
-
-        return new DashboardSummaryResponse(
-                todaySales,
-                openTabs,
-                activeCounterSales.size(),
-                ordersInPreparation,
-                readyOrders,
-                pendingPayments,
-                averageTicket,
-                bestSellingProducts(),
-                tableSummary(),
-                new DashboardSummaryResponse.CashSummary(receivedToday, openAmount, cancelledAmount),
-                recentOrders()
-        );
-    }
-
-    private List<DashboardSummaryResponse.BestSellingProduct> bestSellingProducts() {
-        return orderItemRepository.findBestSellingProducts(
-                        List.of(OrderItemStatus.DRAFT, OrderItemStatus.CANCELED),
-                        OrderStatus.CANCELLED,
-                        PageRequest.of(0, 5)
-                )
-                .stream()
-                .map(product -> new DashboardSummaryResponse.BestSellingProduct(
-                        product.getName(),
-                        product.getCategory(),
-                        product.getQuantity(),
-                        product.getRevenue()
-                ))
-                .toList();
-    }
-
-    private DashboardSummaryResponse.TableSummary tableSummary() {
-        long available = tableRepository.countByActiveTrueAndStatus(TableStatus.AVAILABLE);
-        long occupied = tableRepository.countByActiveTrueAndStatus(TableStatus.OCCUPIED);
-        long reserved = tableRepository.countByActiveTrueAndStatus(TableStatus.RESERVED);
-        long disabled = tableRepository.countDisabled(TableStatus.DISABLED);
-        return new DashboardSummaryResponse.TableSummary(
-                available,
-                occupied,
-                reserved,
-                disabled,
-                available + occupied + reserved + disabled
-        );
-    }
-
-    private List<DashboardSummaryResponse.RecentOrder> recentOrders() {
-        List<RestaurantOrder> orders = orderRepository.findAllByOrderByCreatedAtDesc(
-                PageRequest.of(0, 5)
-        );
-        if (orders.isEmpty()) {
-            return List.of();
-        }
-        Map<Long, BigDecimal> amountByOrder = orderItemRepository
-                .findAllByOrderIdIn(orders.stream().map(RestaurantOrder::getId).toList())
-                .stream()
-                .filter(item -> item.getStatus() != OrderItemStatus.DRAFT)
-                .filter(item -> item.getStatus() != OrderItemStatus.CANCELED)
-                .collect(Collectors.groupingBy(
-                        item -> item.getOrder().getId(),
-                        Collectors.reducing(
-                                BigDecimal.ZERO,
-                                item -> item.getSubtotal(),
-                                BigDecimal::add
-                        )
-                ));
-
-        return orders.stream()
-                .map(order -> new DashboardSummaryResponse.RecentOrder(
-                        order.getId(),
-                        order.getTab().getRestaurantTable() == null
-                                ? null
-                                : order.getTab().getRestaurantTable().getNumber(),
-                        order.getTab().getType() == TabType.COUNTER
-                                ? "Balcão #" + order.getTab().getId()
-                                : "Mesa " + order.getTab().getRestaurantTable().getNumber(),
-                        order.getStatus().name(),
-                        amountByOrder.getOrDefault(order.getId(), BigDecimal.ZERO),
-                        order.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-                ))
-                .toList();
+        List<Sale> closed = saleRepository
+                .findAllByStatusAndClosedAtGreaterThanEqualAndClosedAtLessThanOrderByClosedAtAscIdAsc(
+                        SaleStatus.CLOSED, start, end);
+        BigDecimal todaySales = closed.stream().map(valueService::calculate)
+                .map(values -> values.finalAmount()).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal average = closed.isEmpty() ? BigDecimal.ZERO
+                : todaySales.divide(BigDecimal.valueOf(closed.size()), 2, RoundingMode.HALF_UP);
+        List<Sale> open = saleRepository.findAllByStatusOrderByOpenedAtDesc(SaleStatus.OPEN);
+        long openTables = open.stream().filter(sale -> sale.getType() == SaleType.TABLE).count();
+        long openCounters = open.size() - openTables;
+        long pending = open.stream().filter(sale -> valueService.calculate(sale).remainingAmount().signum() > 0).count();
+        BigDecimal openAmount = open.stream().map(valueService::calculate).map(values -> values.finalAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal cancelled = itemRepository
+                .findAllByCancelledAtGreaterThanEqualAndCancelledAtLessThanOrderByCancelledAtAsc(start, end)
+                .stream().map(SaleItem::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<DashboardSummaryResponse.RecentSale> recent = saleRepository.findAllByOrderByOpenedAtDesc().stream().limit(5)
+                .map(sale -> new DashboardSummaryResponse.RecentSale(sale.getId(), sale.getTableNumber(),
+                        sale.getType() == SaleType.COUNTER ? "Balcao #" + sale.getId() : "Mesa " + sale.getTableNumber(),
+                        sale.getStatus().name(), valueService.calculate(sale).finalAmount(),
+                        sale.getOpenedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))).toList();
+        return new DashboardSummaryResponse(todaySales, open.size(), openTables, openCounters, pending, average,
+                new DashboardSummaryResponse.CashSummary(paymentRepository.sumAmountBetween(start, end),
+                openAmount, cancelled), recent);
     }
 }

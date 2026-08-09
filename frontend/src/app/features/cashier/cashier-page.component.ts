@@ -5,15 +5,14 @@ import { RouterLink } from '@angular/router';
 import { finalize, forkJoin } from 'rxjs';
 import { CashApiService } from '../../core/services/cash-api.service';
 import { FeedbackService } from '../../core/services/feedback.service';
-import { TabApiService } from '../../core/services/tab-api.service';
+import { SalesApiService } from '../../core/services/sales-api.service';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
 import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
 import { CashMovement, CashMovementRequest, CashShift } from '../../shared/models/cash.model';
-import { PaymentMethod } from '../../shared/models/payment.model';
-import { Tab } from '../../shared/models/tab.model';
+import { PaymentMethod, Sale } from '../../shared/models/sale.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
 
 @Component({
@@ -65,7 +64,7 @@ import { apiErrorMessage } from '../../shared/util/api-error';
           </div>
           <div class="cash-audit-summary">
             <span><small>Cancelamentos</small><strong>{{ currency(shift.cancellationAmount) }}</strong></span>
-            <span><small>Estornos financeiros</small><strong>{{ currency(shift.refundAmount) }}</strong></span>
+            <span><small>Saldo operacional</small><strong>{{ currency(shift.expectedCash) }}</strong></span>
             <span><small>Suprimentos</small><strong>{{ currency(shift.supplyAmount) }}</strong></span>
             <span><small>Sangrias</small><strong>{{ currency(shift.withdrawalAmount) }}</strong></span>
           </div>
@@ -78,11 +77,11 @@ import { apiErrorMessage } from '../../shared/util/api-error';
 
         <app-section-card eyebrow="Operação" title="Pagamentos pendentes">
           <div class="pending-payment-list">
-            @for (tab of pendingTabs(); track tab.id) {
+            @for (sale of pendingSales(); track sale.id) {
               <article>
-                <div><strong>{{ tab.displayLabel }}</strong><small>Restante {{ currency(tab.remainingAmount) }}</small></div>
-                <a class="ghost-button compact-button" [routerLink]="tab.type === 'COUNTER' ? ['/balcao', tab.id] : ['/comandas']" [queryParams]="tab.type === 'TABLE' ? { tab: tab.id } : null">
-                  <i class="pi pi-arrow-right"></i>{{ tab.type === 'COUNTER' ? 'Abrir atendimento' : 'Abrir comanda' }}
+                <div><strong>{{ saleLabel(sale) }}</strong><small>Restante {{ currency(sale.remainingAmount) }}</small></div>
+                <a class="ghost-button compact-button" [routerLink]="sale.type === 'COUNTER' ? ['/balcao', sale.id] : ['/comandas', sale.id]">
+                  <i class="pi pi-arrow-right"></i>{{ sale.type === 'COUNTER' ? 'Abrir venda' : 'Abrir comanda' }}
                 </a>
               </article>
             } @empty {
@@ -163,13 +162,13 @@ import { apiErrorMessage } from '../../shared/util/api-error';
 })
 export class CashierPageComponent implements OnInit {
   private readonly api = inject(CashApiService);
-  private readonly tabApi = inject(TabApiService);
+  private readonly salesApi = inject(SalesApiService);
   private readonly feedback = inject(FeedbackService);
 
   readonly currentShift = signal<CashShift | null>(null);
   readonly history = signal<CashShift[]>([]);
-  readonly openTabs = signal<Tab[]>([]);
-  readonly pendingTabs = computed(() => this.openTabs().filter((tab) => tab.remainingAmount > 0));
+  readonly openSales = signal<Sale[]>([]);
+  readonly pendingSales = computed(() => this.openSales().filter((sale) => sale.remainingAmount > 0));
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
@@ -191,13 +190,13 @@ export class CashierPageComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.error.set(null);
-    forkJoin({ current: this.api.getCurrent(), history: this.api.getHistory(), tabs: this.tabApi.getOpen() })
+    forkJoin({ current: this.api.getCurrent(), history: this.api.getHistory(), sales: this.salesApi.list('OPEN') })
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: ({ current, history, tabs }) => {
+        next: ({ current, history, sales }) => {
           this.currentShift.set(current);
           this.history.set(history.filter((shift) => shift.status === 'CLOSED'));
-          this.openTabs.set(tabs);
+          this.openSales.set(sales);
         },
         error: (error) => this.error.set(apiErrorMessage(error)),
       });
@@ -219,9 +218,23 @@ export class CashierPageComponent implements OnInit {
 
   saveMovement(): void {
     const shift = this.currentShift();
-    if (!shift || this.movementForm.amount <= 0 || !this.movementForm.note.trim() || this.saving()) return;
+    if (this.saving()) return;
+    if (!shift) {
+      this.feedback.error('Abra o caixa antes de registrar uma movimentação.');
+      return;
+    }
+    const amount = Number(this.movementForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      this.feedback.error('Informe um valor maior que zero.');
+      return;
+    }
+    const note = this.movementForm.note.trim();
+    if (!note) {
+      this.feedback.error('Informe uma observação para a movimentação.');
+      return;
+    }
     this.saving.set(true);
-    this.api.addMovement(shift.id, { ...this.movementForm, amount: Number(this.movementForm.amount), note: this.movementForm.note.trim() })
+    this.api.addMovement(shift.id, { ...this.movementForm, amount, note })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: (updated) => { this.currentShift.set(updated); this.movementOpen.set(false); this.feedback.success('Movimentação registrada.'); },
@@ -250,7 +263,8 @@ export class CashierPageComponent implements OnInit {
   closeDifference(shift: CashShift): number { return Number(this.closeForm.countedCash || 0) - shift.expectedCash; }
   signedMovementSummary(shift: CashShift): string { return this.currency(shift.supplyAmount - shift.withdrawalAmount); }
   reversedMovements(movements: CashMovement[]): CashMovement[] { return [...movements].reverse(); }
-  movementTypeLabel(movement: CashMovement): string { return ({ PAYMENT: 'Recebimento', SUPPLY: 'Suprimento', WITHDRAWAL: 'Sangria', CANCELLATION: 'Cancelamento', REFUND: 'Estorno' })[movement.type]; }
+  movementTypeLabel(movement: CashMovement): string { return ({ PAYMENT: 'Recebimento', SUPPLY: 'Suprimento', WITHDRAWAL: 'Sangria', CANCELLATION: 'Cancelamento' } as Record<string, string>)[movement.type] ?? movement.type; }
+  saleLabel(sale: Sale): string { return sale.type === 'TABLE' ? `Mesa ${sale.tableNumber}` : `Balcão #${sale.id}`; }
   methodLabel(method: PaymentMethod): string { return this.methods.find((item) => item.value === method)?.label ?? method; }
   currency(value: number): string { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
   dateTime(value: string): string { return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)); }

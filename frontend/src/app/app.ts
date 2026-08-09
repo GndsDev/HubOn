@@ -1,7 +1,21 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { filter, startWith } from 'rxjs';
+import {
+  NavigationEnd,
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from '@angular/router';
+import {
+  filter,
+  startWith,
+} from 'rxjs';
 import { AuthService } from './core/services/auth.service';
 import { CounterActivityService } from './core/services/counter-activity.service';
 import { ThemeService } from './core/services/theme.service';
@@ -33,24 +47,46 @@ interface NavGroup {
 export class App {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
-  readonly counterActivity = inject(CounterActivityService);
   private readonly themeService = inject(ThemeService);
+
+  readonly counterActivity = inject(
+    CounterActivityService,
+  );
+
   readonly navOpen = signal(false);
   readonly sidebarCollapsed = signal(false);
   readonly currentLabel = signal('Dashboard');
   readonly currentPath = signal('/');
+
   readonly theme = this.themeService.theme;
   readonly currentUser = this.auth.currentUser;
   readonly isAuthenticated = this.auth.isAuthenticated;
-  readonly isPublicSurface = computed(() => this.currentPath() === '/login' || !this.isAuthenticated());
+
+  readonly isPublicSurface = computed(
+    () =>
+      this.currentPath() === '/login' ||
+      !this.isAuthenticated(),
+  );
+
   readonly currentUserRoles = computed(() => {
     const roles = this.currentUser()?.roles ?? [];
-    if (roles.length === 0) return 'Sem perfil';
-    return roles.map((role) => this.roleLabel(role)).join(', ');
+
+    if (roles.length === 0) {
+      return 'Sem perfil';
+    }
+
+    return roles
+      .map((role) => this.roleLabel(role))
+      .join(', ');
   });
+
   readonly userInitials = computed(() => {
     const name = this.currentUser()?.name.trim();
-    if (!name) return '--';
+
+    if (!name) {
+      return '--';
+    }
+
     return name
       .split(/\s+/)
       .slice(0, 2)
@@ -63,40 +99,92 @@ export class App {
     {
       label: 'Operação',
       items: [
-        { path: '/dashboard', label: 'Dashboard', icon: 'pi pi-chart-line', roles: ['OWNER', 'ADMIN'] },
-        { path: '/mesas', label: 'Mesas', icon: 'pi pi-table', roles: ['OWNER', 'ADMIN', 'WAITER'] },
-        { path: '/comandas', label: 'Comandas', icon: 'pi pi-receipt', roles: ['OWNER', 'ADMIN', 'WAITER', 'CASHIER'] },
-        { path: '/pedidos', label: 'Pedidos', icon: 'pi pi-shopping-cart', roles: ['OWNER', 'ADMIN', 'WAITER', 'CASHIER', 'KITCHEN'] },
-        { path: '/balcao', label: 'Balcão', icon: 'pi pi-shopping-bag', roles: ['OWNER', 'ADMIN', 'CASHIER'] },
+        {
+          path: '/dashboard',
+          label: 'Dashboard',
+          icon: 'pi pi-chart-line',
+          roles: ['OWNER', 'ADMIN'],
+        },
+        {
+          path: '/comandas',
+          label: 'Comandas',
+          icon: 'pi pi-receipt',
+          roles: ['OWNER', 'ADMIN'],
+        },
+        {
+          path: '/historico',
+          label: 'Histórico',
+          icon: 'pi pi-history',
+          roles: ['OWNER', 'ADMIN'],
+        },
+        {
+          path: '/balcao',
+          label: 'Balcão',
+          icon: 'pi pi-shopping-bag',
+          roles: ['OWNER', 'ADMIN'],
+        },
       ],
     },
     {
       label: 'Gestão financeira',
       items: [
-        { path: '/caixa', label: 'Caixa', icon: 'pi pi-wallet', roles: ['OWNER', 'ADMIN', 'CASHIER'] },
-        { path: '/relatorios', label: 'Relatórios', icon: 'pi pi-chart-bar', roles: ['OWNER', 'ADMIN'] },
+        {
+          path: '/caixa',
+          label: 'Caixa',
+          icon: 'pi pi-wallet',
+          roles: ['OWNER', 'ADMIN'],
+        },
+        {
+          path: '/relatorios',
+          label: 'Relatórios',
+          icon: 'pi pi-chart-bar',
+          roles: ['OWNER', 'ADMIN'],
+        },
       ],
     },
     {
       label: 'Cardápio',
       items: [
-        { path: '/categorias', label: 'Categorias', icon: 'pi pi-tags', roles: ['OWNER', 'ADMIN'] },
-        { path: '/produtos', label: 'Produtos', icon: 'pi pi-box', roles: ['OWNER', 'ADMIN'] },
+        {
+          path: '/categorias',
+          label: 'Categorias',
+          icon: 'pi pi-tags',
+          roles: ['OWNER', 'ADMIN'],
+        },
+        {
+          path: '/produtos',
+          label: 'Produtos',
+          icon: 'pi pi-box',
+          roles: ['OWNER', 'ADMIN'],
+        },
       ],
     },
     {
       label: 'Gestão',
       items: [
-        { path: '/stock', label: 'Estoque', icon: 'pi pi-warehouse', roles: ['OWNER', 'ADMIN', 'CASHIER', 'WAITER'] },
-        { path: '/usuarios', label: 'Usuários', icon: 'pi pi-users', roles: ['OWNER', 'ADMIN'] },
+        {
+          path: '/stock',
+          label: 'Estoque',
+          icon: 'pi pi-warehouse',
+          roles: ['OWNER', 'ADMIN'],
+        },
+        {
+          path: '/usuarios',
+          label: 'Usuários',
+          icon: 'pi pi-users',
+          roles: ['OWNER', 'ADMIN'],
+        },
       ],
     },
   ];
+
   readonly visibleNavGroups = computed(() =>
     this.navGroups
       .map((group) => ({
         ...group,
-        items: group.items.filter((item) => this.auth.hasAnyRole(item.roles)),
+        items: group.items.filter((item) =>
+          this.auth.hasAnyRole(item.roles),
+        ),
       }))
       .filter((group) => group.items.length > 0),
   );
@@ -104,28 +192,59 @@ export class App {
   constructor() {
     this.router.events
       .pipe(
-        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        filter(
+          (event): event is NavigationEnd =>
+            event instanceof NavigationEnd,
+        ),
         startWith(null),
         takeUntilDestroyed(),
       )
       .subscribe(() => {
-        const currentPath = `/${this.router.url.split('?')[0].split('#')[0].replace(/^\/+/, '')}`;
+        const currentPath =
+          `/${this.router.url
+            .split('?')[0]
+            .split('#')[0]
+            .replace(/^\/+/, '')}`;
+
         this.currentPath.set(currentPath);
+
         const item = this.navGroups
           .flatMap((group) => group.items)
-          .find((navItem) => currentPath === navItem.path || currentPath.startsWith(`${navItem.path}/`));
-        this.currentLabel.set(item?.label ?? (currentPath === '/minha-conta' ? 'Minha Conta' : 'Dashboard'));
+          .find(
+            (navItem) =>
+              currentPath === navItem.path ||
+              currentPath.startsWith(
+                `${navItem.path}/`,
+              ),
+          );
+
+        this.currentLabel.set(
+          item?.label ??
+            (
+              currentPath === '/minha-conta'
+                ? 'Minha Conta'
+                : 'Dashboard'
+            ),
+        );
+
         this.navOpen.set(false);
-        if (item?.path === '/balcao') this.counterActivity.refresh();
+
+        if (item?.path === '/balcao') {
+          this.counterActivity.refresh();
+        }
       });
   }
 
   toggleNav(): void {
-    this.navOpen.update((isOpen) => !isOpen);
+    this.navOpen.update(
+      (isOpen) => !isOpen,
+    );
   }
 
   toggleSidebar(): void {
-    this.sidebarCollapsed.update((isCollapsed) => !isCollapsed);
+    this.sidebarCollapsed.update(
+      (isCollapsed) => !isCollapsed,
+    );
   }
 
   toggleTheme(): void {
@@ -145,10 +264,7 @@ export class App {
   private roleLabel(role: string): string {
     const labels: Record<string, string> = {
       OWNER: 'Dono',
-      ADMIN: 'Admin',
-      WAITER: 'Garçom',
-      KITCHEN: 'Preparo',
-      CASHIER: 'Caixa',
+      ADMIN: 'Gerente',
     };
 
     return labels[role] ?? role;

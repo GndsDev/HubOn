@@ -1,15 +1,87 @@
+name: hubon
+
 services:
   postgres:
     image: postgres:16
     container_name: hubon-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-hubon_db}
-      POSTGRES_USER: ${DB_USERNAME:-hubon_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-hubon_password}
+      POSTGRES_DB: ${POSTGRES_DB:-hubon_db}
+      POSTGRES_USER: ${POSTGRES_USER:-hubon_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD no arquivo .env}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - hubon_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - hubon-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: hubon-backend:local
+    container_name: hubon-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-hubon_db}
+      DB_USERNAME: ${POSTGRES_USER:-hubon_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD no arquivo .env}
+      HUBON_JWT_SECRET: ${JWT_SECRET:?Configure JWT_SECRET no arquivo .env}
+      HUBON_CORS_ALLOWED_ORIGINS: ${HUBON_CORS_ALLOWED_ORIGINS:-http://localhost:4200}
+      HUBON_SEED_ENABLED: ${HUBON_SEED_ENABLED:-false}
+      HUBON_SEED_OWNER_NAME: ${HUBON_SEED_OWNER_NAME:-Proprietario}
+      HUBON_SEED_OWNER_EMAIL: ${HUBON_SEED_OWNER_EMAIL:-owner@hubon.local}
+      HUBON_SEED_OWNER_PASSWORD: ${HUBON_SEED_OWNER_PASSWORD:?Configure HUBON_SEED_OWNER_PASSWORD no arquivo .env}
+      HUBON_SEED_ADMIN_ENABLED: ${HUBON_SEED_ADMIN_ENABLED:-true}
+      HUBON_SEED_ADMIN_NAME: ${HUBON_SEED_ADMIN_NAME:-Administrador}
+      HUBON_SEED_ADMIN_EMAIL: ${HUBON_SEED_ADMIN_EMAIL:-admin@hubon.local}
+      HUBON_SEED_ADMIN_PASSWORD: ${HUBON_SEED_ADMIN_PASSWORD:?Configure HUBON_SEED_ADMIN_PASSWORD no arquivo .env}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8080"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
+    networks:
+      - hubon-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: hubon-frontend:local
+    container_name: hubon-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    networks:
+      - hubon-network
 
 volumes:
   hubon_postgres_data:
+
+networks:
+  hubon-network:
+    driver: bridge

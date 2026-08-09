@@ -7,7 +7,6 @@ public record ProductOptionGroupResponse(
         Long id,
         Long productId,
         String name,
-        Boolean required,
         Integer minimumSelections,
         Integer maximumSelections,
         Integer displayOrder,

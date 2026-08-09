@@ -2,10 +2,83 @@
 
 ## Pré-requisitos
 
+Para a stack completa em containers:
+
+- Docker Desktop com Docker Compose.
+- Portas `5432`, `8080` e `4200` livres.
+
+Para executar os componentes diretamente, sem Docker:
+
 - PostgreSQL instalado e em execução.
 - Java 21.
 - Node.js e npm.
 - Portas `4200` e `8080` livres.
+
+## Stack completa com Docker
+
+O Compose da raiz executa PostgreSQL, backend e frontend na rede interna
+`hubon-network`. O backend acessa o banco por
+`jdbc:postgresql://postgres:5432/hubon_db`, e o frontend encaminha `/api` ao
+backend pelo Nginx. O desenvolvimento direto com Angular continua usando a URL
+definida em `environment.development.ts`.
+
+Crie o arquivo local de ambiente a partir do modelo e substitua os placeholders
+por valores próprios:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+O arquivo `.env` contém credenciais locais e não é versionado. O
+`.env.example` documenta todas as variáveis necessárias sem armazenar segredos
+reais.
+
+Inicie e confira a stack:
+
+```powershell
+docker compose up -d --build
+docker compose ps
+```
+
+Serviços publicados:
+
+| Container | Porta | Uso |
+| --- | --- | --- |
+| `hubon-postgres` | `5432` | Banco operacional persistente do HubOn |
+| `hubon-backend` | `8080` | API Spring Boot |
+| `hubon-frontend` | `4200` | Aplicação Angular servida pelo Nginx |
+
+Na máquina do cliente, o Compose cria somente `hubon_db` por padrão. O banco
+`hubon_test` não integra a stack de execução e não é criado pela aplicação; ele
+existe apenas em ambientes de desenvolvimento ou na CI temporária do GitHub.
+
+O PostgreSQL usa o volume nomeado `hubon_hubon_postgres_data`. O mesmo volume é
+reutilizado quando os containers são recriados, portanto uma atualização da
+stack não apaga o banco. Nunca use `docker compose down -v` para uma atualização
+normal.
+
+Os três serviços usam `restart: unless-stopped`. Após a primeira execução de
+`docker compose up -d`, o daemon Docker volta a iniciá-los automaticamente. No
+Windows, confirme uma única vez no Docker Desktop:
+
+```text
+Settings > General > Start Docker Desktop when you sign in to your computer
+```
+
+Essa opção deve ser habilitada pela interface do Docker Desktop; não altere os
+arquivos internos do aplicativo para forçá-la.
+
+Comandos seguros de operação:
+
+```powershell
+docker compose ps
+docker compose logs --tail=100 backend
+docker compose stop
+docker compose start
+```
+
+Evite publicar a porta `5432` fora da máquina e não exponha esta stack
+diretamente à internet.
 
 ## PostgreSQL
 
@@ -29,6 +102,37 @@ CREATE DATABASE hubon_db OWNER hubon_user;
 
 O Flyway cria as tabelas automaticamente ao iniciar o backend. O Hibernate
 apenas valida o esquema com `ddl-auto=validate`.
+
+### Recriacao da baseline local (somente desenvolvimento)
+
+Enquanto o HubOn nao possui dados reais em desenvolvimento, a baseline
+`V1__initial_schema.sql` pode ser ajustada para acompanhar a simplificacao do
+dominio. Quando isso acontecer, os bancos locais que ja aplicaram a V1 antiga
+devem ser recriados do zero.
+
+Este procedimento nunca deve ser executado na máquina do cliente.
+
+Recrie tanto `hubon_test` quanto `hubon_db` quando a V1 mudar em uma fase sem
+dados reais. Nao use `flyway repair` para corrigir checksum nesse caso: isso
+apenas faria o Flyway aceitar um schema antigo como se fosse o schema novo.
+
+No container local `hubon-postgres`, recrie somente o banco necessario:
+
+```sql
+DROP DATABASE IF EXISTS hubon_db WITH (FORCE);
+CREATE DATABASE hubon_db OWNER hubon_user;
+```
+
+Para o banco de testes:
+
+```sql
+DROP DATABASE IF EXISTS hubon_test WITH (FORCE);
+CREATE DATABASE hubon_test OWNER hubon_user;
+```
+
+Depois inicie o backend normalmente e deixe o Flyway aplicar as migrations.
+Nunca altere uma migration ja aplicada em ambiente com dados reais; nesses
+ambientes, crie uma nova migration incremental.
 
 Para usar outros valores:
 

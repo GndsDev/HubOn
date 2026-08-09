@@ -1,4 +1,4 @@
-export type PreparationFlow = 'REQUIRES_PREPARATION' | 'DIRECT_SERVICE';
+import type { ProductOptionStockLink } from './stock.model';
 
 export interface ProductOption {
   id: number;
@@ -7,6 +7,7 @@ export interface ProductOption {
   additionalPrice: number;
   displayOrder: number;
   active: boolean;
+  stockLink: ProductOptionStockLink | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -15,7 +16,6 @@ export interface ProductOptionGroup {
   id: number;
   productId: number;
   name: string;
-  required: boolean;
   minimumSelections: number;
   maximumSelections: number;
   displayOrder: number;
@@ -25,64 +25,25 @@ export interface ProductOptionGroup {
   updatedAt: string;
 }
 
-export interface ProductVariant {
+export interface Product {
   id: number;
-  productId: number;
-  productName: string;
+  categoryId: number | null;
+  categoryName: string | null;
   name: string;
-  sku: string | null;
+  description: string | null;
   price: number;
   active: boolean;
   available: boolean;
   displayOrder: number;
-  stockLinkActive: boolean;
-  stockLinkId: number | null;
-  stockItemId: number | null;
-  stockItemName: string | null;
-  quantityPerSale: number | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Product {
-  id: number;
-  categoryId: number;
-  categoryName: string;
-  categoryActive: boolean;
-  name: string;
-  description: string | null;
-  preparationFlow: PreparationFlow;
-  active: boolean;
-  available: boolean;
-  displayOrder: number;
-  imageUrl: string | null;
-  variantCount: number;
-  activeVariantCount: number;
-  sellableVariantCount: number;
-  minimumVariantPrice: number | null;
-  maximumVariantPrice: number | null;
-  hasAutomaticStockLink: boolean;
-  complete: boolean;
-  variants: ProductVariant[];
   optionGroups: ProductOptionGroup[];
   createdAt: string;
   updatedAt: string;
 }
 
 export interface ProductRequest {
-  categoryId: number;
+  categoryId: number | null;
   name: string;
   description: string | null;
-  preparationFlow: PreparationFlow;
-  active: boolean;
-  available: boolean;
-  displayOrder: number;
-  imageUrl: string | null;
-}
-
-export interface ProductVariantRequest {
-  name: string;
-  sku: string | null;
   price: number;
   active: boolean;
   available: boolean;
@@ -98,7 +59,6 @@ export interface ProductOptionRequest {
 
 export interface ProductOptionGroupRequest {
   name: string;
-  required: boolean;
   minimumSelections: number;
   maximumSelections: number;
   displayOrder: number;
@@ -106,14 +66,7 @@ export interface ProductOptionGroupRequest {
   options: ProductOptionRequest[];
 }
 
-export interface ProductVariantRegistrationRequest {
-  variant: ProductVariantRequest;
-  stockItemId: number | null;
-  quantityPerSale: number | null;
-}
-
 export interface ProductRegistrationRequest {
   product: ProductRequest;
-  variants: ProductVariantRegistrationRequest[];
   optionGroups: ProductOptionGroupRequest[];
 }

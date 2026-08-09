@@ -42,7 +42,7 @@
                 [routerLinkActiveOptions]="{ exact: item.path !== '/balcao' }"
                 ariaCurrentWhenActive="page"
                 [attr.aria-label]="item.path === '/balcao' && counterActivity.activeCount() > 0
-                  ? item.label + ': ' + counterActivity.activeCount() + ' atendimentos ativos, ' + counterActivity.readyCount() + (counterActivity.readyCount() === 1 ? ' pronto' : ' prontos')
+                  ? item.label + ': ' + counterActivity.activeCount() + ' vendas em andamento'
                   : item.label"
                 [attr.title]="sidebarCollapsed() ? item.label : null"
                 (click)="closeNav()"
@@ -52,9 +52,6 @@
                 @if (item.path === '/balcao' && counterActivity.activeCount() > 0) {
                   <span class="nav-counter-status">
                     <b>{{ counterActivity.activeCount() }}</b>
-                    @if (counterActivity.readyCount() > 0) {
-                      <small><i class="pi pi-bell"></i>{{ counterActivity.readyCount() }} pronto{{ counterActivity.readyCount() === 1 ? '' : 's' }}</small>
-                    }
                   </span>
                 }
               </a>
@@ -63,11 +60,6 @@
         }
       </nav>
 
-      <div class="sidebar-card">
-        <span>Turno atual</span>
-        <strong>Jantar · 18:00–23:30</strong>
-        <small>Ambiente local sincronizado</small>
-      </div>
     </aside>
 
     @if (navOpen()) {

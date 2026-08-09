@@ -1,11 +1,11 @@
-import { PaymentMethod } from './payment.model';
+import { PaymentMethod } from './sale.model';
 
 export type CashShiftStatus = 'OPEN' | 'CLOSED';
-export type CashMovementType = 'PAYMENT' | 'SUPPLY' | 'WITHDRAWAL' | 'CANCELLATION' | 'REFUND';
+export type CashMovementType = 'SUPPLY' | 'WITHDRAWAL';
 
 export interface CashMovement {
   id: string;
-  type: CashMovementType;
+  type: string;
   origin: string;
   amount: number;
   method: PaymentMethod | null;
@@ -26,9 +26,8 @@ export interface CashShift {
   closedByUserName: string | null;
   closedAt: string | null;
   receivedTotal: number;
-  receivedByMethod: Record<PaymentMethod, number>;
+  receivedByMethod: Partial<Record<PaymentMethod, number>>;
   cancellationAmount: number;
-  refundAmount: number;
   supplyAmount: number;
   withdrawalAmount: number;
   expectedCash: number;
@@ -38,17 +37,6 @@ export interface CashShift {
   movements: CashMovement[];
 }
 
-export interface OpenCashShiftRequest {
-  openingBalance: number;
-}
-
-export interface CashMovementRequest {
-  type: 'SUPPLY' | 'WITHDRAWAL';
-  amount: number;
-  note: string;
-}
-
-export interface CloseCashShiftRequest {
-  countedCash: number;
-  note: string | null;
-}
+export interface OpenCashShiftRequest { openingBalance: number; }
+export interface CashMovementRequest { type: CashMovementType; amount: number; note: string; }
+export interface CloseCashShiftRequest { countedCash: number; note: string | null; }

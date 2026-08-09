@@ -1,74 +1,216 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
-import { describe, expect, it, vi } from 'vitest';
-import { AuthService } from '../../core/services/auth.service';
+import { of, throwError } from 'rxjs';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeedbackService } from '../../core/services/feedback.service';
-import { IngredientApiService } from '../../core/services/ingredient-api.service';
-import { InventoryMovementApiService } from '../../core/services/inventory-movement-api.service';
-import { Ingredient } from '../../shared/models/ingredient.model';
+import { ProductApiService } from '../../core/services/product-api.service';
+import { StockApiService } from '../../core/services/stock-api.service';
+import { Product } from '../../shared/models/product.model';
+import { ProductStockLink, StockItem, StockMovement } from '../../shared/models/stock.model';
 import { StockPageComponent } from './stock-page.component';
 
+const stockItem: StockItem = {
+  id: 1,
+  name: 'Carne',
+  description: null,
+  unit: 'KG',
+  currentStock: 10,
+  minimumStock: 2,
+  status: 'NORMAL',
+  active: true,
+  createdAt: '',
+  updatedAt: '',
+};
+
+const movement: StockMovement = {
+  id: 5,
+  stockItemId: 1,
+  stockItemName: 'Carne',
+  unit: 'KG',
+  type: 'ENTRY',
+  deltaQuantity: 5,
+  previousBalance: 5,
+  resultingBalance: 10,
+  saleItemId: null,
+  reversedMovementId: null,
+  reason: 'Compra semanal',
+  createdByUserId: 1,
+  createdByUserName: 'Gerente',
+  createdAt: '2026-08-07T10:00:00',
+};
+
+const product: Product = {
+  id: 20,
+  categoryId: null,
+  categoryName: null,
+  name: 'Espetinho de carne',
+  description: null,
+  price: 12,
+  active: true,
+  available: true,
+  displayOrder: 0,
+  optionGroups: [],
+  createdAt: '',
+  updatedAt: '',
+};
+
+const link: ProductStockLink = {
+  id: 8,
+  productId: 20,
+  productName: 'Espetinho de carne',
+  stockItemId: 1,
+  stockItemName: 'Carne',
+  unit: 'KG',
+  quantityPerSale: 0.15,
+  active: true,
+  createdAt: '',
+  updatedAt: '',
+};
+
 describe('StockPageComponent', () => {
-  async function createComponent() {
+  const api = {
+    listItems: vi.fn(() => of([stockItem])),
+    listMovements: vi.fn(() => of([movement])),
+    getProductLink: vi.fn(() => of(link)),
+    createItem: vi.fn(() => of(stockItem)),
+    updateItem: vi.fn(() => of(stockItem)),
+    setItemActive: vi.fn(() => of(stockItem)),
+    entry: vi.fn(() => of(movement)),
+    exit: vi.fn(() => of({ ...movement, type: 'EXIT' as const, deltaQuantity: -1 })),
+    loss: vi.fn(() => of({ ...movement, type: 'LOSS' as const, deltaQuantity: -1 })),
+    adjust: vi.fn(() => of({ ...movement, type: 'ADJUSTMENT' as const, deltaQuantity: -2 })),
+    createProductLink: vi.fn(() => of(link)),
+    updateProductLink: vi.fn(() => of(link)),
+    deactivateProductLink: vi.fn(() => of(undefined)),
+  };
+  const productApi = { getAll: vi.fn(() => of([product])) };
+  const feedback = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    api.listItems.mockReturnValue(of([stockItem]));
+    api.listMovements.mockReturnValue(of([movement]));
+    api.getProductLink.mockReturnValue(of(link));
+    api.createItem.mockReturnValue(of(stockItem));
+    api.updateItem.mockReturnValue(of(stockItem));
+    api.setItemActive.mockReturnValue(of(stockItem));
+    api.entry.mockReturnValue(of(movement));
+    api.exit.mockReturnValue(of({ ...movement, type: 'EXIT', deltaQuantity: -1 }));
+    api.loss.mockReturnValue(of({ ...movement, type: 'LOSS', deltaQuantity: -1 }));
+    api.adjust.mockReturnValue(of({ ...movement, type: 'ADJUSTMENT', deltaQuantity: -2 }));
+    api.createProductLink.mockReturnValue(of(link));
+    api.updateProductLink.mockReturnValue(of(link));
+    api.deactivateProductLink.mockReturnValue(of(undefined));
+    productApi.getAll.mockReturnValue(of([product]));
+
     await TestBed.configureTestingModule({
       imports: [StockPageComponent],
       providers: [
-        provideRouter([]),
-        { provide: IngredientApiService, useValue: { getAll: () => of([]) } },
-        { provide: InventoryMovementApiService, useValue: { getRecent: () => of([]) } },
-        { provide: AuthService, useValue: { hasAnyRole: () => true } },
-        { provide: FeedbackService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
+        { provide: StockApiService, useValue: api },
+        { provide: ProductApiService, useValue: productApi },
+        { provide: FeedbackService, useValue: feedback },
       ],
     }).compileComponents();
-    const fixture = TestBed.createComponent(StockPageComponent);
-    fixture.detectChanges();
-    return fixture;
+  });
+
+  function component(): StockPageComponent {
+    return TestBed.createComponent(StockPageComponent).componentInstance;
   }
 
-  it('closes the actions menu on outside click and Escape', async () => {
-    const component = (await createComponent()).componentInstance;
-    component.actionMenuOpen.set(1);
-    component.onDocumentClick();
-    expect(component.actionMenuOpen()).toBeNull();
+  it('loads StockItem, StockMovement and ProductStockLink data', () => {
+    const instance = component();
 
-    component.actionMenuOpen.set(1);
-    component.onDocumentKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
-    expect(component.actionMenuOpen()).toBeNull();
+    instance.load();
+
+    expect(instance.items()).toEqual([stockItem]);
+    expect(instance.movements()).toEqual([movement]);
+    expect(api.getProductLink).toHaveBeenCalledWith(20);
+    expect(instance.linkFor(20)).toEqual(link);
+    expect(instance.alertCount()).toBe(0);
   });
 
-  it('calculates the predicted manual exit balance and blocks negative stock', async () => {
-    const component = (await createComponent()).componentInstance;
-    const ingredient: Ingredient = {
-      id: 1,
-      name: 'Carne',
-      description: null,
-      unit: 'KG',
-      controlMode: 'MANUAL',
-      currentStock: 10,
-      minimumStock: 2,
-      idealStock: 12,
-      active: true,
-      stockStatus: 'NORMAL',
-      createdAt: '',
-      updatedAt: '',
-    };
-    component.movementIngredient.set(ingredient);
-    component.movementType.set('EXIT');
-    component.movementForm.quantity = 3;
-    expect(component.predictedExitBalance()).toBe(7);
-    expect(component.exitOverStock()).toBe(false);
+  it('creates and updates stock items with the current contract', () => {
+    const instance = component();
+    instance.openItem();
+    instance.itemForm = { name: '  Carne  ', description: '', unit: 'KG', currentStock: 10, minimumStock: 2, active: true };
 
-    component.movementForm.quantity = 11;
-    expect(component.predictedExitBalance()).toBe(-1);
-    expect(component.exitOverStock()).toBe(true);
+    instance.saveItem();
+
+    expect(api.createItem).toHaveBeenCalledWith({ name: 'Carne', description: null, unit: 'KG', currentStock: 10, minimumStock: 2, active: true });
+
+    instance.openItem(stockItem);
+    instance.itemForm.minimumStock = 3;
+    instance.saveItem();
+    expect(api.updateItem).toHaveBeenCalledWith(1, { name: 'Carne', description: null, unit: 'KG', currentStock: 10, minimumStock: 3, active: true });
   });
 
-  it('renders the six indicators in the dedicated balanced grid', async () => {
-    const fixture = await createComponent();
-    const grid = fixture.nativeElement.querySelector('.stock-stats-grid') as HTMLElement | null;
+  it('records entry and exit movements using stock item identifiers', () => {
+    const instance = component();
+    instance.movementForm = { stockItemId: 1, type: 'ENTRY', quantity: 4, reason: 'Compra' };
+    instance.saveMovement();
+    expect(api.entry).toHaveBeenCalledWith({ stockItemId: 1, quantity: 4, reason: 'Compra' });
 
-    expect(grid).not.toBeNull();
-    expect(grid?.querySelectorAll('.stat-card')).toHaveLength(6);
+    instance.movementForm = { stockItemId: 1, type: 'EXIT', quantity: 1, reason: '' };
+    instance.saveMovement();
+    expect(api.exit).toHaveBeenCalledWith({ stockItemId: 1, quantity: 1, reason: null });
+  });
+
+  it('requires reasons for loss and adjustment movements', () => {
+    const instance = component();
+    instance.movementForm = { stockItemId: 1, type: 'LOSS', quantity: 0.5, reason: '' };
+    instance.saveMovement();
+    expect(api.loss).not.toHaveBeenCalled();
+
+    instance.movementForm.reason = 'Validade vencida';
+    instance.saveMovement();
+    expect(api.loss).toHaveBeenCalledWith({ stockItemId: 1, quantity: 0.5, reason: 'Validade vencida' });
+
+    instance.movementForm = { stockItemId: 1, type: 'ADJUSTMENT', quantity: 0, reason: 'Contagem fisica' };
+    instance.saveMovement();
+    expect(api.adjust).toHaveBeenCalledWith({ stockItemId: 1, newStock: 0, reason: 'Contagem fisica' });
+  });
+
+  it('rejects zero for entry, exit and loss while allowing a zero adjustment', () => {
+    const instance = component();
+
+    for (const type of ['ENTRY', 'EXIT', 'LOSS'] as const) {
+      instance.movementForm = { stockItemId: 1, type, quantity: 0, reason: 'Motivo' };
+      expect(instance.invalidMovementQuantity()).toBe(true);
+      instance.saveMovement();
+    }
+
+    expect(api.entry).not.toHaveBeenCalled();
+    expect(api.exit).not.toHaveBeenCalled();
+    expect(api.loss).not.toHaveBeenCalled();
+    instance.movementForm = { stockItemId: 1, type: 'ADJUSTMENT', quantity: 0, reason: 'Zeragem' };
+    expect(instance.invalidMovementQuantity()).toBe(false);
+  });
+
+  it('creates and updates the automatic product link with quantityPerSale', () => {
+    const instance = component();
+    instance.items.set([stockItem]);
+    instance.openLink(product);
+    instance.linkForm = { stockItemId: 1, quantityPerSale: 0.15 };
+
+    instance.saveLink(product);
+
+    expect(api.createProductLink).toHaveBeenCalledWith(20, { stockItemId: 1, quantityPerSale: 0.15 });
+    expect(instance.linkFor(20)).toEqual(link);
+
+    instance.productLinks.set(new Map([[20, link]]));
+    instance.linkForm = { stockItemId: 1, quantityPerSale: 0.2 };
+    instance.saveLink(product);
+    expect(api.updateProductLink).toHaveBeenCalledWith(20, { stockItemId: 1, quantityPerSale: 0.2 });
+  });
+
+  it('exposes load failures without replacing existing stock state', () => {
+    const instance = component();
+    instance.items.set([stockItem]);
+    api.listItems.mockReturnValueOnce(throwError(() => ({ error: { message: 'Falha controlada' } })));
+
+    instance.load();
+
+    expect(instance.items()).toEqual([stockItem]);
+    expect(instance.error()).toBeTruthy();
+    expect(instance.loading()).toBe(false);
   });
 });

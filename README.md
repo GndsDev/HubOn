@@ -64,12 +64,8 @@ acompanha a operação e o Caixa controla o turno e o dinheiro.
 
 ![Dashboard operacional do HubOn](docs/media/screenshots/01-dashboard.png)
 
-### Mesas
-
-![Mapa de mesas do HubOn](docs/media/screenshots/02-mesas.png)
-
-O produto atual não possui uma tela exclusiva de Cozinha. O preparo é
-acompanhado em Pedidos e Balcão; o Caixa é exclusivamente financeiro.
+O fluxo atual é organizado em Comandas, Balcão, Histórico, Estoque e Caixa,
+sem estados de preparo ou uma tela separada de cozinha.
 
 [Assistir à demonstração navegável em WebM](docs/media/videos/hubon-demo.webm)
 
@@ -82,10 +78,49 @@ As dez telas documentadas e as instruções para regenerar as mídias estão em
 HubOn/
 ├── backend/    API Spring Boot, regras de negócio e migrations
 ├── frontend/   aplicação Angular
-└── docs/       documentação funcional e técnica
+├── docs/       documentação funcional e técnica
+├── .env.example
+└── docker-compose.yml
 ```
 
+## Execução completa com Docker
+
+A forma recomendada de iniciar o HubOn inteiro é pela stack Docker. Ela cria os
+serviços `hubon-postgres`, `hubon-backend` e `hubon-frontend` em uma rede interna
+e mantém os dados do banco em volume persistente.
+
+Na primeira execução, crie o arquivo local de configuração e substitua todos os
+valores `change-me` por senhas e segredos próprios:
+
+```powershell
+Copy-Item .env.example .env
+docker compose up -d --build
+docker compose ps
+```
+
+| Serviço | Endereço local |
+| --- | --- |
+| Interface | `http://localhost:4200` |
+| API | `http://localhost:8080/api` |
+| PostgreSQL | `localhost:5432` |
+
+O frontend usa `/api` e o Nginx encaminha as requisições ao backend pela rede
+interna. O volume `hubon_hubon_postgres_data` é reutilizado nas próximas
+inicializações; não execute `docker compose down -v` se quiser preservar os
+dados.
+
+Em uma instalação nova, essa stack cria somente o banco operacional definido
+por `POSTGRES_DB`, cujo padrão é `hubon_db`. O banco `hubon_test` não faz parte da
+execução do cliente; ele é usado apenas por desenvolvedores e pela CI.
+
+Todos os serviços usam `restart: unless-stopped`. Depois da primeira criação,
+eles voltam automaticamente quando o Docker iniciar. No Windows, habilite uma
+única vez **Settings > General > Start Docker Desktop when you sign in to your
+computer**.
+
 ## Pré-requisitos
+
+Para executar os serviços diretamente, sem Docker:
 
 - Java 21 ou superior compatível com o projeto.
 - Node.js e npm.
@@ -145,6 +180,9 @@ ou configurar o CORS.
 ## Como testar
 
 Backend:
+
+Esta seção é exclusiva para desenvolvimento e CI. Não crie nem execute o banco
+`hubon_test` na máquina do cliente.
 
 Crie uma vez o banco exclusivo de testes:
 

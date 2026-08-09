@@ -39,7 +39,6 @@ public class CategoryService {
 
         Category category = Category.builder()
                 .name(request.name().trim())
-                .description(request.description())
                 .displayOrder(request.displayOrder())
                 .active(request.active())
                 .build();
@@ -56,7 +55,6 @@ public class CategoryService {
         }
 
         category.setName(request.name().trim());
-        category.setDescription(request.description());
         category.setDisplayOrder(request.displayOrder() == null ? 0 : request.displayOrder());
         category.setActive(request.active() == null ? category.getActive() : request.active());
 
@@ -87,7 +85,6 @@ public class CategoryService {
         return new CategoryResponse(
                 category.getId(),
                 category.getName(),
-                category.getDescription(),
                 category.getActive(),
                 category.getDisplayOrder(),
                 category.getCreatedAt(),
