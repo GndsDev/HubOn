@@ -12,6 +12,9 @@ import com.hubon.backend.product.repository.ProductOptionRepository;
 import com.hubon.backend.product.repository.ProductRepository;
 import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.shared.exception.ResourceNotFoundException;
+import com.hubon.backend.stock.domain.ProductOptionStockLink;
+import com.hubon.backend.stock.repository.ProductOptionStockLinkRepository;
+import com.hubon.backend.stock.service.ProductOptionStockLinkService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +26,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +36,8 @@ public class ProductOptionService {
     private final ProductRepository productRepository;
     private final ProductOptionGroupRepository groupRepository;
     private final ProductOptionRepository optionRepository;
+    private final ProductOptionStockLinkRepository optionStockLinkRepository;
+    private final ProductOptionStockLinkService optionStockLinkService;
 
     @Transactional(readOnly = true)
     public List<ProductOptionGroupResponse> listByProduct(Long productId) {
@@ -134,11 +141,12 @@ public class ProductOptionService {
     }
 
     ProductOptionGroupResponse toResponse(ProductOptionGroup group) {
+        Map<Long, ProductOptionStockLink> links = activeStockLinks(group.getOptions());
         return new ProductOptionGroupResponse(
                 group.getId(), group.getProduct().getId(), group.getName(),
                 group.getMinimumSelections(), group.getMaximumSelections(),
                 group.getDisplayOrder(), group.getActive(),
-                group.getOptions().stream().map(this::toResponse).toList(),
+                group.getOptions().stream().map(option -> toResponse(option, links.get(option.getId()))).toList(),
                 group.getCreatedAt(), group.getUpdatedAt()
         );
     }
@@ -168,9 +176,25 @@ public class ProductOptionService {
     }
 
     private ProductOptionResponse toResponse(ProductOption option) {
+        ProductOptionStockLink link = optionStockLinkRepository
+                .findByProductOptionIdAndActiveTrue(option.getId())
+                .orElse(null);
+        return toResponse(option, link);
+    }
+
+    private ProductOptionResponse toResponse(ProductOption option, ProductOptionStockLink link) {
         return new ProductOptionResponse(option.getId(), option.getGroup().getId(), option.getName(),
                 option.getAdditionalPrice(), option.getDisplayOrder(), option.getActive(),
+                link == null ? null : optionStockLinkService.toResponse(link),
                 option.getCreatedAt(), option.getUpdatedAt());
+    }
+
+    private Map<Long, ProductOptionStockLink> activeStockLinks(List<ProductOption> options) {
+        if (options.isEmpty()) return Map.of();
+        return optionStockLinkRepository.findAllByProductOptionIdInAndActiveTrue(
+                        options.stream().map(ProductOption::getId).toList())
+                .stream()
+                .collect(Collectors.toMap(link -> link.getProductOption().getId(), Function.identity()));
     }
 
     private void validateGroup(Long productId, Long currentId, String name, ProductOptionGroupRequest request) {

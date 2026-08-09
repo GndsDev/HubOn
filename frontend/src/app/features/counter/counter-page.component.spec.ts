@@ -1,4 +1,5 @@
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,8 +7,10 @@ import { CounterActivityService } from '../../core/services/counter-activity.ser
 import { FeedbackService } from '../../core/services/feedback.service';
 import { ProductApiService } from '../../core/services/product-api.service';
 import { SalesApiService } from '../../core/services/sales-api.service';
+import { SaleProductPickerComponent } from '../../shared/components/sale-product-picker/sale-product-picker.component';
 import { Product } from '../../shared/models/product.model';
 import { Sale, SaleItem } from '../../shared/models/sale.model';
+import { saleMenuProducts } from '../../shared/testing/sale-menu-products.fixture';
 import { CounterPageComponent } from './counter-page.component';
 
 const product: Product = {
@@ -91,6 +94,7 @@ describe('CounterPageComponent', () => {
   const productApi = { getAll: vi.fn(() => of([product])) };
   const feedback = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
   const activity = { refresh: vi.fn() };
+  let fixture: ComponentFixture<CounterPageComponent>;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -122,6 +126,16 @@ describe('CounterPageComponent', () => {
 
   function component(): CounterPageComponent {
     return TestBed.createComponent(CounterPageComponent).componentInstance;
+  }
+
+  function renderCatalog(): SaleProductPickerComponent {
+    const products = saleMenuProducts();
+    productApi.getAll.mockReturnValueOnce(of(products));
+    fixture = TestBed.createComponent(CounterPageComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.currentSale.set(sale({ items: [], subtotal: 0, finalAmount: 0, remainingAmount: 0 }));
+    fixture.detectChanges();
+    return fixture.debugElement.query(By.directive(SaleProductPickerComponent)).componentInstance;
   }
 
   it('loads only open COUNTER sales and the current sale', () => {
@@ -161,6 +175,7 @@ describe('CounterPageComponent', () => {
     api.open.mockReturnValueOnce(of(opened));
     api.addItem.mockReturnValueOnce(of(updated));
     const instance = component();
+    instance.products.set([product]);
 
     instance.addProduct({ productId: 10, quantity: 1, notes: null, optionIds: [] });
 
@@ -168,6 +183,42 @@ describe('CounterPageComponent', () => {
     expect(api.addItem).toHaveBeenCalledWith(50, { productId: 10, quantity: 1, notes: null, optionIds: [] });
     expect(instance.currentSale()).toBe(updated);
     expect(instance.openSales()).toEqual([updated]);
+    expect(instance.productFeedback()).toBe('Suco adicionado');
+    expect(feedback.success).not.toHaveBeenCalled();
+  });
+
+  it.each(['Jantinha completa', 'Carreteiro completo', 'Arroz branco'])(
+    'opens the shared choices dialog for %s at the counter',
+    (productName) => {
+      const picker = renderCatalog();
+      const root = fixture.nativeElement as HTMLElement;
+      const button = [...root.querySelectorAll<HTMLButtonElement>('.counter-product')]
+        .find((item) => item.querySelector('.counter-product-copy strong')?.textContent?.trim() === productName);
+
+      button?.click();
+      fixture.detectChanges();
+
+      expect(picker.products.find((item) => item.name === productName)?.optionGroups.length).toBeGreaterThan(0);
+      expect(picker.selectedProduct()?.name).toBe(productName);
+      expect(document.body.querySelector('.choice-dialog')).not.toBeNull();
+    },
+  );
+
+  it('adds a simple product directly from the shared picker at the counter', () => {
+    renderCatalog();
+    const root = fixture.nativeElement as HTMLElement;
+    const button = [...root.querySelectorAll<HTMLButtonElement>('.counter-product')]
+      .find((item) => item.querySelector('.counter-product-copy strong')?.textContent?.trim() === 'Água mineral');
+
+    button?.click();
+
+    expect(api.addItem).toHaveBeenCalledWith(50, {
+      productId: 104,
+      quantity: 1,
+      notes: null,
+      optionIds: [],
+    });
+    expect(document.body.querySelector('.choice-dialog')).toBeNull();
   });
 
   it('ignores repeated product clicks while the current action is in progress', () => {
@@ -184,6 +235,7 @@ describe('CounterPageComponent', () => {
     const updated = sale({ items: [{ ...item, quantity: 2, subtotal: 16 }], subtotal: 16, finalAmount: 16, remainingAmount: 16 });
     api.updateItemQuantity.mockReturnValueOnce(of(updated));
     const instance = component();
+    instance.products.set([product]);
     instance.currentSale.set(sale());
 
     instance.addProduct({ productId: 10, quantity: 1, notes: null, optionIds: [] });
@@ -192,6 +244,8 @@ describe('CounterPageComponent', () => {
     expect(api.cancelItem).not.toHaveBeenCalled();
     expect(api.addItem).not.toHaveBeenCalled();
     expect(instance.currentSale()).toBe(updated);
+    expect(instance.productFeedback()).toBe('Suco adicionado');
+    expect(feedback.success).not.toHaveBeenCalled();
   });
 
   it('cancels an item with a required reason', () => {

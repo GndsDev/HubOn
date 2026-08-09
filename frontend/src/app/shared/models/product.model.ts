@@ -1,3 +1,5 @@
+import type { ProductOptionStockLink } from './stock.model';
+
 export interface ProductOption {
   id: number;
   groupId: number;
@@ -5,6 +7,7 @@ export interface ProductOption {
   additionalPrice: number;
   displayOrder: number;
   active: boolean;
+  stockLink: ProductOptionStockLink | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -74,3 +74,20 @@ export interface ProductStockLinkRequest {
   stockItemId: number;
   quantityPerSale: number;
 }
+
+export interface ProductOptionStockLink {
+  id: number;
+  productOptionId: number;
+  stockItemId: number;
+  stockItemName: string;
+  unit: UnitOfMeasure;
+  quantityPerSelection: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductOptionStockLinkRequest {
+  stockItemId: number;
+  quantityPerSelection: number;
+}

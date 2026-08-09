@@ -3,6 +3,8 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
+  ProductOptionStockLink,
+  ProductOptionStockLinkRequest,
   ProductStockLink,
   ProductStockLinkRequest,
   StockAdjustmentRequest,
@@ -85,5 +87,31 @@ export class StockApiService {
 
   deactivateProductLink(productId: number): Observable<void> {
     return this.http.delete<void>(`${environment.apiUrl}/products/${productId}/stock-link`);
+  }
+
+  createOptionLink(
+    productId: number,
+    groupId: number,
+    optionId: number,
+    request: ProductOptionStockLinkRequest,
+  ): Observable<ProductOptionStockLink> {
+    return this.http.post<ProductOptionStockLink>(this.optionLinkUrl(productId, groupId, optionId), request);
+  }
+
+  updateOptionLink(
+    productId: number,
+    groupId: number,
+    optionId: number,
+    request: ProductOptionStockLinkRequest,
+  ): Observable<ProductOptionStockLink> {
+    return this.http.put<ProductOptionStockLink>(this.optionLinkUrl(productId, groupId, optionId), request);
+  }
+
+  deactivateOptionLink(productId: number, groupId: number, optionId: number): Observable<void> {
+    return this.http.delete<void>(this.optionLinkUrl(productId, groupId, optionId));
+  }
+
+  private optionLinkUrl(productId: number, groupId: number, optionId: number): string {
+    return `${environment.apiUrl}/products/${productId}/option-groups/${groupId}/options/${optionId}/stock-link`;
   }
 }

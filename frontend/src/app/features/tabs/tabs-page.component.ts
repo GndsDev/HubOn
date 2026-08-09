@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, forkJoin, of } from 'rxjs';
@@ -16,7 +16,7 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
 import { Product } from '../../shared/models/product.model';
 import { AddSaleItemRequest, Sale, SaleItem } from '../../shared/models/sale.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
-import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose } from '../../shared/util/sale-workflow';
+import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose, saleChoiceSummary } from '../../shared/util/sale-workflow';
 
 @Component({
   selector: 'app-tabs-page',
@@ -35,9 +35,9 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
   ],
   template: `
     <app-page-header
-      kicker="Atendimento de mesas"
+      kicker="Vendas abertas"
       title="Comandas"
-      description="Abra, acompanhe, receba e feche as comandas de mesa."
+      description="Abra e acompanhe comandas identificadas pelo número da mesa."
     >
       <div page-actions class="page-header-actions">
         @if (currentSale()) {
@@ -55,7 +55,7 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
     </app-page-header>
 
     @if (!currentSale()) {
-      <app-section-card eyebrow="Mesas" title="Comandas abertas">
+      <app-section-card eyebrow="Operação" title="Comandas abertas">
         @if (loading()) {
           <div class="collection-grid">
             @for (item of [1, 2, 3, 4]; track item) {
@@ -103,7 +103,7 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
                     [tone]="sale.paidAmount > 0 ? 'info' : 'warning'"
                   />
                   <b>{{ currency(sale.finalAmount) }}</b>
-                  <small>{{ sale.remainingAmount > 0 ? 'Atender mesa' : 'Fechar comanda' }}</small>
+                  <small>{{ sale.remainingAmount > 0 ? 'Continuar comanda' : 'Fechar comanda' }}</small>
                 </div>
               </a>
             }
@@ -111,7 +111,7 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
         }
       </app-section-card>
     } @else if (currentSale(); as sale) {
-      <app-section-card eyebrow="Detalhe" [title]="saleTitle(sale)">
+      <app-section-card class="tab-detail-card" eyebrow="Detalhe" [title]="saleTitle(sale)">
         @if (loading()) {
           <div class="loading-grid">
             <div class="loading-row"></div>
@@ -131,34 +131,39 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
             </button>
           </div>
         } @else {
-          <div class="detail-grid tab-detail-summary">
-            <div>
-              <span>Comanda</span>
-              <strong>#{{ sale.id }}</strong>
+          <div class="tab-detail-summary">
+            <div class="detail-grid tab-context-summary">
+              <div>
+                <span>Comanda</span>
+                <strong>#{{ sale.id }}</strong>
+              </div>
+              <div>
+                <span>Número da mesa</span>
+                <strong>{{ sale.tableNumber ?? '-' }}</strong>
+              </div>
+              <div>
+                <span>Abertura</span>
+                <strong>{{ relativeTime(sale.openedAt) }}</strong>
+              </div>
+              <div>
+                <span>Estado</span>
+                <strong>{{ sale.paidAmount > 0 ? 'Pagamento parcial' : 'Em andamento' }}</strong>
+              </div>
             </div>
-            <div>
-              <span>Mesa</span>
-              <strong>{{ sale.tableNumber ?? '-' }}</strong>
-            </div>
-            <div>
-              <span>Abertura</span>
-              <strong>{{ relativeTime(sale.openedAt) }}</strong>
-            </div>
-            <div>
-              <span>Estado</span>
-              <strong>{{ sale.paidAmount > 0 ? 'Pagamento parcial' : 'Em atendimento' }}</strong>
-            </div>
-            <div class="financial-detail total">
-              <span>Total</span>
-              <strong>{{ currency(sale.finalAmount) }}</strong>
-            </div>
-            <div class="financial-detail paid">
-              <span>Pago</span>
-              <strong>{{ currency(sale.paidAmount) }}</strong>
-            </div>
-            <div class="financial-detail remaining">
-              <span>Restante</span>
-              <strong>{{ currency(sale.remainingAmount) }}</strong>
+
+            <div class="detail-grid tab-financial-summary">
+              <div class="financial-detail total">
+                <span>Total</span>
+                <strong>{{ currency(sale.finalAmount) }}</strong>
+              </div>
+              <div class="financial-detail paid">
+                <span>Pago</span>
+                <strong>{{ currency(sale.paidAmount) }}</strong>
+              </div>
+              <div class="financial-detail remaining">
+                <span>Restante</span>
+                <strong>{{ currency(sale.remainingAmount) }}</strong>
+              </div>
             </div>
           </div>
 
@@ -173,11 +178,13 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
             <button
               type="button"
               class="secondary-button"
+              [class.active-toggle]="productPanelOpen()"
+              [attr.aria-expanded]="productPanelOpen()"
               [disabled]="!canChangeItems() || saving()"
               (click)="productPanelOpen.set(!productPanelOpen())"
             >
-              <i class="pi pi-plus"></i>
-              {{ productPanelOpen() ? 'Ocultar produtos' : 'Adicionar produtos' }}
+              <i [class]="productPanelOpen() ? 'pi pi-chevron-up' : 'pi pi-plus'"></i>
+              {{ productPanelOpen() ? 'Fechar cardápio' : 'Adicionar produtos' }}
             </button>
 
             <a class="ghost-button" routerLink="/historico">
@@ -186,26 +193,30 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
             </a>
           </div>
 
-          @if (productPanelOpen() && canChangeItems()) {
-            <article class="order-card">
-              <div class="order-card-head">
-                <div>
-                  <span>Cardápio</span>
-                  <strong>Escolha os produtos da comanda</strong>
-                </div>
-                <button type="button" class="icon-button" aria-label="Ocultar produtos" (click)="productPanelOpen.set(false)">
-                  <i class="pi pi-times"></i>
-                </button>
+          <article
+            class="order-card tab-catalog-panel"
+            [class.tab-catalog-panel-hidden]="!productPanelOpen() || !canChangeItems()"
+            [attr.aria-hidden]="productPanelOpen() && canChangeItems() ? null : 'true'"
+          >
+            <div class="order-card-head">
+              <div>
+                <span>Cardápio</span>
+                <strong>Escolha os produtos da comanda</strong>
               </div>
+              <button type="button" class="icon-button" aria-label="Ocultar produtos" (click)="productPanelOpen.set(false)">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
 
-              <app-sale-product-picker
-                [products]="products()"
-                [disabled]="!canChangeItems()"
-                [busyProductId]="busyProductId()"
-                (addItem)="addProduct($event)"
-              />
-            </article>
-          }
+            <app-sale-product-picker
+              [products]="products()"
+              [disabled]="!canChangeItems()"
+              [busyProductId]="busyProductId()"
+              [confirmationMessage]="productFeedback()"
+              confirmLabel="Adicionar à comanda"
+              (addItem)="addProduct($event)"
+            />
+          </article>
 
           @if (activeItems().length === 0) {
             <app-empty-state
@@ -236,7 +247,10 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
                           <small>{{ optionSummary(item) }}</small>
                         }
                         @if (item.notes) {
-                          <small>Observação: {{ item.notes }}</small>
+                          <small class="auxiliary-note">
+                            <i class="pi pi-comment"></i>
+                            {{ item.notes }}
+                          </small>
                         }
                       </div>
 
@@ -292,14 +306,7 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
             </div>
           }
 
-          <div class="modal-footer modal-actions tab-page-footer">
-            @if (activeItems().length > 0 && sale.remainingAmount > 0) {
-              <button type="button" class="primary-button" [disabled]="saving()" (click)="paymentOpen.set(true)">
-                <i class="pi pi-wallet"></i>
-                {{ sale.paidAmount > 0 ? 'Completar pagamento' : 'Receber' }}
-              </button>
-            }
-
+          <div class="tab-page-footer">
             @if (sale.payments.length === 0) {
               <button
                 type="button"
@@ -309,6 +316,13 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
               >
                 <i class="pi pi-times-circle"></i>
                 Cancelar comanda
+              </button>
+            }
+
+            @if (activeItems().length > 0 && sale.remainingAmount > 0) {
+              <button type="button" class="primary-button" [disabled]="saving()" (click)="paymentOpen.set(true)">
+                <i class="pi pi-wallet"></i>
+                {{ sale.paidAmount > 0 ? 'Completar pagamento' : 'Receber' }}
               </button>
             }
 
@@ -336,7 +350,7 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
         >
           <div class="modal-header">
             <div class="modal-heading">
-              <span class="modal-eyebrow">Mesa</span>
+              <span class="modal-eyebrow">Comanda</span>
               <h2 id="tab-form-dialog-title">Nova comanda</h2>
             </div>
             <button type="button" class="icon-button" aria-label="Fechar" [disabled]="saving()" (click)="formOpen.set(false)">
@@ -453,7 +467,7 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
     }
   `,
 })
-export class TabsPageComponent implements OnInit {
+export class TabsPageComponent implements OnInit, OnDestroy {
   private readonly api = inject(SalesApiService);
   private readonly productApi = inject(ProductApiService);
   private readonly feedback = inject(FeedbackService);
@@ -466,6 +480,7 @@ export class TabsPageComponent implements OnInit {
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly busyProductId = signal<number | null>(null);
+  readonly productFeedback = signal('');
   readonly actionItemId = signal<number | null>(null);
   readonly paymentOpen = signal(false);
   readonly productPanelOpen = signal(false);
@@ -477,9 +492,14 @@ export class TabsPageComponent implements OnInit {
   readonly activeItems = computed(() => activeSaleItems(this.currentSale()));
   readonly canChangeItems = computed(() => saleCanChangeItems(this.currentSale()));
   readonly canClose = computed(() => saleCanClose(this.currentSale()));
+  private productFeedbackTimer?: ReturnType<typeof setTimeout>;
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => this.load(Number(params.get('saleId')) || undefined));
+  }
+
+  ngOnDestroy(): void {
+    if (this.productFeedbackTimer) clearTimeout(this.productFeedbackTimer);
   }
 
   load(saleId?: number): void {
@@ -496,7 +516,7 @@ export class TabsPageComponent implements OnInit {
         this.products.set(products);
         if (current && current.type !== 'TABLE') {
           this.currentSale.set(null);
-          this.error.set('A venda informada não é uma comanda de mesa.');
+          this.error.set('A venda informada não é uma comanda.');
           return;
         }
         this.currentSale.set(current);
@@ -538,18 +558,21 @@ export class TabsPageComponent implements OnInit {
 
     const matching = this.activeItems().find((item) => itemMatchesRequest(item, request));
     if (matching) {
-      this.changeQuantity(matching, matching.quantity + request.quantity);
+      this.changeQuantity(matching, matching.quantity + request.quantity, true);
       return;
     }
 
     this.busyProductId.set(request.productId);
     this.api.addItem(sale.id, request).pipe(finalize(() => this.busyProductId.set(null))).subscribe({
-      next: (updated) => this.applySale(updated, 'Produto adicionado.'),
+      next: (updated) => {
+        this.applySale(updated);
+        this.showProductFeedback(request.productId);
+      },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
   }
 
-  changeQuantity(item: SaleItem, quantity: number): void {
+  changeQuantity(item: SaleItem, quantity: number, fromCatalog = false): void {
     const sale = this.currentSale();
     if (!sale || !this.canChangeItems() || quantity < 1) return;
 
@@ -557,7 +580,10 @@ export class TabsPageComponent implements OnInit {
     this.api.updateItemQuantity(sale.id, item.id, { quantity }).pipe(
       finalize(() => this.actionItemId.set(null)),
     ).subscribe({
-      next: (updated) => this.applySale(updated, 'Quantidade atualizada.'),
+      next: (updated) => {
+        this.applySale(updated, fromCatalog ? undefined : 'Quantidade atualizada.');
+        if (fromCatalog) this.showProductFeedback(item.productId);
+      },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
   }
@@ -635,7 +661,7 @@ export class TabsPageComponent implements OnInit {
   }
 
   optionSummary(item: SaleItem): string {
-    return item.options.map((option) => option.optionName).join(', ');
+    return saleChoiceSummary(item.options);
   }
 
   currency(value: number): string {
@@ -655,5 +681,12 @@ export class TabsPageComponent implements OnInit {
       this.openSales.update((items) => [updated, ...items.filter((item) => item.id !== updated.id)]);
     }
     if (message) this.feedback.success(message);
+  }
+
+  private showProductFeedback(productId: number): void {
+    if (this.productFeedbackTimer) clearTimeout(this.productFeedbackTimer);
+    const productName = this.products().find((product) => product.id === productId)?.name ?? 'Produto';
+    this.productFeedback.set(`${productName} adicionado`);
+    this.productFeedbackTimer = setTimeout(() => this.productFeedback.set(''), 1800);
   }
 }

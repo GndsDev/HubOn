@@ -8,6 +8,7 @@ import com.hubon.backend.stock.dto.StockEntryRequest;
 import com.hubon.backend.stock.dto.StockItemRequest;
 import com.hubon.backend.stock.dto.StockItemResponse;
 import com.hubon.backend.stock.repository.ProductStockLinkRepository;
+import com.hubon.backend.stock.repository.ProductOptionStockLinkRepository;
 import com.hubon.backend.stock.repository.StockItemRepository;
 import com.hubon.backend.stock.repository.StockMovementRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class StockItemService {
     private final StockItemRepository repository;
     private final StockMovementRepository movementRepository;
     private final ProductStockLinkRepository linkRepository;
+    private final ProductOptionStockLinkRepository optionLinkRepository;
     private final StockMovementService movementService;
 
     @Transactional(readOnly = true) public List<StockItemResponse> listAll() { return repository.findAllByOrderByNameAsc().stream().map(this::toResponse).toList(); }
@@ -66,7 +68,10 @@ public class StockItemService {
     @Transactional
     public StockItemResponse deactivate(Long id) {
         StockItem item = find(id);
-        if (linkRepository.existsByStockItemIdAndActiveTrue(id)) throw new BusinessException("Desative o vinculo automatico antes do item de estoque");
+        if (linkRepository.existsByStockItemIdAndActiveTrue(id)
+                || optionLinkRepository.existsByStockItemIdAndActiveTrue(id)) {
+            throw new BusinessException("Desative o vinculo automatico antes do item de estoque");
+        }
         item.setActive(false);
         return toResponse(item);
     }

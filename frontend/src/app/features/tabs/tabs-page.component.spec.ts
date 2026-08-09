@@ -1,11 +1,15 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { ProductApiService } from '../../core/services/product-api.service';
 import { SalesApiService } from '../../core/services/sales-api.service';
+import { SaleProductPickerComponent } from '../../shared/components/sale-product-picker/sale-product-picker.component';
+import { Product } from '../../shared/models/product.model';
 import { Sale, SaleItem } from '../../shared/models/sale.model';
+import { saleMenuProducts } from '../../shared/testing/sale-menu-products.fixture';
 import { TabsPageComponent } from './tabs-page.component';
 
 const line: SaleItem = {
@@ -32,7 +36,7 @@ describe('TabsPageComponent', () => {
     cancelItem: vi.fn(() => of(sale())), close: vi.fn(() => of(sale({ status: 'CLOSED' }))),
     cancel: vi.fn(() => of(sale({ status: 'CANCELLED' }))),
   };
-  const productApi = { getAll: vi.fn(() => of([])) };
+  const productApi = { getAll: vi.fn(() => of([] as Product[])) };
   const feedback = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
   let fixture: ComponentFixture<TabsPageComponent>;
 
@@ -59,6 +63,17 @@ describe('TabsPageComponent', () => {
   });
 
   function component(): TabsPageComponent { return TestBed.createComponent(TabsPageComponent).componentInstance; }
+
+  function renderCatalog(): SaleProductPickerComponent {
+    const products = saleMenuProducts();
+    productApi.getAll.mockReturnValueOnce(of(products));
+    fixture = TestBed.createComponent(TabsPageComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.currentSale.set(sale({ items: [], subtotal: 0, finalAmount: 0, remainingAmount: 0 }));
+    fixture.componentInstance.productPanelOpen.set(true);
+    fixture.detectChanges();
+    return fixture.debugElement.query(By.directive(SaleProductPickerComponent)).componentInstance;
+  }
 
   it('lists only open TABLE sales as comandas', () => {
     const openTable = sale();
@@ -120,6 +135,52 @@ describe('TabsPageComponent', () => {
     instance.addProduct({ productId: 3, quantity: 1, notes: null, optionIds: [] });
     expect(api.addItem).toHaveBeenCalledWith(20, { productId: 3, quantity: 1, notes: null, optionIds: [] });
     expect(instance.currentSale()).toBe(updated);
+    expect(instance.productFeedback()).toBe('Produto adicionado');
+    expect(feedback.success).not.toHaveBeenCalled();
+  });
+
+  it.each(['Jantinha completa', 'Carreteiro completo', 'Arroz branco'])(
+    'opens the shared choices dialog for %s in comandas',
+    (productName) => {
+      const picker = renderCatalog();
+      const root = fixture.nativeElement as HTMLElement;
+      const button = [...root.querySelectorAll<HTMLButtonElement>('.counter-product')]
+        .find((item) => item.querySelector('.counter-product-copy strong')?.textContent?.trim() === productName);
+
+      button?.click();
+      fixture.detectChanges();
+
+      expect(picker.products.find((item) => item.name === productName)?.optionGroups.length).toBeGreaterThan(0);
+      expect(picker.selectedProduct()?.name).toBe(productName);
+      expect(document.body.querySelector('.choice-dialog')).not.toBeNull();
+    },
+  );
+
+  it('adds a simple product directly from the shared picker in comandas', () => {
+    renderCatalog();
+    const root = fixture.nativeElement as HTMLElement;
+    const button = [...root.querySelectorAll<HTMLButtonElement>('.counter-product')]
+      .find((item) => item.querySelector('.counter-product-copy strong')?.textContent?.trim() === 'Água mineral');
+
+    button?.click();
+
+    expect(api.addItem).toHaveBeenCalledWith(20, {
+      productId: 104,
+      quantity: 1,
+      notes: null,
+      optionIds: [],
+    });
+    expect(document.body.querySelector('.choice-dialog')).toBeNull();
+  });
+
+  it('keeps the shared picker mounted while the comanda catalog is hidden', () => {
+    const picker = renderCatalog();
+    fixture.componentInstance.productPanelOpen.set(false);
+    fixture.detectChanges();
+
+    const mountedPicker = fixture.debugElement.query(By.directive(SaleProductPickerComponent)).componentInstance;
+    expect(mountedPicker).toBe(picker);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.tab-catalog-panel-hidden')).not.toBeNull();
   });
 
   it('changes quantity while preserving the same sale item', () => {

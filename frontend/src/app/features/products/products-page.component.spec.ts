@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CategoryApiService } from '../../core/services/category-api.service';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { ProductApiService } from '../../core/services/product-api.service';
+import { StockApiService } from '../../core/services/stock-api.service';
 import { Product } from '../../shared/models/product.model';
 import { ProductsPageComponent } from './products-page.component';
 
@@ -33,6 +34,12 @@ describe('ProductsPageComponent', () => {
     updateOption: vi.fn(),
   };
   const feedback = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+  const stockApi = {
+    listActiveItems: vi.fn(() => of([])),
+    createOptionLink: vi.fn(),
+    updateOptionLink: vi.fn(),
+    deactivateOptionLink: vi.fn(),
+  };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -41,6 +48,7 @@ describe('ProductsPageComponent', () => {
       providers: [
         { provide: ProductApiService, useValue: api },
         { provide: CategoryApiService, useValue: { getAll: () => of([]) } },
+        { provide: StockApiService, useValue: stockApi },
         { provide: FeedbackService, useValue: feedback },
       ],
     }).compileComponents();
@@ -82,7 +90,7 @@ describe('ProductsPageComponent', () => {
     component.products.set([uncategorizedProduct]);
     component.openOptions(uncategorizedProduct);
 
-    component.saveGroup({ id: null, name: '  Tamanho  ', minimumSelections: 1, maximumSelections: 1, displayOrder: 0, active: true });
+    component.saveGroup({ id: null, name: '  Tamanho  ', required: true, maximumSelections: 1, displayOrder: 0, active: true });
 
     expect(api.createOptionGroup).toHaveBeenCalledWith(1, {
       name: 'Tamanho',
@@ -99,8 +107,80 @@ describe('ProductsPageComponent', () => {
     const component = TestBed.createComponent(ProductsPageComponent).componentInstance;
     component.openOptions(uncategorizedProduct);
 
-    component.saveGroup({ id: null, name: 'Opcional', minimumSelections: 0, maximumSelections: 0, displayOrder: 0, active: true });
+    component.saveGroup({ id: null, name: 'Opcional', required: false, maximumSelections: 0, displayOrder: 0, active: true });
 
     expect(api.createOptionGroup).not.toHaveBeenCalled();
+  });
+
+  it('saves optional stock control for a product choice', () => {
+    const group = {
+      id: 4,
+      productId: 1,
+      name: 'Escolha o espeto',
+      minimumSelections: 1,
+      maximumSelections: 1,
+      displayOrder: 0,
+      active: true,
+      options: [],
+      createdAt: '',
+      updatedAt: '',
+    };
+    const configuredProduct = { ...uncategorizedProduct, optionGroups: [group] };
+    const choice = {
+      id: 9,
+      groupId: 4,
+      name: 'Picanha montada',
+      additionalPrice: 0,
+      displayOrder: 0,
+      active: true,
+      stockLink: null,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const stockLink = {
+      id: 12,
+      productOptionId: 9,
+      stockItemId: 20,
+      stockItemName: 'Picanha montada',
+      unit: 'UN' as const,
+      quantityPerSelection: 1,
+      active: true,
+      createdAt: '',
+      updatedAt: '',
+    };
+    api.createOption.mockReturnValueOnce(of(choice));
+    stockApi.createOptionLink.mockReturnValueOnce(of(stockLink));
+    const component = TestBed.createComponent(ProductsPageComponent).componentInstance;
+    component.products.set([configuredProduct]);
+    component.openOptions(configuredProduct);
+
+    component.saveOption({
+      id: null,
+      groupId: 4,
+      name: 'Picanha montada',
+      additionalPrice: 0,
+      displayOrder: 0,
+      active: true,
+      stockItemId: 20,
+      quantityPerSelection: 1,
+    });
+
+    expect(stockApi.createOptionLink).toHaveBeenCalledWith(1, 4, 9, {
+      stockItemId: 20,
+      quantityPerSelection: 1,
+    });
+    expect(component.optionsProduct()?.optionGroups[0].options[0].stockLink).toEqual(stockLink);
+  });
+
+  it('uses Escolhas do produto and does not expose display order', () => {
+    const fixture = TestBed.createComponent(ProductsPageComponent);
+    fixture.componentInstance.products.set([uncategorizedProduct]);
+    fixture.componentInstance.openOptions(uncategorizedProduct);
+    fixture.detectChanges();
+
+    const text = `${fixture.nativeElement.textContent} ${document.body.textContent}`;
+    expect(text).toContain('Escolhas do produto');
+    expect(text).not.toContain('Ordem de exibição');
+    expect(text).not.toContain('displayOrder');
   });
 });

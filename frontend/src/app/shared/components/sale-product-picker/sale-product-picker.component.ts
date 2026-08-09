@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, EventEmitter, Input, Output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AccessibleDialogDirective } from '../../directives/accessible-dialog.directive';
-import { Product, ProductOptionGroup } from '../../models/product.model';
+import { Product, ProductOption, ProductOptionGroup } from '../../models/product.model';
 import { AddSaleItemRequest } from '../../models/sale.model';
 import { activeOptionGroups, optionSelectionIsValid, productRequiresChoice } from '../../util/sale-workflow';
 import { EmptyStateComponent } from '../empty-state/empty-state.component';
@@ -13,16 +13,30 @@ import { EmptyStateComponent } from '../empty-state/empty-state.component';
   imports: [CommonModule, FormsModule, AccessibleDialogDirective, EmptyStateComponent],
   template: `
     <div class="counter-catalog-toolbar">
-      <label class="search-box">
-        <i class="pi pi-search"></i>
-        <input
-          type="search"
-          placeholder="Buscar produto"
-          [(ngModel)]="searchTerm"
-          aria-label="Buscar produto"
-          [disabled]="disabled"
-        />
-      </label>
+      <div class="counter-search-row">
+        <label class="search-box">
+          <i class="pi pi-search"></i>
+          <input
+            type="search"
+            placeholder="Buscar produto"
+            [(ngModel)]="searchTerm"
+            aria-label="Buscar produto"
+            [disabled]="disabled"
+          />
+        </label>
+
+        <div class="counter-catalog-status">
+          @if (confirmationMessage) {
+            <span class="counter-inline-feedback" role="status" aria-live="polite">
+              <i class="pi pi-check-circle"></i>
+              {{ confirmationMessage }}
+            </span>
+          }
+          <span class="counter-product-count">
+            {{ filteredProducts().length }} produto{{ filteredProducts().length === 1 ? '' : 's' }}
+          </span>
+        </div>
+      </div>
 
       <nav class="counter-category-filter-shell" aria-label="Filtrar produtos por categoria">
         <div class="segmented-control counter-category-filter">
@@ -65,76 +79,118 @@ import { EmptyStateComponent } from '../empty-state/empty-state.component';
             class="counter-product"
             (click)="select(product)"
             [disabled]="disabled || busyProductId === product.id"
+            [attr.aria-label]="'Adicionar ' + product.name + ', ' + currency(product.price)"
+            [attr.aria-busy]="busyProductId === product.id"
           >
-            <span>{{ product.categoryName || 'Sem categoria' }}</span>
-            <strong>{{ product.name }}</strong>
-            <small>
-              {{ hasOptionalChoices(product) ? 'Possui escolhas' : product.description || 'Adicionar à venda' }}
-            </small>
-            <b>{{ currency(product.price) }}</b>
+            <span class="counter-product-category">{{ product.categoryName || 'Sem categoria' }}</span>
+
+            <span class="counter-product-copy">
+              <strong>{{ product.name }}</strong>
+              <small>{{ product.description || 'Sem descrição' }}</small>
+            </span>
+
+            <span class="counter-product-footer">
+              <span>
+                <i [class]="hasOptionalChoices(product) ? 'pi pi-sliders-h' : 'pi pi-plus'"></i>
+                {{ hasOptionalChoices(product) ? 'Escolher' : 'Adicionar' }}
+              </span>
+              <b>{{ currency(product.price) }}</b>
+            </span>
           </button>
         }
       </div>
     }
 
     @if (selectedProduct(); as product) {
-      <div class="modal-backdrop" (click)="closeChoices()">
+      <div class="modal-backdrop choice-dialog-backdrop" (click)="closeChoices()">
         <form
-          class="modal-panel compact"
+          class="choice-dialog"
           appAccessibleDialog
           role="dialog"
           aria-modal="true"
           aria-labelledby="choice-dialog-title"
+          [attr.aria-describedby]="product.description ? 'choice-dialog-description' : null"
           (dialogClose)="closeChoices()"
           (click)="$event.stopPropagation()"
           (ngSubmit)="confirmChoices()"
         >
-          <div class="modal-header">
-            <div class="modal-heading">
-              <span class="modal-eyebrow">{{ product.categoryName || 'Produto' }}</span>
-              <h2 id="choice-dialog-title">{{ product.name }}</h2>
+          <header class="choice-dialog-header">
+            <div class="choice-dialog-product">
+              <span class="choice-dialog-category">{{ product.categoryName || 'Produto' }}</span>
+
+              <div class="choice-dialog-title-row">
+                <h2 id="choice-dialog-title">{{ product.name }}</h2>
+                <div class="choice-dialog-price">
+                  <small>{{ priceCaption(product) }}</small>
+                  <strong>{{ currency(product.price) }}</strong>
+                </div>
+              </div>
+
+              @if (product.description) {
+                <p id="choice-dialog-description">{{ product.description }}</p>
+              }
             </div>
-            <button type="button" class="icon-button" aria-label="Fechar opções" (click)="closeChoices()">
+
+            <button type="button" class="icon-button choice-dialog-close" aria-label="Fechar escolhas" (click)="closeChoices()">
               <i class="pi pi-times"></i>
             </button>
-          </div>
+          </header>
 
-          <div class="modal-body">
+          <div class="choice-dialog-content">
             @for (group of choiceGroups(); track group.id) {
-              <fieldset class="counter-option-group">
-                <legend>
-                  {{ group.name }}
-                  <small>{{ rule(group) }}</small>
-                </legend>
+              <fieldset class="choice-group">
+                <legend class="visually-hidden">{{ group.name }}</legend>
 
-                @for (option of group.options; track option.id) {
-                  <label>
-                    <input
-                      [type]="group.maximumSelections === 1 ? 'radio' : 'checkbox'"
-                      [name]="'group-' + group.id"
-                      [checked]="selectedIds.includes(option.id)"
-                      (change)="toggleChoice(group, option.id)"
-                    />
-                    <span>{{ option.name }}</span>
-                    <b>{{ option.additionalPrice > 0 ? '+' + currency(option.additionalPrice) : 'Incluso' }}</b>
-                  </label>
-                }
+                <div class="choice-group-header">
+                  <h3>{{ group.name }}</h3>
+                  <p>{{ rule(group) }}</p>
+                </div>
+
+                <div class="choice-options" [class.choice-options-skewers]="isSkewerGroup(group)">
+                  @for (option of group.options; track option.id) {
+                    <label class="choice-option" [class.choice-option-selected]="selectedIds.includes(option.id)">
+                      <input
+                        [type]="group.maximumSelections === 1 ? 'radio' : 'checkbox'"
+                        [name]="'group-' + group.id"
+                        [checked]="selectedIds.includes(option.id)"
+                        [disabled]="disabled || busyProductId === product.id"
+                        (change)="toggleChoice(group, option.id)"
+                      />
+                      <span class="choice-option-name">{{ option.name }}</span>
+                      <strong class="choice-option-price">{{ choicePriceLabel(product, group, option) }}</strong>
+                    </label>
+                  }
+                </div>
               </fieldset>
             }
 
-            <label class="field">
-              <span>Observação <small>opcional</small></span>
-              <input name="saleItemNotes" maxlength="500" [(ngModel)]="notes" />
-            </label>
+            <div class="choice-observation">
+              <label for="choice-dialog-notes">
+                <span>Observação</span>
+                <small>Opcional</small>
+              </label>
+              <textarea
+                id="choice-dialog-notes"
+                name="saleItemNotes"
+                rows="2"
+                maxlength="500"
+                placeholder="Ex.: sem cebola"
+                [(ngModel)]="notes"
+              ></textarea>
+            </div>
           </div>
 
-          <div class="modal-footer modal-actions">
+          <footer class="choice-dialog-footer">
             <button type="button" class="ghost-button" (click)="closeChoices()">Voltar</button>
-            <button type="submit" class="primary-button" [disabled]="!selectionValid()">
+            <button
+              type="submit"
+              class="primary-button"
+              [disabled]="disabled || busyProductId === product.id || !selectionValid()"
+            >
               <i class="pi pi-plus"></i>
-              Adicionar
+              {{ confirmLabel }}
             </button>
-          </div>
+          </footer>
         </form>
       </div>
     }
@@ -144,6 +200,8 @@ export class SaleProductPickerComponent {
   @Input({ required: true }) products: Product[] = [];
   @Input() disabled = false;
   @Input() busyProductId: number | null = null;
+  @Input() confirmationMessage = '';
+  @Input() confirmLabel = 'Adicionar';
   @Output() readonly addItem = new EventEmitter<AddSaleItemRequest>();
 
   readonly selectedProduct = signal<Product | null>(null);
@@ -164,7 +222,10 @@ export class SaleProductPickerComponent {
       .filter((product) => product.active && product.available)
       .filter((product) => this.category === 'ALL' || product.categoryName === this.category)
       .filter((product) => !query || this.normalized(product.name).includes(query))
-      .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, 'pt-BR'));
+      .sort((a, b) => {
+        const categoryOrder = (a.categoryName ?? '').localeCompare(b.categoryName ?? '', 'pt-BR');
+        return categoryOrder || a.name.localeCompare(b.name, 'pt-BR');
+      });
   }
 
   select(product: Product): void {
@@ -228,9 +289,26 @@ export class SaleProductPickerComponent {
   }
 
   rule(group: ProductOptionGroup): string {
-    if (group.minimumSelections === group.maximumSelections) return `Escolha ${group.minimumSelections}`;
-    if (group.minimumSelections === 0) return `Até ${group.maximumSelections}`;
-    return `${group.minimumSelections} a ${group.maximumSelections}`;
+    const requirement = group.minimumSelections > 0 ? 'Obrigatório' : 'Opcional';
+    const limit = group.maximumSelections === 1 ? 'escolha 1' : `até ${group.maximumSelections} escolhas`;
+    return `${requirement} · ${limit}`;
+  }
+
+  isSkewerGroup(group: ProductOptionGroup): boolean {
+    return this.normalized(group.name).includes('espeto');
+  }
+
+  choicePriceLabel(product: Product, group: ProductOptionGroup, option: ProductOption): string {
+    if (this.normalized(group.name) === 'tamanho') {
+      return this.currency(product.price + option.additionalPrice);
+    }
+    return option.additionalPrice > 0 ? `Acréscimo ${this.currency(option.additionalPrice)}` : 'Incluso';
+  }
+
+  priceCaption(product: Product): string {
+    const hasPriceVariation = activeOptionGroups(product)
+      .some((group) => group.options.some((option) => option.additionalPrice > 0));
+    return hasPriceVariation ? 'A partir de' : 'Preço';
   }
 
   currency(value: number): string {

@@ -29,8 +29,10 @@ import com.hubon.backend.sale.service.SaleQueryService;
 import com.hubon.backend.sale.service.SaleService;
 import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.stock.domain.UnitOfMeasure;
+import com.hubon.backend.stock.dto.ProductOptionStockLinkRequest;
 import com.hubon.backend.stock.dto.ProductStockLinkRequest;
 import com.hubon.backend.stock.dto.StockItemRequest;
+import com.hubon.backend.stock.service.ProductOptionStockLinkService;
 import com.hubon.backend.stock.service.ProductStockLinkService;
 import com.hubon.backend.stock.service.StockItemService;
 import com.hubon.backend.user.domain.User;
@@ -68,6 +70,7 @@ class SimplifiedSalesIntegrationTests {
     @Autowired PaymentService paymentService;
     @Autowired StockItemService stockItemService;
     @Autowired ProductStockLinkService stockLinkService;
+    @Autowired ProductOptionStockLinkService optionStockLinkService;
     @Autowired CashShiftService cashShiftService;
     @Autowired DashboardService dashboardService;
     @Autowired SaleRepository saleRepository;
@@ -89,7 +92,7 @@ class SimplifiedSalesIntegrationTests {
     private void clearDatabase() {
         jdbc.execute("""
                 truncate table stock_movements, payments, cash_movements, sale_item_options,
-                sale_items, sales, product_stock_links, stock_items, product_options,
+                sale_items, sales, product_option_stock_links, product_stock_links, stock_items, product_options,
                 product_option_groups, products, categories, cash_shifts,
                 user_roles, users restart identity cascade
                 """);
@@ -214,6 +217,140 @@ class SimplifiedSalesIntegrationTests {
         assertThat(count("sale_items", "sale_id = " + sale.id())).isEqualTo(1);
         assertThat(jdbc.queryForObject("select sum(delta_quantity) from stock_movements where sale_item_id = ?",
                 BigDecimal.class, first.id())).isZero();
+    }
+
+    @Test
+    void selectedSkewersShareStockWithDirectSalesAndLedgerDrivesDeltasAndCancellation() {
+        ProductResponse jantinha = product(null, "Jantinha completa", "30.00");
+        ProductResponse carreteiro = product(null, "Carreteiro completo", "30.00");
+        ProductResponse picanha = product(null, "Picanha montada", "12.00");
+        ProductResponse otherProduct = product(null, "Outro produto", "5.00");
+        var picanhaStock = stockItemService.create(new StockItemRequest(
+                "Picanha montada", null, UnitOfMeasure.UN, money("10.000"), money("2.000"), true));
+        var alternateStock = stockItemService.create(new StockItemRequest(
+                "Estoque alternativo", null, UnitOfMeasure.UN, money("10.000"), money("2.000"), true));
+        stockLinkService.create(picanha.id(), new ProductStockLinkRequest(picanhaStock.id(), money("1.000")));
+
+        ProductOptionGroupResponse jantinhaBeans = requiredChoice(jantinha, "Escolha o feijao", "Feijao tropeiro");
+        ProductOptionGroupResponse jantinhaSkewers = requiredChoice(jantinha, "Escolha o espeto", "Picanha montada");
+        ProductOptionGroupResponse carreteiroBeans = requiredChoice(carreteiro, "Escolha o feijao", "Feijao de caldo");
+        ProductOptionGroupResponse carreteiroSkewers = requiredChoice(carreteiro, "Escolha o espeto", "Picanha montada");
+        ProductOptionGroupResponse unrelated = requiredChoice(otherProduct, "Escolha", "Invalida");
+        Long jantinhaSkewerId = jantinhaSkewers.options().getFirst().id();
+        Long carreteiroSkewerId = carreteiroSkewers.options().getFirst().id();
+        optionStockLinkService.create(jantinha.id(), jantinhaSkewers.id(), jantinhaSkewerId,
+                new ProductOptionStockLinkRequest(picanhaStock.id(), money("1.000")));
+        optionStockLinkService.create(carreteiro.id(), carreteiroSkewers.id(), carreteiroSkewerId,
+                new ProductOptionStockLinkRequest(picanhaStock.id(), money("1.000")));
+
+        SaleResponse sale = counter();
+        assertThatThrownBy(() -> saleService.addItem(sale.id(), new AddSaleItemRequest(
+                jantinha.id(), 1, null, List.of(jantinhaBeans.options().getFirst().id()))))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("Selecione pelo menos");
+        assertThatThrownBy(() -> saleService.addItem(sale.id(), new AddSaleItemRequest(
+                jantinha.id(), 1, null, List.of(
+                        jantinhaBeans.options().getFirst().id(), unrelated.options().getFirst().id()))))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("nao pertence");
+
+        SaleItemResponse jantinhaItem = saleService.addItem(sale.id(), new AddSaleItemRequest(
+                jantinha.id(), 1, null, List.of(
+                        jantinhaBeans.options().getFirst().id(), jantinhaSkewerId)))
+                .items().getFirst();
+        assertThat(stockItemService.getById(picanhaStock.id()).currentStock()).isEqualByComparingTo("9.000");
+        assertThat(count("stock_movements", "sale_item_id = " + jantinhaItem.id())).isEqualTo(1);
+
+        optionStockLinkService.update(jantinha.id(), jantinhaSkewers.id(), jantinhaSkewerId,
+                new ProductOptionStockLinkRequest(alternateStock.id(), money("2.000")));
+        saleService.updateItemQuantity(sale.id(), jantinhaItem.id(), new UpdateSaleItemQuantityRequest(2));
+        assertThat(stockItemService.getById(picanhaStock.id()).currentStock()).isEqualByComparingTo("8.000");
+        assertThat(stockItemService.getById(alternateStock.id()).currentStock()).isEqualByComparingTo("10.000");
+        saleService.updateItemQuantity(sale.id(), jantinhaItem.id(), new UpdateSaleItemQuantityRequest(1));
+        assertThat(stockItemService.getById(picanhaStock.id()).currentStock()).isEqualByComparingTo("9.000");
+
+        SaleItemResponse carreteiroItem = saleService.addItem(sale.id(), new AddSaleItemRequest(
+                carreteiro.id(), 1, null, List.of(
+                        carreteiroBeans.options().getFirst().id(), carreteiroSkewerId)))
+                .items().stream().filter(item -> item.productId().equals(carreteiro.id())).findFirst().orElseThrow();
+        SaleItemResponse directItem = saleService.addItem(sale.id(), new AddSaleItemRequest(
+                picanha.id(), 1, null, List.of()))
+                .items().stream().filter(item -> item.productId().equals(picanha.id())).findFirst().orElseThrow();
+        assertThat(stockItemService.getById(picanhaStock.id()).currentStock()).isEqualByComparingTo("7.000");
+        assertThat(jdbc.queryForObject("select stock_item_id from stock_movements where sale_item_id = ? and type = 'SALE'",
+                Long.class, carreteiroItem.id())).isEqualTo(picanhaStock.id());
+        assertThat(jdbc.queryForObject("select stock_item_id from stock_movements where sale_item_id = ? and type = 'SALE'",
+                Long.class, directItem.id())).isEqualTo(picanhaStock.id());
+
+        saleService.cancelItem(sale.id(), jantinhaItem.id(), new CancellationRequest("Cliente mudou a escolha"));
+        assertThat(stockItemService.getById(picanhaStock.id()).currentStock()).isEqualByComparingTo("8.000");
+        assertThat(stockItemService.getById(alternateStock.id()).currentStock()).isEqualByComparingTo("10.000");
+
+        int itemsBeforeFailure = count("sale_items", "sale_id = " + sale.id());
+        assertThatThrownBy(() -> saleService.addItem(sale.id(), new AddSaleItemRequest(
+                carreteiro.id(), 20, null, List.of(
+                        carreteiroBeans.options().getFirst().id(), carreteiroSkewerId))))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("Picanha montada");
+        assertThat(stockItemService.getById(picanhaStock.id()).currentStock()).isEqualByComparingTo("8.000");
+        assertThat(count("sale_items", "sale_id = " + sale.id())).isEqualTo(itemsBeforeFailure);
+    }
+
+    @Test
+    void choicesWithoutStockLinksWorkWithoutAutomaticMovement() {
+        ProductResponse portion = product(null, "Arroz branco", "10.00");
+        ProductOptionGroupResponse size = optionService.createGroup(portion.id(), new ProductOptionGroupRequest(
+                "Tamanho", 1, 1, 0, true,
+                List.of(
+                        new ProductOptionRequest("Media", money("0.00"), 0, true),
+                        new ProductOptionRequest("Grande", money("8.00"), 1, true)
+                )));
+        SaleResponse sale = counter();
+
+        SaleItemResponse item = saleService.addItem(sale.id(), new AddSaleItemRequest(
+                portion.id(), 1, null, List.of(size.options().get(1).id())))
+                .items().getFirst();
+
+        assertThat(item.unitPrice()).isEqualByComparingTo("18.00");
+        assertThat(item.options()).singleElement().satisfies(option -> assertThat(option.optionName()).isEqualTo("Grande"));
+        assertThat(count("stock_movements", "sale_item_id = " + item.id())).isZero();
+    }
+
+    @Test
+    void packagedBeverageConsumesOneUnitPerSale() {
+        ProductResponse beverage = product(null, "Refrigerante lata", "5.00");
+        var stock = stockItemService.create(new StockItemRequest(
+                "Refrigerante lata", null, UnitOfMeasure.UN, money("5.000"), money("1.000"), true));
+        stockLinkService.create(beverage.id(), new ProductStockLinkRequest(stock.id(), money("1.000")));
+
+        saleService.addItem(counter().id(), new AddSaleItemRequest(beverage.id(), 1, null, List.of()));
+
+        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("4.000");
+    }
+
+    @Test
+    void productAndChoiceConsumptionRollbackTogetherWhenEitherStockIsInsufficient() {
+        ProductResponse product = product(null, "Combo embalado", "20.00");
+        ProductOptionGroupResponse choice = requiredChoice(product, "Escolha o acompanhamento", "Molho");
+        var packageStock = stockItemService.create(new StockItemRequest(
+                "Embalagem", null, UnitOfMeasure.UN, money("10.000"), money("1.000"), true));
+        var sauceStock = stockItemService.create(new StockItemRequest(
+                "Molho", null, UnitOfMeasure.UN, money("1.000"), money("0.000"), true));
+        stockLinkService.create(product.id(), new ProductStockLinkRequest(packageStock.id(), money("1.000")));
+        optionStockLinkService.create(product.id(), choice.id(), choice.options().getFirst().id(),
+                new ProductOptionStockLinkRequest(sauceStock.id(), money("1.000")));
+        SaleResponse sale = counter();
+
+        assertThatThrownBy(() -> saleService.addItem(sale.id(), new AddSaleItemRequest(
+                product.id(), 2, null, List.of(choice.options().getFirst().id()))))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("Molho");
+        assertThat(stockItemService.getById(packageStock.id()).currentStock()).isEqualByComparingTo("10.000");
+        assertThat(stockItemService.getById(sauceStock.id()).currentStock()).isEqualByComparingTo("1.000");
+        assertThat(count("sale_items", "sale_id = " + sale.id())).isZero();
+
+        SaleItemResponse item = saleService.addItem(sale.id(), new AddSaleItemRequest(
+                product.id(), 1, null, List.of(choice.options().getFirst().id())))
+                .items().getFirst();
+        assertThat(stockItemService.getById(packageStock.id()).currentStock()).isEqualByComparingTo("9.000");
+        assertThat(stockItemService.getById(sauceStock.id()).currentStock()).isZero();
+        assertThat(count("stock_movements", "sale_item_id = " + item.id())).isEqualTo(2);
     }
 
     @Test
@@ -348,6 +485,12 @@ class SimplifiedSalesIntegrationTests {
 
     private ProductResponse product(Long categoryId, String name, String price) {
         return productService.create(new ProductRequest(categoryId, name, null, money(price), true, true, 0));
+    }
+
+    private ProductOptionGroupResponse requiredChoice(ProductResponse product, String question, String choice) {
+        return optionService.createGroup(product.id(), new ProductOptionGroupRequest(
+                question, 1, 1, 0, true,
+                List.of(new ProductOptionRequest(choice, BigDecimal.ZERO, 0, true))));
     }
 
     private SaleResponse counter() {

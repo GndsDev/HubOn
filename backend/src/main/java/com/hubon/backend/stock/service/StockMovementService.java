@@ -1,12 +1,14 @@
 package com.hubon.backend.stock.service;
 
 import com.hubon.backend.auth.service.AuthenticatedUserProvider;
+import com.hubon.backend.product.domain.ProductOption;
 import com.hubon.backend.sale.domain.SaleItem;
 import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.shared.exception.ResourceNotFoundException;
 import com.hubon.backend.stock.domain.*;
 import com.hubon.backend.stock.dto.*;
 import com.hubon.backend.stock.repository.ProductStockLinkRepository;
+import com.hubon.backend.stock.repository.ProductOptionStockLinkRepository;
 import com.hubon.backend.stock.repository.StockItemRepository;
 import com.hubon.backend.stock.repository.StockMovementRepository;
 import com.hubon.backend.user.domain.User;
@@ -19,7 +21,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +33,7 @@ public class StockMovementService {
     private final StockMovementRepository movementRepository;
     private final StockItemRepository stockItemRepository;
     private final ProductStockLinkRepository linkRepository;
+    private final ProductOptionStockLinkRepository optionLinkRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final Clock businessClock;
 
@@ -64,53 +71,77 @@ public class StockMovementService {
         return toResponse(record(item, StockMovementType.ADJUSTMENT, delta, null, null, request.reason(), currentUser()));
     }
 
-    public void applySale(SaleItem saleItem, User user) {
+    public void applySale(SaleItem saleItem, List<ProductOption> selectedOptions, User user) {
+        Map<Long, BigDecimal> quantityPerSale = new LinkedHashMap<>();
         linkRepository.findByProductIdAndActiveTrue(saleItem.getProduct().getId()).ifPresent(link -> {
-            if (!Boolean.TRUE.equals(link.getStockItem().getActive())) {
-                throw new BusinessException("Item de estoque vinculado esta inativo");
-            }
-            StockItem item = findForUpdate(link.getStockItem().getId());
-            BigDecimal quantity = link.getQuantityPerSale().multiply(BigDecimal.valueOf(saleItem.getQuantity()));
-            record(item, StockMovementType.SALE, quantity.negate(), saleItem, null, null, user);
+            quantityPerSale.merge(link.getStockItem().getId(), link.getQuantityPerSale(), BigDecimal::add);
         });
+        if (!selectedOptions.isEmpty()) {
+            optionLinkRepository.findAllByProductOptionIdInAndActiveTrue(
+                            selectedOptions.stream().map(ProductOption::getId).toList())
+                    .forEach(link -> quantityPerSale.merge(
+                            link.getStockItem().getId(),
+                            link.getQuantityPerSelection(),
+                            BigDecimal::add
+                    ));
+        }
+
+        List<PendingMovement> pending = quantityPerSale.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> new PendingMovement(
+                        findForUpdate(entry.getKey()),
+                        entry.getValue().multiply(BigDecimal.valueOf(saleItem.getQuantity())).negate(),
+                        null
+                ))
+                .toList();
+        applyPending(saleItem, pending, user, null);
     }
 
     public void applySaleQuantityDelta(SaleItem saleItem, int quantityDelta, User user) {
         if (quantityDelta == 0) return;
         List<StockMovement> movements = saleMovements(saleItem);
         if (movements.isEmpty()) return;
-
-        StockMovement original = originalSaleMovement(movements);
-        BigDecimal consumed = netDelta(movements).negate();
-        if (consumed.signum() <= 0) {
-            throw new BusinessException("Consumo de estoque da venda esta inconsistente");
+        List<PendingMovement> pending = new ArrayList<>();
+        for (Map.Entry<Long, List<StockMovement>> entry : movementsByStockItem(movements).entrySet()) {
+            List<StockMovement> itemMovements = entry.getValue();
+            BigDecimal consumed = netDelta(itemMovements).negate();
+            if (consumed.signum() <= 0) {
+                throw new BusinessException("Consumo de estoque da venda esta inconsistente");
+            }
+            BigDecimal quantityPerSale = consumed.divide(
+                    BigDecimal.valueOf(saleItem.getQuantity()),
+                    3,
+                    RoundingMode.UNNECESSARY
+            );
+            BigDecimal stockDelta = quantityPerSale.multiply(BigDecimal.valueOf(Math.abs((long) quantityDelta)));
+            pending.add(new PendingMovement(
+                    findForUpdate(entry.getKey()),
+                    quantityDelta > 0 ? stockDelta.negate() : stockDelta,
+                    quantityDelta > 0 ? null : originalSaleMovement(itemMovements)
+            ));
         }
-        BigDecimal quantityPerSale = consumed.divide(
-                BigDecimal.valueOf(saleItem.getQuantity()),
-                3,
-                RoundingMode.UNNECESSARY
-        );
-        BigDecimal stockDelta = quantityPerSale.multiply(BigDecimal.valueOf(Math.abs((long) quantityDelta)));
-        StockItem stockItem = findForUpdate(original.getStockItem().getId());
-
-        if (quantityDelta > 0) {
-            record(stockItem, StockMovementType.SALE, stockDelta.negate(), saleItem, null, null, user);
-        } else {
-            record(stockItem, StockMovementType.SALE_REVERSAL, stockDelta, saleItem, original, null, user);
-        }
+        applyPending(saleItem, pending, user, null);
     }
 
     public void reverseSale(SaleItem saleItem, User user) {
         List<StockMovement> movements = saleMovements(saleItem);
         if (movements.isEmpty()) return;
-        BigDecimal consumed = netDelta(movements).negate();
-        if (consumed.signum() == 0) return;
-        if (consumed.signum() < 0) throw new BusinessException("Consumo de estoque da venda esta inconsistente");
-
-        StockMovement original = originalSaleMovement(movements);
-        StockItem item = findForUpdate(original.getStockItem().getId());
-        record(item, StockMovementType.SALE_REVERSAL, consumed,
-                saleItem, original, saleItem.getCancellationReason(), user);
+        List<PendingMovement> pending = new ArrayList<>();
+        for (Map.Entry<Long, List<StockMovement>> entry : movementsByStockItem(movements).entrySet()) {
+            List<StockMovement> itemMovements = entry.getValue();
+            BigDecimal consumed = netDelta(itemMovements).negate();
+            if (consumed.signum() < 0) {
+                throw new BusinessException("Consumo de estoque da venda esta inconsistente");
+            }
+            if (consumed.signum() > 0) {
+                pending.add(new PendingMovement(
+                        findForUpdate(entry.getKey()),
+                        consumed,
+                        originalSaleMovement(itemMovements)
+                ));
+            }
+        }
+        applyPending(saleItem, pending, user, saleItem.getCancellationReason());
     }
 
     private List<StockMovement> saleMovements(SaleItem saleItem) {
@@ -124,6 +155,33 @@ public class StockMovementService {
 
     private BigDecimal netDelta(List<StockMovement> movements) {
         return movements.stream().map(StockMovement::getDeltaQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private Map<Long, List<StockMovement>> movementsByStockItem(List<StockMovement> movements) {
+        Map<Long, List<StockMovement>> grouped = new TreeMap<>();
+        movements.forEach(movement -> grouped
+                .computeIfAbsent(movement.getStockItem().getId(), ignored -> new ArrayList<>())
+                .add(movement));
+        return grouped;
+    }
+
+    private void applyPending(SaleItem saleItem, List<PendingMovement> pending, User user, String reason) {
+        for (PendingMovement movement : pending) {
+            StockItem item = movement.stockItem();
+            if (movement.delta().signum() < 0 && !Boolean.TRUE.equals(item.getActive())) {
+                throw new BusinessException("Item de estoque vinculado esta inativo: " + item.getName());
+            }
+            if (item.getCurrentStock().add(movement.delta()).signum() < 0) {
+                throw new BusinessException("Estoque insuficiente para concluir a operacao: " + item.getName());
+            }
+        }
+        for (PendingMovement movement : pending) {
+            StockMovementType type = movement.delta().signum() < 0
+                    ? StockMovementType.SALE
+                    : StockMovementType.SALE_REVERSAL;
+            record(movement.stockItem(), type, movement.delta(), saleItem,
+                    movement.reversedMovement(), reason, user);
+        }
     }
 
     private StockMovement manual(Long stockItemId, StockMovementType type, BigDecimal delta, String reason) {
@@ -170,5 +228,12 @@ public class StockMovementService {
                 movement.getReversedMovement() == null ? null : movement.getReversedMovement().getId(),
                 movement.getReason(), movement.getCreatedByUser().getId(), movement.getCreatedByUser().getName(),
                 movement.getCreatedAt());
+    }
+
+    private record PendingMovement(
+            StockItem stockItem,
+            BigDecimal delta,
+            StockMovement reversedMovement
+    ) {
     }
 }

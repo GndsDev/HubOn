@@ -91,7 +91,7 @@ public class SaleService {
                 .productOption(option).optionGroupNameSnapshot(option.getGroup().getName())
                 .optionNameSnapshot(option.getName()).additionalPriceSnapshot(option.getAdditionalPrice())
                 .createdAt(LocalDateTime.now(businessClock)).build()).toList());
-        stockMovementService.applySale(item, user);
+        stockMovementService.applySale(item, options, user);
         return queryService.toResponse(sale);
     }
 

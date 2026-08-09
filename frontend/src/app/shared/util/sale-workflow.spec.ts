@@ -7,6 +7,7 @@ import {
   itemMatchesRequest,
   optionSelectionIsValid,
   productRequiresChoice,
+  saleChoiceSummary,
   saleCanChangeItems,
   saleCanClose,
 } from './sale-workflow';
@@ -71,8 +72,8 @@ const choiceGroup: ProductOptionGroup = {
   displayOrder: 0,
   active: true,
   options: [
-    { id: 7, groupId: 3, name: 'Carne', additionalPrice: 0, displayOrder: 0, active: true, createdAt: '', updatedAt: '' },
-    { id: 8, groupId: 3, name: 'Coração', additionalPrice: 2, displayOrder: 1, active: true, createdAt: '', updatedAt: '' },
+    { id: 7, groupId: 3, name: 'Carne', additionalPrice: 0, displayOrder: 0, active: true, stockLink: null, createdAt: '', updatedAt: '' },
+    { id: 8, groupId: 3, name: 'Coração', additionalPrice: 2, displayOrder: 1, active: true, stockLink: null, createdAt: '', updatedAt: '' },
   ],
   createdAt: '',
   updatedAt: '',
@@ -95,9 +96,35 @@ describe('sale workflow', () => {
     expect(activeOptionGroups(product([{ ...choiceGroup, active: false }]))).toEqual([]);
   });
 
+  it('keeps the configured order of active groups and choices', () => {
+    const beanGroup = {
+      ...choiceGroup,
+      id: 4,
+      name: 'Escolha o feijão',
+      displayOrder: 0,
+      options: [
+        { ...choiceGroup.options[1], id: 10, groupId: 4, name: 'Feijão de caldo', displayOrder: 1 },
+        { ...choiceGroup.options[0], id: 9, groupId: 4, name: 'Feijão tropeiro', displayOrder: 0 },
+      ],
+    };
+    const skewerGroup = { ...choiceGroup, name: 'Escolha o espeto', displayOrder: 1 };
+
+    const groups = activeOptionGroups(product([skewerGroup, beanGroup]));
+
+    expect(groups.map((group) => group.name)).toEqual(['Escolha o feijão', 'Escolha o espeto']);
+    expect(groups[0].options.map((option) => option.name)).toEqual(['Feijão tropeiro', 'Feijão de caldo']);
+  });
+
   it('matches repeated items by product, options and notes', () => {
     expect(itemMatchesRequest(item, { productId: 2, quantity: 1, notes: null, optionIds: [8] })).toBe(true);
     expect(itemMatchesRequest(item, { productId: 2, quantity: 1, notes: null, optionIds: [7] })).toBe(false);
+  });
+
+  it('formats choices with operational question labels', () => {
+    expect(saleChoiceSummary([
+      { id: 1, productOptionId: 7, optionGroupName: 'Escolha o feijão', optionName: 'Feijão tropeiro', additionalPrice: 0 },
+      { id: 2, productOptionId: 8, optionGroupName: 'Escolha o espeto', optionName: 'Picanha montada', additionalPrice: 0 },
+    ])).toBe('Feijão: Tropeiro · Espeto: Picanha montada');
   });
 
   it('blocks item changes as soon as a payment exists', () => {

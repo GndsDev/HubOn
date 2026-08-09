@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, forkJoin, of, switchMap, tap } from 'rxjs';
@@ -16,7 +16,7 @@ import { AccessibleDialogDirective } from '../../shared/directives/accessible-di
 import { Product } from '../../shared/models/product.model';
 import { AddSaleItemRequest, PaymentMethod, Sale, SaleItem } from '../../shared/models/sale.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
-import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose } from '../../shared/util/sale-workflow';
+import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose, saleChoiceSummary } from '../../shared/util/sale-workflow';
 
 @Component({
   selector: 'app-counter-page',
@@ -164,14 +164,14 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
       }
     } @else if (currentSale(); as sale) {
       <app-page-header
-        kicker="Atendimento de balcão"
+        kicker="Venda rápida"
         [title]="'Venda #' + sale.id"
         description="Adicione os produtos, confira os itens e receba o pagamento."
       >
         <div page-actions class="page-header-actions">
           <a class="secondary-button" routerLink="/balcao">
             <i class="pi pi-arrow-left"></i>
-            Atendimentos
+            Vendas em andamento
           </a>
           <button type="button" class="icon-button" aria-label="Atualizar venda" title="Atualizar" (click)="load(sale.id)">
             <i class="pi pi-refresh"></i>
@@ -220,6 +220,8 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
               [products]="products()"
               [disabled]="!canChangeItems()"
               [busyProductId]="busyProductId()"
+              [confirmationMessage]="productFeedback()"
+              confirmLabel="Adicionar à venda"
               (addItem)="addProduct($event)"
             />
           </section>
@@ -252,7 +254,10 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
                       <span>{{ optionSummary(item) }}</span>
                     }
                     @if (item.notes) {
-                      <small>Observação: {{ item.notes }}</small>
+                      <small class="auxiliary-note">
+                        <i class="pi pi-comment"></i>
+                        {{ item.notes }}
+                      </small>
                     }
                   </div>
 
@@ -323,29 +328,32 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
             }
 
             @if (activeItems().length > 0 && sale.remainingAmount > 0) {
-              <div class="action-cluster">
-                <button type="button" class="secondary-button compact-button" (click)="quickPay('PIX')" [disabled]="saving()">
-                  <i class="pi pi-qrcode"></i>
-                  PIX
-                </button>
-                <button type="button" class="secondary-button compact-button" (click)="quickPay('CASH')" [disabled]="saving()">
-                  <i class="pi pi-money-bill"></i>
-                  Dinheiro
-                </button>
-                <button type="button" class="secondary-button compact-button" (click)="quickPay('DEBIT_CARD')" [disabled]="saving()">
-                  <i class="pi pi-credit-card"></i>
-                  Débito
-                </button>
-                <button type="button" class="secondary-button compact-button" (click)="quickPay('CREDIT_CARD')" [disabled]="saving()">
-                  <i class="pi pi-credit-card"></i>
-                  Crédito
+              <div class="counter-payment-actions">
+                <span>Recebimento rápido</span>
+                <div class="counter-quick-payments">
+                  <button type="button" class="secondary-button compact-button" (click)="quickPay('PIX')" [disabled]="saving()">
+                    <i class="pi pi-qrcode"></i>
+                    PIX
+                  </button>
+                  <button type="button" class="secondary-button compact-button" (click)="quickPay('CASH')" [disabled]="saving()">
+                    <i class="pi pi-money-bill"></i>
+                    Dinheiro
+                  </button>
+                  <button type="button" class="secondary-button compact-button" (click)="quickPay('DEBIT_CARD')" [disabled]="saving()">
+                    <i class="pi pi-credit-card"></i>
+                    Débito
+                  </button>
+                  <button type="button" class="secondary-button compact-button" (click)="quickPay('CREDIT_CARD')" [disabled]="saving()">
+                    <i class="pi pi-credit-card"></i>
+                    Crédito
+                  </button>
+                </div>
+
+                <button type="button" class="primary-button counter-primary-action" (click)="paymentOpen.set(true)" [disabled]="saving()">
+                  <i class="pi pi-wallet"></i>
+                  Pagamento parcial ou outro
                 </button>
               </div>
-
-              <button type="button" class="primary-button counter-primary-action" (click)="paymentOpen.set(true)" [disabled]="saving()">
-                <i class="pi pi-wallet"></i>
-                Pagamento parcial ou outro
-              </button>
             }
 
             @if (canClose()) {
@@ -449,7 +457,7 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose }
     }
   `,
 })
-export class CounterPageComponent implements OnInit {
+export class CounterPageComponent implements OnInit, OnDestroy {
   private readonly api = inject(SalesApiService);
   private readonly productApi = inject(ProductApiService);
   private readonly feedback = inject(FeedbackService);
@@ -463,6 +471,7 @@ export class CounterPageComponent implements OnInit {
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly busyProductId = signal<number | null>(null);
+  readonly productFeedback = signal('');
   readonly actionItemId = signal<number | null>(null);
   readonly paymentOpen = signal(false);
   readonly cancelItemTarget = signal<SaleItem | null>(null);
@@ -476,9 +485,14 @@ export class CounterPageComponent implements OnInit {
   readonly openAverageTicket = computed(() => this.openSales().length
     ? this.openSales().reduce((total, sale) => total + sale.finalAmount, 0) / this.openSales().length
     : 0);
+  private productFeedbackTimer?: ReturnType<typeof setTimeout>;
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => this.load(Number(params.get('saleId')) || undefined));
+  }
+
+  ngOnDestroy(): void {
+    if (this.productFeedbackTimer) clearTimeout(this.productFeedbackTimer);
   }
 
   load(saleId?: number): void {
@@ -533,7 +547,7 @@ export class CounterPageComponent implements OnInit {
         next: (updated) => {
           this.currentSale.set(updated);
           this.openSales.update((items) => [...items.filter((item) => item.id !== updated.id), updated]);
-          this.feedback.success('Produto adicionado.');
+          this.showProductFeedback(request.productId);
         },
         error: (error) => this.feedback.error(apiErrorMessage(error)),
       });
@@ -543,7 +557,7 @@ export class CounterPageComponent implements OnInit {
     if (!this.canChangeItems()) return;
     const matching = this.activeItems().find((item) => itemMatchesRequest(item, request));
     if (matching) {
-      this.changeQuantity(matching, matching.quantity + request.quantity);
+      this.changeQuantity(matching, matching.quantity + request.quantity, true);
       return;
     }
 
@@ -551,13 +565,13 @@ export class CounterPageComponent implements OnInit {
     this.api.addItem(sale.id, request).pipe(finalize(() => this.busyProductId.set(null))).subscribe({
       next: (updated) => {
         this.currentSale.set(updated);
-        this.feedback.success('Produto adicionado.');
+        this.showProductFeedback(request.productId);
       },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
   }
 
-  changeQuantity(item: SaleItem, quantity: number): void {
+  changeQuantity(item: SaleItem, quantity: number, fromCatalog = false): void {
     const sale = this.currentSale();
     if (!sale || !this.canChangeItems() || quantity < 1) return;
 
@@ -567,7 +581,8 @@ export class CounterPageComponent implements OnInit {
     ).subscribe({
       next: (updated) => {
         this.currentSale.set(updated);
-        this.feedback.success('Quantidade atualizada.');
+        if (fromCatalog) this.showProductFeedback(item.productId);
+        else this.feedback.success('Quantidade atualizada.');
       },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
@@ -646,7 +661,7 @@ export class CounterPageComponent implements OnInit {
   }
 
   optionSummary(item: SaleItem): string {
-    return item.options.map((option) => option.optionName).join(', ');
+    return saleChoiceSummary(item.options);
   }
 
   saleItemQuantity(sale: Sale): number {
@@ -690,6 +705,13 @@ export class CounterPageComponent implements OnInit {
     this.router.navigateByUrl('/balcao');
     this.activity.refresh();
     this.feedback.success(message);
+  }
+
+  private showProductFeedback(productId: number): void {
+    if (this.productFeedbackTimer) clearTimeout(this.productFeedbackTimer);
+    const productName = this.products().find((product) => product.id === productId)?.name ?? 'Produto';
+    this.productFeedback.set(`${productName} adicionado`);
+    this.productFeedbackTimer = setTimeout(() => this.productFeedback.set(''), 1800);
   }
 
   private openRequest() {

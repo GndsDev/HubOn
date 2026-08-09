@@ -1,5 +1,5 @@
 import { Product, ProductOptionGroup } from '../models/product.model';
-import { AddSaleItemRequest, Sale, SaleItem } from '../models/sale.model';
+import { AddSaleItemRequest, Sale, SaleItem, SaleItemOption } from '../models/sale.model';
 
 export function activeSaleItems(sale: Sale | null): SaleItem[] {
   return sale?.items.filter((item) => item.cancelledAt == null) ?? [];
@@ -16,7 +16,12 @@ export function saleCanClose(sale: Sale | null): boolean {
 export function activeOptionGroups(product: Product): ProductOptionGroup[] {
   return product.optionGroups
     .filter((group) => group.active)
-    .map((group) => ({ ...group, options: group.options.filter((option) => option.active) }))
+    .map((group) => ({
+      ...group,
+      options: group.options
+        .filter((option) => option.active)
+        .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, 'pt-BR')),
+    }))
     .filter((group) => group.options.length > 0)
     .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, 'pt-BR'));
 }
@@ -40,4 +45,26 @@ export function itemMatchesRequest(item: SaleItem, request: AddSaleItemRequest):
     && (item.notes ?? '') === (request.notes ?? '')
     && itemIds.length === requestIds.length
     && itemIds.every((id, index) => id === requestIds[index]);
+}
+
+export function saleChoiceSummary(options: SaleItemOption[]): string {
+  return options.map((option) => {
+    const group = choiceGroupLabel(option.optionGroupName);
+    const choice = choiceName(group, option.optionName);
+    return `${group}: ${choice}`;
+  }).join(' · ');
+}
+
+function choiceGroupLabel(name: string): string {
+  const label = name.replace(/^Escolha\s+(?:o|a|os|as)\s+/i, '').trim();
+  return label ? label.charAt(0).toLocaleUpperCase('pt-BR') + label.slice(1) : name;
+}
+
+function choiceName(group: string, name: string): string {
+  const prefix = `${group} `;
+  if (name.toLocaleLowerCase('pt-BR').startsWith(prefix.toLocaleLowerCase('pt-BR'))) {
+    const value = name.slice(prefix.length).trim();
+    return value.charAt(0).toLocaleUpperCase('pt-BR') + value.slice(1);
+  }
+  return name;
 }
