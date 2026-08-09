@@ -241,14 +241,42 @@ function New-HubonShortcut {
     if ([String]::IsNullOrWhiteSpace($desktop)) {
         return
     }
-    $shortcut = Join-Path $desktop "HubOn.url"
-    $content = @(
-        "[InternetShortcut]",
-        "URL=http://localhost:4200",
-        "IconFile=$env:SystemRoot\System32\SHELL32.dll",
-        "IconIndex=220"
+
+    $iconPath = Join-Path $InstallPath "assets\hubon.ico"
+    if (-not (Test-Path -LiteralPath $iconPath -PathType Leaf)) {
+        throw "HubOn shortcut icon was not found at $iconPath."
+    }
+
+    $chromeCandidates = @(
+        (Join-Path $env:ProgramFiles "Google\Chrome\Application\chrome.exe")
     )
-    Set-Content -LiteralPath $shortcut -Value $content -Encoding ASCII
+    $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+    if (-not [String]::IsNullOrWhiteSpace($programFilesX86)) {
+        $chromeCandidates += Join-Path $programFilesX86 "Google\Chrome\Application\chrome.exe"
+    }
+    $chromeExecutable = $chromeCandidates |
+        Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+        Select-Object -First 1
+
+    $shortcutPath = Join-Path $desktop "HubOn.lnk"
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcut = $shell.CreateShortcut($shortcutPath)
+    if ($chromeExecutable) {
+        $shortcut.TargetPath = $chromeExecutable
+        $shortcut.Arguments = "--app=http://localhost:4200"
+    } else {
+        $shortcut.TargetPath = Join-Path $env:SystemRoot "System32\rundll32.exe"
+        $shortcut.Arguments = 'url.dll,FileProtocolHandler "http://localhost:4200"'
+    }
+    $shortcut.WorkingDirectory = $InstallPath
+    $shortcut.Description = "HubOn"
+    $shortcut.IconLocation = "$iconPath,0"
+    $shortcut.Save()
+
+    $legacyShortcut = Join-Path $desktop "HubOn.url"
+    if (Test-Path -LiteralPath $legacyShortcut) {
+        Remove-Item -LiteralPath $legacyShortcut -Force
+    }
 }
 
 Assert-Administrator
