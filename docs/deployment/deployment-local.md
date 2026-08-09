@@ -1,11 +1,13 @@
-# Execução local e em rede
+# Instalação e execução local
 
 ## Pré-requisitos
 
-Para a stack completa em containers:
+Para instalar no computador do cliente:
 
 - Docker Desktop com Docker Compose.
-- Portas `5432`, `8080` e `4200` livres.
+- PowerShell executado como administrador uma única vez.
+- Porta local `4200` livre.
+- Arquivo `.env` configurado com credenciais e segredos próprios.
 
 Para executar os componentes diretamente, sem Docker:
 
@@ -14,39 +16,95 @@ Para executar os componentes diretamente, sem Docker:
 - Node.js e npm.
 - Portas `4200` e `8080` livres.
 
-## Stack completa com Docker
+## Instalação inicial do cliente
 
-O Compose da raiz executa PostgreSQL, backend e frontend na rede interna
-`hubon-network`. O backend acessa o banco por
-`jdbc:postgresql://postgres:5432/hubon_db`, e o frontend encaminha `/api` ao
-backend pelo Nginx. O desenvolvimento direto com Angular continua usando a URL
-definida em `environment.development.ts`.
+O instalador deve ser executado uma vez por quem prepara o computador. O cliente
+não precisa abrir terminal, Docker Desktop ou containers durante o uso diário.
 
-Crie o arquivo local de ambiente a partir do modelo e substitua os placeholders
-por valores próprios:
+Na raiz do pacote recebido, crie o ambiente e substitua todos os placeholders
+`change-me`:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-O arquivo `.env` contém credenciais locais e não é versionado. O
-`.env.example` documenta todas as variáveis necessárias sem armazenar segredos
-reais.
+O instalador rejeita segredos vazios, placeholders, `POSTGRES_DB` diferente de
+`hubon_db`, projeto Compose diferente de `hubon` e qualquer referência a
+`hubon_test`. Nenhum segredo real existe nos scripts versionados.
 
-Inicie e confira a stack:
+Abra o PowerShell como administrador e execute:
 
 ```powershell
-docker compose up -d --build
-docker compose ps
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\install-hubon-windows.ps1
 ```
 
-Serviços publicados:
+Por padrão, o instalador:
 
-| Container | Porta | Uso |
+- copia os arquivos necessários para `C:\HubOn` sem copiar `.git`, builds,
+  dependências, logs ou arquivos temporários;
+- preserva `C:\HubOn\.env` quando a instalação já existe;
+- valida Docker Desktop e Docker Compose;
+- inicia o Docker Engine quando necessário;
+- executa build e subida da stack;
+- aguarda PostgreSQL, backend e frontend ficarem saudáveis;
+- registra a tarefa agendada `HubOn` para o usuário instalador;
+- cria o atalho `HubOn` na Área de Trabalho.
+
+É possível informar outra pasta absoluta ou outro arquivo de ambiente:
+
+```powershell
+.\scripts\install-hubon-windows.ps1 `
+  -InstallPath "C:\Aplicativos\HubOn" `
+  -EnvironmentFile "C:\Instalacao\hubon.env"
+```
+
+## Inicialização em cada logon
+
+A tarefa agendada `HubOn` usa o gatilho **At log on** e executa:
+
+```text
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass
+  -WindowStyle Hidden -File "C:\HubOn\scripts\start-hubon.ps1"
+```
+
+Ela possui limite de 15 minutos, três tentativas de reinício com intervalo de um
+minuto e política `IgnoreNew`, que impede instâncias simultâneas. O script também
+usa um mutex local para garantir idempotência.
+
+Em cada execução, `start-hubon.ps1`:
+
+1. localiza a CLI do Docker sem depender do `PATH`;
+2. verifica se o Engine responde;
+3. usa `docker desktop start --detach` quando disponível;
+4. usa o executável oficial do Docker Desktop como fallback silencioso;
+5. aguarda o Engine com timeout;
+6. executa `docker compose up -d` pela pasta absoluta instalada;
+7. aguarda os três healthchecks e encerra.
+
+O script não abre o Docker Dashboard. Diagnósticos ficam em
+`C:\HubOn\logs\startup.log`, sem registrar conteúdo do `.env`.
+
+O atalho da Área de Trabalho abre somente `http://localhost:4200` no navegador
+padrão. Ele não inicia containers, pois a infraestrutura já é automática.
+
+## Rede e portas do cliente
+
+| Container | Porta interna | Porta no host |
 | --- | --- | --- |
-| `hubon-postgres` | `5432` | Banco operacional persistente do HubOn |
-| `hubon-backend` | `8080` | API Spring Boot |
-| `hubon-frontend` | `4200` | Aplicação Angular servida pelo Nginx |
+| `hubon-postgres` | `5432` | Não publicada |
+| `hubon-backend` | `8080` | Não publicada |
+| `hubon-frontend` | `80` | `127.0.0.1:4200` |
+
+O fluxo é:
+
+```text
+navegador -> localhost:4200 -> nginx -> /api -> backend:8080 -> postgres:5432
+```
+
+O frontend de produção usa `/api`; ele não conhece `localhost:8080`. O Nginx
+mantém o fallback SPA para `index.html` e encaminha `/api/` ao serviço
+`backend:8080`.
 
 Na máquina do cliente, o Compose cria somente `hubon_db` por padrão. O banco
 `hubon_test` não integra a stack de execução e não é criado pela aplicação; ele
@@ -55,20 +113,23 @@ existe apenas em ambientes de desenvolvimento ou na CI temporária do GitHub.
 O PostgreSQL usa o volume nomeado `hubon_hubon_postgres_data`. O mesmo volume é
 reutilizado quando os containers são recriados, portanto uma atualização da
 stack não apaga o banco. Nunca use `docker compose down -v` para uma atualização
-normal.
+normal. Nunca execute `docker compose down -v`, `docker volume prune` ou
+`docker system prune`.
 
-Os três serviços usam `restart: unless-stopped`. Após a primeira execução de
-`docker compose up -d`, o daemon Docker volta a iniciá-los automaticamente. No
-Windows, confirme uma única vez no Docker Desktop:
+Os três serviços usam `restart: always`. A tarefa do Windows inicia o Docker e
+garante a stack mesmo quando a política de restart sozinha não seria suficiente.
+Ainda assim, confirme uma única vez no Docker Desktop:
 
 ```text
 Settings > General > Start Docker Desktop when you sign in to your computer
 ```
 
-Essa opção deve ser habilitada pela interface do Docker Desktop; não altere os
-arquivos internos do aplicativo para forçá-la.
+Essa opção deve ser habilitada pela interface do Docker Desktop; o instalador
+não altera arquivos internos do aplicativo.
 
-Comandos seguros de operação:
+## Manutenção técnica
+
+Os comandos abaixo são para o responsável técnico, dentro de `C:\HubOn`:
 
 ```powershell
 docker compose ps
@@ -77,8 +138,19 @@ docker compose stop
 docker compose start
 ```
 
-Evite publicar a porta `5432` fora da máquina e não exponha esta stack
-diretamente à internet.
+## Portas para desenvolvimento
+
+O Compose principal representa o cliente e não publica PostgreSQL nem backend.
+Quando um desenvolvedor precisar dessas portas no próprio computador, deve usar
+o override explícito:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+Esse modo publica `127.0.0.1:5432` e `127.0.0.1:8080`; as portas continuam sem
+acesso pela rede. O desenvolvimento direto com Angular continua usando
+`environment.development.ts`.
 
 ## PostgreSQL
 
