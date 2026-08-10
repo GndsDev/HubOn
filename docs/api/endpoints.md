@@ -20,7 +20,7 @@ Payload:
 
 ```json
 {
-  "email": "email-configurado-no-seeder",
+  "username": "usuario-configurado-no-seeder",
   "password": "senha-configurada-no-seeder"
 }
 ```

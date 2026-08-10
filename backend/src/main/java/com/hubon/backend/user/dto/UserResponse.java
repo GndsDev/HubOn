@@ -5,7 +5,7 @@ import java.util.Set;
 public record UserResponse(
         Long id,
         String name,
-        String email,
+        String username,
         Boolean active,
         Set<String> roles
 ) {

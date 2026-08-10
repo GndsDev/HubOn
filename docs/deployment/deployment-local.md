@@ -230,11 +230,11 @@ Depois configure suas próprias credenciais antes de iniciar o backend:
 
 ```powershell
 $env:HUBON_SEED_OWNER_NAME="Proprietario"
-$env:HUBON_SEED_OWNER_EMAIL="owner.local@hubon.test"
+$env:HUBON_SEED_OWNER_USERNAME="owner.local"
 $env:HUBON_SEED_OWNER_PASSWORD="senha-local-forte"
 $env:HUBON_SEED_ADMIN_ENABLED="true"
 $env:HUBON_SEED_ADMIN_NAME="Administrador"
-$env:HUBON_SEED_ADMIN_EMAIL="admin.local@hubon.test"
+$env:HUBON_SEED_ADMIN_USERNAME="admin.local"
 $env:HUBON_SEED_ADMIN_PASSWORD="senha-admin-local-forte"
 $env:HUBON_JWT_SECRET="segredo-local-longo-e-aleatorio"
 ```

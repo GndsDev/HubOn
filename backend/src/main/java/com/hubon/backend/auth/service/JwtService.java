@@ -43,7 +43,7 @@ public class JwtService {
                 "typ", "JWT"
         );
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("sub", user.getEmail());
+        payload.put("sub", user.getUsername());
         payload.put("uid", user.getId());
         payload.put("name", user.getName());
         payload.put("roles", user.getRoles()
@@ -130,6 +130,6 @@ public class JwtService {
     public record GeneratedToken(String token, Instant expiresAt) {
     }
 
-    public record TokenClaims(String email, Long userId, String name, List<String> roles) {
+    public record TokenClaims(String username, Long userId, String name, List<String> roles) {
     }
 }

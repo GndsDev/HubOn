@@ -78,8 +78,8 @@ Também cria usuários locais iniciais quando ainda não existem. As credenciais
 vêm de propriedades configuráveis:
 
 ```text
-OWNER: hubon.seed.owner.name, hubon.seed.owner.email, hubon.seed.owner.password
-ADMIN: hubon.seed.admin.name, hubon.seed.admin.email, hubon.seed.admin.password
+OWNER: hubon.seed.owner.name, hubon.seed.owner.username, hubon.seed.owner.password
+ADMIN: hubon.seed.admin.name, hubon.seed.admin.username, hubon.seed.admin.password
 ```
 
 As senhas podem ser substituídas por `HUBON_SEED_OWNER_PASSWORD` e

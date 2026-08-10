@@ -28,13 +28,17 @@ Senha nunca é retornada por DTO e nunca é salva no frontend.
 {
   "id": 1,
   "name": "Dono HubOn",
-  "email": "owner@hubon.local",
+  "username": "owner",
   "active": true,
   "roles": ["OWNER"]
 }
 ```
 
 Esse endpoint é usado pela tela `/minha-conta` para confirmar os dados da sessão.
+
+O login recebe `username` e `password`. O username é normalizado em letras
+minúsculas e também é usado como `sub` do JWT; e-mail não faz parte do contrato
+de autenticação nem dos dados públicos do usuário.
 
 ## Alteração de senha
 

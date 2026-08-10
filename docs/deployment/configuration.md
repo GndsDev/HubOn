@@ -86,7 +86,7 @@ O usuário `OWNER` inicial é configurado por:
 
 ```powershell
 $env:HUBON_SEED_OWNER_NAME="Proprietario"
-$env:HUBON_SEED_OWNER_EMAIL="owner@hubon.local"
+$env:HUBON_SEED_OWNER_USERNAME="owner"
 $env:HUBON_SEED_OWNER_PASSWORD="change-me"
 ```
 
@@ -95,7 +95,7 @@ O `ADMIN` inicial, se habilitado, é configurado por:
 ```powershell
 $env:HUBON_SEED_ADMIN_ENABLED="true"
 $env:HUBON_SEED_ADMIN_NAME="Administrador"
-$env:HUBON_SEED_ADMIN_EMAIL="admin@hubon.local"
+$env:HUBON_SEED_ADMIN_USERNAME="admin"
 $env:HUBON_SEED_ADMIN_PASSWORD="change-me"
 ```
 
@@ -124,7 +124,7 @@ segredo JWT local. Fica fora do Git.
 ## Boas práticas
 
 - Não coloque secrets em HTML, TypeScript, JavaScript ou documentação pública.
-- Use `HUBON_PORTFOLIO_EMAIL` e `HUBON_PORTFOLIO_PASSWORD` apenas no terminal
+- Use `HUBON_PORTFOLIO_USERNAME` e `HUBON_PORTFOLIO_PASSWORD` apenas no terminal
   quando for gerar screenshots ou vídeo do portfólio.
 - Não commite `target/`, `dist/`, `node_modules/`, caches ou relatórios.
 - Não altere migrations para esconder dados locais; migrations são parte do

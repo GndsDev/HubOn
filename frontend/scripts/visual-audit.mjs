@@ -19,7 +19,7 @@ if (!browserPath) {
 const user = {
   id: 1,
   name: 'Proprietário HubOn',
-  email: 'owner@hubon.local',
+  username: 'owner',
   active: true,
   roles: ['OWNER'],
 };
@@ -239,7 +239,7 @@ const monthlyReport = {
 
 const users = [
   user,
-  { id: 2, name: 'Operador de atendimento', email: 'operador@hubon.local', active: true, roles: ['WAITER', 'CASHIER'] },
+  { id: 2, name: 'Operador de atendimento', username: 'operador', active: true, roles: ['WAITER', 'CASHIER'] },
 ];
 
 function json(route, body, status = 200) {

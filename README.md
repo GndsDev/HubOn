@@ -151,7 +151,8 @@ $env:HUBON_JWT_SECRET="use-um-segredo-longo-e-aleatorio"
 
 As credenciais dos usuários seedados são definidas por `hubon.seed.owner.*` e
 `hubon.seed.admin.*` ou pelas variáveis `HUBON_SEED_OWNER_*` e
-`HUBON_SEED_ADMIN_*`. As senhas são gravadas com BCrypt.
+`HUBON_SEED_ADMIN_*`. O acesso usa `username` normalizado em letras minúsculas;
+as senhas são gravadas com BCrypt.
 
 ## Como executar
 

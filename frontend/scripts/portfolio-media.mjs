@@ -117,19 +117,19 @@ async function waitForHttp(url) {
 }
 
 function readPortfolioCredentials() {
-  const email = process.env.HUBON_PORTFOLIO_EMAIL?.trim();
+  const username = process.env.HUBON_PORTFOLIO_USERNAME?.trim().toLowerCase();
   const password = process.env.HUBON_PORTFOLIO_PASSWORD;
 
-  if (!email || !password) {
+  if (!username || !password) {
     throw new Error(
-      'Configure HUBON_PORTFOLIO_EMAIL e HUBON_PORTFOLIO_PASSWORD para gerar as mídias.',
+      'Configure HUBON_PORTFOLIO_USERNAME e HUBON_PORTFOLIO_PASSWORD para gerar as mídias.',
     );
   }
 
-  return { email, password };
+  return { username, password };
 }
 
-async function authenticateForPortfolio({ email, password }) {
+async function authenticateForPortfolio({ username, password }) {
   console.log(`Autenticando usuário de portfólio em ${apiUrl}/auth/login...`);
   let lastError;
 
@@ -138,7 +138,7 @@ async function authenticateForPortfolio({ email, password }) {
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
       const contentType = response.headers.get('content-type') ?? '';
       const payload = contentType.includes('application/json')
@@ -183,7 +183,7 @@ async function prepareDemoData(currentUser) {
 
   if (!currentUser.roles?.some((role) => role === 'OWNER' || role === 'ADMIN')) {
     throw new Error(
-      'Use um usuário OWNER ou ADMIN em HUBON_PORTFOLIO_EMAIL para preparar os dados de portfólio.',
+      'Use um usuário OWNER ou ADMIN em HUBON_PORTFOLIO_USERNAME para preparar os dados de portfólio.',
     );
   }
 

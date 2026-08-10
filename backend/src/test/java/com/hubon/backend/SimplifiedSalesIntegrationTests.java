@@ -83,7 +83,7 @@ class SimplifiedSalesIntegrationTests {
         clearDatabase();
         Role owner = roleRepository.findByName("OWNER").orElseThrow();
         User user = userRepository.save(User.builder().name("Operador de teste")
-                .email("operator@sales.hubon.test").password("unused").active(true).roles(Set.of(owner)).build());
+                .username("operator-sales").password("unused").active(true).roles(Set.of(owner)).build());
         AuthenticatedUser principal = new AuthenticatedUser(user);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));

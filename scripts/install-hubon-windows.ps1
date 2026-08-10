@@ -147,14 +147,37 @@ function Read-EnvironmentValues {
     return $values
 }
 
+function Get-EnvironmentFlag {
+    param(
+        [hashtable]$Values,
+        [string]$Name,
+        [bool]$Default
+    )
+
+    if (-not $Values.ContainsKey($Name)) {
+        return $Default
+    }
+
+    switch ($Values[$Name].ToLowerInvariant()) {
+        { $_ -in @("true", "1", "yes") } { return $true }
+        { $_ -in @("false", "0", "no") } { return $false }
+        default { throw "$Name must be true or false." }
+    }
+}
+
 function Assert-EnvironmentFile {
     param([string]$Path)
 
     $values = Read-EnvironmentValues -Path $Path
-    $required = @(
-        "POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD", "JWT_SECRET",
-        "HUBON_SEED_OWNER_PASSWORD", "HUBON_SEED_ADMIN_PASSWORD"
-    )
+    $required = @("POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD", "JWT_SECRET")
+    $seedEnabled = Get-EnvironmentFlag -Values $values -Name "HUBON_SEED_ENABLED" -Default $false
+    $adminSeedEnabled = Get-EnvironmentFlag -Values $values -Name "HUBON_SEED_ADMIN_ENABLED" -Default $true
+    if ($seedEnabled) {
+        $required += @("HUBON_SEED_OWNER_USERNAME", "HUBON_SEED_OWNER_PASSWORD")
+        if ($adminSeedEnabled) {
+            $required += @("HUBON_SEED_ADMIN_USERNAME", "HUBON_SEED_ADMIN_PASSWORD")
+        }
+    }
     foreach ($name in $required) {
         if (-not $values.ContainsKey($name) -or [String]::IsNullOrWhiteSpace($values[$name])) {
             throw "Required setting $name is missing from $Path."
@@ -171,6 +194,11 @@ function Assert-EnvironmentFile {
     }
     if ($values["JWT_SECRET"].Length -lt 32) {
         throw "JWT_SECRET must contain at least 32 characters."
+    }
+    foreach ($name in @("HUBON_SEED_OWNER_USERNAME", "HUBON_SEED_ADMIN_USERNAME")) {
+        if ($required -contains $name -and $values[$name] -notmatch "^[A-Za-z0-9._-]{3,40}$") {
+            throw "$name must contain 3 to 40 letters, numbers, dots, hyphens or underscores."
+        }
     }
     if (($values.Values -join "`n") -match "(?i)hubon_test") {
         throw "hubon_test is forbidden in a client installation environment."

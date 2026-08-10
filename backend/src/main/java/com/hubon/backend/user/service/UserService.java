@@ -7,6 +7,7 @@ import com.hubon.backend.role.repository.RoleRepository;
 import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.shared.exception.ResourceNotFoundException;
 import com.hubon.backend.user.domain.User;
+import com.hubon.backend.user.domain.UsernamePolicy;
 import com.hubon.backend.user.dto.UserRequest;
 import com.hubon.backend.user.dto.UserResponse;
 import com.hubon.backend.user.repository.UserRepository;
@@ -66,13 +67,11 @@ public class UserService {
                 requestedRoles
         );
 
-        String email = request.email()
-                .trim()
-                .toLowerCase();
+        String username = UsernamePolicy.normalize(request.username());
 
-        if (userRepository.existsByEmail(email)) {
+        if (userRepository.existsByUsernameIgnoreCase(username)) {
             throw new BusinessException(
-                    "E-mail já está cadastrado"
+                    "Nome de usuário já está cadastrado"
             );
         }
 
@@ -88,7 +87,7 @@ public class UserService {
 
         User user = User.builder()
                 .name(request.name().trim())
-                .email(email)
+                .username(username)
                 .password(
                         passwordEncoder.encode(
                                 request.password()
@@ -115,7 +114,7 @@ public class UserService {
         return new UserResponse(
                 user.getId(),
                 user.getName(),
-                user.getEmail(),
+                user.getUsername(),
                 user.getActive(),
                 roles
         );

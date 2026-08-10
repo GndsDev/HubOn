@@ -13,7 +13,7 @@ describe('AuthService', () => {
   const user: User = {
     id: 1,
     name: 'Owner',
-    email: 'owner@hubon.local',
+    username: 'owner',
     active: true,
     roles: ['OWNER'],
   };
@@ -43,8 +43,12 @@ describe('AuthService', () => {
   });
 
   it('should load authenticated user and update stored session', () => {
-    service.login({ email: user.email, password: 'secret' }).subscribe();
-    http.expectOne(`${environment.apiUrl}/auth/login`).flush(session);
+    service.login({ username: user.username, password: 'secret' }).subscribe();
+    const loginRequest = http.expectOne(`${environment.apiUrl}/auth/login`);
+    expect(loginRequest.request.method).toBe('POST');
+    expect(loginRequest.request.body).toEqual({ username: 'owner', password: 'secret' });
+    expect(loginRequest.request.body.email).toBeUndefined();
+    loginRequest.flush(session);
 
     const updatedUser = { ...user, name: 'Owner Atualizado' };
     service.me().subscribe((response) => {

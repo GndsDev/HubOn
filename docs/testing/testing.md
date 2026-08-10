@@ -214,7 +214,7 @@ Com backend e frontend rodando, configure um usuário `OWNER` ou `ADMIN` somente
 no terminal:
 
 ```powershell
-$env:HUBON_PORTFOLIO_EMAIL="owner@hubon.local"
+$env:HUBON_PORTFOLIO_USERNAME="owner"
 $env:HUBON_PORTFOLIO_PASSWORD="senha-local-nao-versionada"
 ```
 

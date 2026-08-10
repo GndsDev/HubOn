@@ -17,11 +17,11 @@ vêm de propriedades do backend, não do frontend:
 | Propriedade | Variável de ambiente | Uso |
 | --- | --- | --- |
 | `hubon.seed.owner.name` | `HUBON_SEED_OWNER_NAME` | Nome do `OWNER` inicial |
-| `hubon.seed.owner.email` | `HUBON_SEED_OWNER_EMAIL` | E-mail do `OWNER` inicial |
+| `hubon.seed.owner.username` | `HUBON_SEED_OWNER_USERNAME` | Usuário do `OWNER` inicial |
 | `hubon.seed.owner.password` | `HUBON_SEED_OWNER_PASSWORD` | Senha do `OWNER` inicial |
 | `hubon.seed.admin.enabled` | `HUBON_SEED_ADMIN_ENABLED` | Habilita ou desabilita o `ADMIN` inicial |
 | `hubon.seed.admin.name` | `HUBON_SEED_ADMIN_NAME` | Nome do `ADMIN` inicial |
-| `hubon.seed.admin.email` | `HUBON_SEED_ADMIN_EMAIL` | E-mail do `ADMIN` inicial |
+| `hubon.seed.admin.username` | `HUBON_SEED_ADMIN_USERNAME` | Usuário do `ADMIN` inicial |
 | `hubon.seed.admin.password` | `HUBON_SEED_ADMIN_PASSWORD` | Senha do `ADMIN` inicial |
 
 O modelo versionado fica em
@@ -31,9 +31,9 @@ ignorada pelo Git. As senhas são armazenadas com BCrypt. Para alterar em
 ambiente local:
 
 ```powershell
-$env:HUBON_SEED_OWNER_EMAIL="owner.local@hubon.test"
+$env:HUBON_SEED_OWNER_USERNAME="owner.local"
 $env:HUBON_SEED_OWNER_PASSWORD="senha-local-forte"
-$env:HUBON_SEED_ADMIN_EMAIL="admin.local@hubon.test"
+$env:HUBON_SEED_ADMIN_USERNAME="admin.local"
 $env:HUBON_SEED_ADMIN_PASSWORD="senha-admin-local-forte"
 $env:HUBON_JWT_SECRET="segredo-local-longo-e-aleatorio"
 ```
@@ -80,7 +80,7 @@ Essas regras são validadas no backend. A interface apenas reduz opções visív
 
 ## JWT
 
-O token carrega o usuário autenticado e seus perfis. O frontend salva a sessão
+O token usa o username como `sub` e carrega o usuário autenticado e seus perfis. O frontend salva a sessão
 em `localStorage` e envia `Authorization: Bearer <token>` automaticamente nas
 chamadas à API.
 
@@ -111,7 +111,7 @@ A geração de screenshots e vídeo também usa login JWT real. Configure as
 credenciais apenas no terminal:
 
 ```powershell
-$env:HUBON_PORTFOLIO_EMAIL="owner@hubon.local"
+$env:HUBON_PORTFOLIO_USERNAME="owner"
 $env:HUBON_PORTFOLIO_PASSWORD="senha-local-nao-versionada"
 ```
 

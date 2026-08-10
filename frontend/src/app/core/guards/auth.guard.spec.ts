@@ -53,7 +53,7 @@ describe('authentication guards', () => {
   it('redirects authenticated users without permission to their first accessible page', () => {
     const router = TestBed.inject(Router);
     auth.isAuthenticated.mockReturnValue(true);
-    auth.currentUser.mockReturnValue({ id: 2, name: 'Operador', email: 'operador@hubon.test', active: true, roles: ['CASHIER'] });
+    auth.currentUser.mockReturnValue({ id: 2, name: 'Operador', username: 'operador', active: true, roles: ['CASHIER'] });
 
     const result = TestBed.runInInjectionContext(() => authGuard(route(['OWNER']), state('/dashboard')));
 
@@ -68,7 +68,7 @@ describe('authentication guards', () => {
 
     const router = TestBed.inject(Router);
     auth.isAuthenticated.mockReturnValue(true);
-    auth.currentUser.mockReturnValue({ id: 1, name: 'Gerente', email: 'gerente@hubon.test', active: true, roles: ['ADMIN'] });
+    auth.currentUser.mockReturnValue({ id: 1, name: 'Gerente', username: 'gerente', active: true, roles: ['ADMIN'] });
     const result = TestBed.runInInjectionContext(() => loginGuard(route([]), state('/login')));
 
     expect(result).toBeInstanceOf(UrlTree);

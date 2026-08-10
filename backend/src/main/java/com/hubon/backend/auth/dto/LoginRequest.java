@@ -1,12 +1,13 @@
 package com.hubon.backend.auth.dto;
 
-import jakarta.validation.constraints.Email;
+import com.hubon.backend.user.domain.UsernamePolicy;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 public record LoginRequest(
         @NotBlank
-        @Email
-        String email,
+        @Pattern(regexp = UsernamePolicy.INPUT_PATTERN, message = "Nome de usuário inválido")
+        String username,
 
         @NotBlank
         String password

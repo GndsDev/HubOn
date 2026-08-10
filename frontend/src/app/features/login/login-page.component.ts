@@ -37,12 +37,12 @@ import { apiErrorMessage } from '../../shared/util/api-error';
 
         <form class="auth-form" (ngSubmit)="login()">
           <label class="field">
-            <span>E-mail</span>
+            <span>Usuário</span>
             <input
-              name="email"
-              type="email"
+              name="username"
+              type="text"
               autocomplete="username"
-              [(ngModel)]="form.email"
+              [(ngModel)]="form.username"
               required
               autofocus
             />
@@ -85,7 +85,7 @@ export class LoginPageComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly notice = signal<string | null>(null);
-  form = { email: '', password: '' };
+  form = { username: '', password: '' };
 
   ngOnInit(): void {
     if (this.auth.isAuthenticated()) {
@@ -102,7 +102,10 @@ export class LoginPageComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     this.notice.set(null);
-    this.auth.login(this.form)
+    this.auth.login({
+      username: this.form.username.trim().toLowerCase(),
+      password: this.form.password,
+    })
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: () => this.router.navigateByUrl(this.returnUrl(), { replaceUrl: true }),

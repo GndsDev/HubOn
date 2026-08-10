@@ -6,6 +6,7 @@ import com.hubon.backend.auth.dto.LoginRequest;
 import com.hubon.backend.auth.dto.PasswordChangeResponse;
 import com.hubon.backend.shared.exception.BusinessException;
 import com.hubon.backend.user.domain.User;
+import com.hubon.backend.user.domain.UsernamePolicy;
 import com.hubon.backend.user.dto.UserResponse;
 import com.hubon.backend.user.repository.UserRepository;
 import com.hubon.backend.user.service.UserService;
@@ -27,7 +28,8 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email().trim().toLowerCase())
+        String username = UsernamePolicy.normalize(request.username());
+        User user = userRepository.findByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new BadCredentialsException("Credenciais inválidas"));
 
         if (!Boolean.TRUE.equals(user.getActive())

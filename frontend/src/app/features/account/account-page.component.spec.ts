@@ -10,7 +10,7 @@ describe('AccountPageComponent', () => {
   const user: User = {
     id: 1,
     name: 'Owner HubOn',
-    email: 'owner@hubon.local',
+    username: 'owner',
     active: true,
     roles: ['OWNER'],
   };
@@ -44,7 +44,8 @@ describe('AccountPageComponent', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Minha Conta');
     expect(text).toContain('Owner HubOn');
-    expect(text).toContain('owner@hubon.local');
+    expect(text).toContain('Usuário');
+    expect(text).toContain('owner');
     expect(text).toContain('Dono');
     expect(authMock.me).toHaveBeenCalled();
   });

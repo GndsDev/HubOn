@@ -1,5 +1,6 @@
 package com.hubon.backend.auth.service;
 
+import com.hubon.backend.user.domain.UsernamePolicy;
 import com.hubon.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,7 +18,7 @@ public class HubonUserDetailsService implements UserDetailsService {
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) {
-        return userRepository.findByEmail(username.trim().toLowerCase())
+        return userRepository.findByUsernameIgnoreCase(UsernamePolicy.normalize(username))
                 .map(AuthenticatedUser::new)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado"));
     }

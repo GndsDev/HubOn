@@ -39,8 +39,8 @@ public class User {
     @Column(nullable = false, length = 120)
     private String name;
 
-    @Column(nullable = false, unique = true, length = 160)
-    private String email;
+    @Column(nullable = false, length = 40)
+    private String username;
 
     @Column(nullable = false)
     private String password;
@@ -66,6 +66,7 @@ public class User {
     @PrePersist
     void prePersist() {
         LocalDateTime now = LocalDateTime.now();
+        username = UsernamePolicy.normalize(username);
         if (active == null) {
             active = true;
         }
@@ -77,6 +78,7 @@ public class User {
 
     @PreUpdate
     void preUpdate() {
+        username = UsernamePolicy.normalize(username);
         updatedAt = LocalDateTime.now();
     }
 }

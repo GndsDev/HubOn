@@ -52,7 +52,7 @@ Configure as credenciais somente no terminal. Não salve a senha em arquivos
 versionados:
 
 ```powershell
-$env:HUBON_PORTFOLIO_EMAIL="owner@hubon.local"
+$env:HUBON_PORTFOLIO_USERNAME="owner"
 $env:HUBON_PORTFOLIO_PASSWORD="senha-local-nao-versionada"
 ```
 
@@ -101,7 +101,7 @@ Os endereços e o navegador podem ser substituídos por variáveis de ambiente:
 $env:HUBON_BASE_URL = "http://localhost:4200"
 $env:HUBON_API_URL = "http://localhost:8080/api"
 $env:PLAYWRIGHT_CHROME_PATH = "C:\caminho\para\chrome.exe"
-$env:HUBON_PORTFOLIO_EMAIL = "owner@hubon.local"
+$env:HUBON_PORTFOLIO_USERNAME = "owner"
 $env:HUBON_PORTFOLIO_PASSWORD = "senha-local-nao-versionada"
 npm run portfolio:all
 ```
@@ -124,7 +124,7 @@ Se a automação informar que um serviço está indisponível, confirme backend 
 frontend nos endereços configurados. Se o navegador não for encontrado,
 defina `PLAYWRIGHT_CHROME_PATH`.
 
-Se aparecer a mensagem “Configure HUBON_PORTFOLIO_EMAIL e
+Se aparecer a mensagem “Configure HUBON_PORTFOLIO_USERNAME e
 HUBON_PORTFOLIO_PASSWORD para gerar as mídias.”, defina as duas variáveis no
 terminal atual e execute o comando novamente.
 

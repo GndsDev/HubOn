@@ -24,9 +24,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = {
         "hubon.security.permit-all=false", "hubon.seed.enabled=true",
-        "hubon.seed.owner.name=Seed Owner", "hubon.seed.owner.email=seed-owner@seed.hubon.test",
+        "hubon.seed.owner.name=Seed Owner", "hubon.seed.owner.username=Seed-Owner",
         "hubon.seed.owner.password=configured-owner-pass-123", "hubon.seed.admin.enabled=true",
-        "hubon.seed.admin.name=Seed Admin", "hubon.seed.admin.email=seed-admin@seed.hubon.test",
+        "hubon.seed.admin.name=Seed Admin", "hubon.seed.admin.username=Seed-Admin",
         "hubon.seed.admin.password=configured-admin-pass-123"
 })
 @AutoConfigureMockMvc
@@ -51,11 +51,15 @@ class DataSeederIntegrationTests {
 
     @Test
     void createsConfiguredUsersCatalogAndInitialStockIdempotently() throws Exception {
-        String hash = jdbc.queryForObject("select password from users where email = 'seed-owner@seed.hubon.test'", String.class);
+        String hash = jdbc.queryForObject("select password from users where username = 'seed-owner'", String.class);
         assertThat(passwordEncoder.matches("configured-owner-pass-123", hash)).isTrue();
+        assertThat(jdbc.queryForList("select username from users order by username", String.class))
+                .containsExactly("seed-admin", "seed-owner");
         mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content("""
-                {"email":"seed-owner@seed.hubon.test","password":"configured-owner-pass-123"}
-                """)).andExpect(status().isOk()).andExpect(jsonPath("$.user.roles[0]").value("OWNER"));
+                {"username":"SEED-OWNER","password":"configured-owner-pass-123"}
+                """)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.username").value("seed-owner"))
+                .andExpect(jsonPath("$.user.roles[0]").value("OWNER"));
 
         Map<String, Object> product = jdbc.queryForMap("select name, price from products where name = 'Refrigerante lata'");
         assertThat(product.get("price")).isEqualTo(new BigDecimal("5.00"));

@@ -42,7 +42,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             JwtService.TokenClaims claims = jwtService.parse(authorization.substring(7));
-            UserDetails userDetails = userDetailsService.loadUserByUsername(claims.email());
+            UserDetails userDetails = userDetailsService.loadUserByUsername(claims.username());
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(authentication);

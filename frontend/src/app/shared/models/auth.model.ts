@@ -1,7 +1,7 @@
 import { User } from './user.model';
 
 export interface LoginRequest {
-  email: string;
+  username: string;
   password: string;
 }
 

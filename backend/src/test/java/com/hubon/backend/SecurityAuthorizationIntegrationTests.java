@@ -30,22 +30,22 @@ class SecurityAuthorizationIntegrationTests {
     @Autowired ObjectMapper objectMapper;
     @Autowired JdbcTemplate jdbc;
     @Autowired PasswordEncoder passwordEncoder;
-    private String ownerEmail;
-    private String waiterEmail;
-    private String kitchenEmail;
+    private String ownerUsername;
+    private String waiterUsername;
+    private String kitchenUsername;
 
     @BeforeEach
     void setup() {
-        ownerEmail = user("OWNER");
-        waiterEmail = user("WAITER");
-        kitchenEmail = user("KITCHEN");
+        ownerUsername = user("OWNER");
+        waiterUsername = user("WAITER");
+        kitchenUsername = user("KITCHEN");
     }
 
     @AfterEach
     void cleanup() {
-        jdbc.update("delete from sales where opened_by_user_id in (select id from users where email like '%@security.hubon.test')");
-        jdbc.update("delete from user_roles where user_id in (select id from users where email like '%@security.hubon.test')");
-        jdbc.update("delete from users where email like '%@security.hubon.test'");
+        jdbc.update("delete from sales where opened_by_user_id in (select id from users where username like 'security-%')");
+        jdbc.update("delete from user_roles where user_id in (select id from users where username like 'security-%')");
+        jdbc.update("delete from users where username like 'security-%'");
     }
 
     @Test
@@ -57,39 +57,39 @@ class SecurityAuthorizationIntegrationTests {
     @Test
     void operationalAccessUsesTheUnifiedSalesRoute() throws Exception {
         mockMvc.perform(post("/api/sales")
-                        .header("Authorization", bearer(token(waiterEmail)))
+                        .header("Authorization", bearer(token(waiterUsername)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"COUNTER\",\"serviceFee\":0,\"discountAmount\":0}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.type").value("COUNTER"));
-        mockMvc.perform(get("/api/categories").header("Authorization", bearer(token(waiterEmail))))
+        mockMvc.perform(get("/api/categories").header("Authorization", bearer(token(waiterUsername))))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/sales").header("Authorization", bearer(token(kitchenEmail))))
+        mockMvc.perform(get("/api/sales").header("Authorization", bearer(token(kitchenUsername))))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void managementRoutesRemainRestrictedToManagementRoles() throws Exception {
-        mockMvc.perform(get("/api/dashboard/summary").header("Authorization", bearer(token(ownerEmail))))
+        mockMvc.perform(get("/api/dashboard/summary").header("Authorization", bearer(token(ownerUsername))))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/reports/daily?date=2026-08-07")
-                        .header("Authorization", bearer(token(ownerEmail))))
+                        .header("Authorization", bearer(token(ownerUsername))))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/api/dashboard/summary").header("Authorization", bearer(token(waiterEmail))))
+        mockMvc.perform(get("/api/dashboard/summary").header("Authorization", bearer(token(waiterUsername))))
                 .andExpect(status().isForbidden());
     }
 
     private String user(String role) {
-        String email = role.toLowerCase() + "-" + UUID.randomUUID() + "@security.hubon.test";
-        Long id = jdbc.queryForObject("insert into users (name, email, password, active) values (?, ?, ?, true) returning id",
-                Long.class, role, email, passwordEncoder.encode("secret123"));
+        String username = "security-" + role.toLowerCase() + "-" + UUID.randomUUID().toString().substring(0, 8);
+        Long id = jdbc.queryForObject("insert into users (name, username, password, active) values (?, ?, ?, true) returning id",
+                Long.class, role, username, passwordEncoder.encode("secret123"));
         Long roleId = jdbc.queryForObject("select id from roles where name = ?", Long.class, role);
         jdbc.update("insert into user_roles (user_id, role_id) values (?, ?)", id, roleId);
-        return email;
+        return username;
     }
 
-    private String token(String email) throws Exception {
+    private String token(String username) throws Exception {
         String body = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"" + email + "\",\"password\":\"secret123\"}"))
+                .content("{\"username\":\"" + username + "\",\"password\":\"secret123\"}"))
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readTree(body).path("token").asText();
     }

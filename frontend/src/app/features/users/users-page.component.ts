@@ -25,7 +25,7 @@ interface RoleOption {
 
 interface UserForm {
   name: string;
-  email: string;
+  username: string;
   password: string;
   active: boolean;
   role: string;
@@ -122,7 +122,7 @@ interface UserForm {
 
                 <div class="user-identity">
                   <strong>{{ user.name }}</strong>
-                  <span>{{ user.email }}</span>
+                  <span>{{ user.username }}</span>
                 </div>
 
                 <app-status-badge
@@ -220,13 +220,16 @@ interface UserForm {
               </label>
 
               <label class="field full">
-                <span>E-mail</span>
+                <span>Usuário</span>
 
                 <input
-                  name="email"
-                  type="email"
-                  [(ngModel)]="form.email"
-                  maxlength="160"
+                  name="username"
+                  type="text"
+                  autocomplete="username"
+                  [(ngModel)]="form.username"
+                  minlength="3"
+                  maxlength="40"
+                  pattern="[A-Za-z0-9._-]{3,40}"
                   required
                 />
               </label>
@@ -380,11 +383,20 @@ export class UsersPageComponent implements OnInit {
 
     if (
       !this.form.name.trim() ||
-      !this.form.email.trim() ||
+      !this.form.username.trim() ||
       this.form.password.length < 6
     ) {
       this.feedback.error(
-        'Preencha nome, e-mail e senha com pelo menos 6 caracteres.',
+        'Preencha nome, usuário e senha com pelo menos 6 caracteres.',
+      );
+
+      return;
+    }
+
+    const username = this.form.username.trim().toLowerCase();
+    if (!/^[a-z0-9._-]{3,40}$/.test(username)) {
+      this.feedback.error(
+        'Use de 3 a 40 caracteres: letras, números, ponto, hífen ou sublinhado.',
       );
 
       return;
@@ -403,9 +415,7 @@ export class UsersPageComponent implements OnInit {
     this.api
       .create({
         name: this.form.name.trim(),
-        email: this.form.email
-          .trim()
-          .toLowerCase(),
+        username,
         password: this.form.password,
         active: this.form.active,
         roles: ['ADMIN'],
@@ -482,7 +492,7 @@ export class UsersPageComponent implements OnInit {
   private emptyForm(): UserForm {
     return {
       name: '',
-      email: '',
+      username: '',
       password: '',
       active: true,
       role: 'ADMIN',

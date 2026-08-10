@@ -36,8 +36,8 @@ import { apiErrorMessage } from '../../shared/util/api-error';
             </div>
 
             <div class="account-identity">
-              <span>E-mail</span>
-              <strong>{{ currentUser.email }}</strong>
+              <span>Usuário</span>
+              <strong>{{ currentUser.username }}</strong>
             </div>
 
             <div class="account-role-list" aria-label="Perfis do usuário">
