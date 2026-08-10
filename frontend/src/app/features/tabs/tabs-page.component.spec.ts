@@ -33,7 +33,7 @@ describe('TabsPageComponent', () => {
   const api = {
     list: vi.fn(() => of([] as Sale[])), get: vi.fn(() => of(sale())), open: vi.fn(() => of(sale())),
     addItem: vi.fn(() => of(sale())), updateItemQuantity: vi.fn(() => of(sale())),
-    cancelItem: vi.fn(() => of(sale())), close: vi.fn(() => of(sale({ status: 'CLOSED' }))),
+    removeItem: vi.fn(() => of(sale())), close: vi.fn(() => of(sale({ status: 'CLOSED' }))),
     cancel: vi.fn(() => of(sale({ status: 'CANCELLED' }))),
   };
   const productApi = { getAll: vi.fn(() => of([] as Product[])) };
@@ -47,7 +47,7 @@ describe('TabsPageComponent', () => {
     api.open.mockReturnValue(of(sale()));
     api.addItem.mockReturnValue(of(sale()));
     api.updateItemQuantity.mockReturnValue(of(sale()));
-    api.cancelItem.mockReturnValue(of(sale()));
+    api.removeItem.mockReturnValue(of(sale()));
     api.close.mockReturnValue(of(sale({ status: 'CLOSED' })));
     api.cancel.mockReturnValue(of(sale({ status: 'CANCELLED' })));
     productApi.getAll.mockReturnValue(of([]));
@@ -190,7 +190,7 @@ describe('TabsPageComponent', () => {
     instance.currentSale.set(sale());
     instance.changeQuantity(line, 3);
     expect(api.updateItemQuantity).toHaveBeenCalledWith(20, 9, { quantity: 3 });
-    expect(api.cancelItem).not.toHaveBeenCalled();
+    expect(api.removeItem).not.toHaveBeenCalled();
     expect(api.addItem).not.toHaveBeenCalled();
     expect(instance.currentSale()).toBe(updated);
   });
@@ -202,7 +202,28 @@ describe('TabsPageComponent', () => {
     instance.changeQuantity(line, 0);
 
     expect(api.updateItemQuantity).not.toHaveBeenCalled();
-    expect(api.cancelItem).not.toHaveBeenCalled();
+    expect(api.removeItem).not.toHaveBeenCalled();
+  });
+
+  it('removes a comanda item directly without asking for a reason', () => {
+    const updated = sale({ items: [], subtotal: 0, finalAmount: 0, remainingAmount: 0 });
+    api.removeItem.mockReturnValueOnce(of(updated));
+    fixture = TestBed.createComponent(TabsPageComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.currentSale.set(sale());
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const button = [...root.querySelectorAll<HTMLButtonElement>('button')]
+      .find((candidate) => candidate.textContent?.includes('Remover item')) as HTMLButtonElement;
+    expect(button).not.toBeNull();
+    button.click();
+    fixture.detectChanges();
+
+    expect(api.removeItem).toHaveBeenCalledWith(20, 9);
+    expect(document.querySelector('#cancel-item-title')).toBeNull();
+    expect(fixture.componentInstance.currentSale()).toBe(updated);
+    expect(feedback.success).toHaveBeenCalledWith('Item removido da comanda.');
   });
 
   it('closes a fully paid table sale explicitly', () => {

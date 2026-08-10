@@ -207,7 +207,7 @@ class SimplifiedSalesIntegrationTests {
                 new UpdateSaleItemQuantityRequest(6)))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("Estoque insuficiente");
         assertThat(saleQueryService.get(sale.id()).items().getFirst().quantity()).isEqualTo(2);
-        assertThat(saleItemRepository.countBySaleIdAndCancelledAtIsNull(sale.id())).isEqualTo(1);
+        assertThat(saleItemRepository.countBySaleIdAndCancelledAtIsNullAndRemovedAtIsNull(sale.id())).isEqualTo(1);
         assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("6.000");
         assertThat(count("stock_movements", "sale_item_id = " + first.id())).isEqualTo(movementsBeforeFailure);
 
@@ -217,6 +217,48 @@ class SimplifiedSalesIntegrationTests {
         assertThat(count("sale_items", "sale_id = " + sale.id())).isEqualTo(1);
         assertThat(jdbc.queryForObject("select sum(delta_quantity) from stock_movements where sale_item_id = ?",
                 BigDecimal.class, first.id())).isZero();
+    }
+
+    @Test
+    void removingAnUnpaidItemRestoresStockWithoutCreatingCancellationData() {
+        ProductResponse product = product(null, "Picanha", "12.00");
+        var stock = stockItemService.create(new StockItemRequest("Picanha", null, UnitOfMeasure.UN,
+                money("10.000"), money("2.000"), true));
+        stockLinkService.create(product.id(), new ProductStockLinkRequest(stock.id(), money("1.000")));
+        SaleResponse sale = counter();
+        SaleItemResponse item = saleService.addItem(sale.id(),
+                new AddSaleItemRequest(product.id(), 1, null, List.of())).items().getFirst();
+        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("9.000");
+
+        SaleResponse updated = saleService.removeItem(sale.id(), item.id());
+
+        assertThat(updated.items()).isEmpty();
+        assertThat(updated.subtotal()).isZero();
+        assertThat(updated.finalAmount()).isZero();
+        assertThat(saleItemRepository.countBySaleIdAndCancelledAtIsNullAndRemovedAtIsNull(sale.id())).isZero();
+        assertThat(saleItemRepository.findById(item.id())).get().satisfies(persisted -> {
+            assertThat(persisted.isRemoved()).isTrue();
+            assertThat(persisted.getRemovedAt()).isNotNull();
+            assertThat(persisted.getRemovedByUser()).isNotNull();
+            assertThat(persisted.getCancelledAt()).isNull();
+            assertThat(persisted.getCancelledByUser()).isNull();
+            assertThat(persisted.getCancellationReason()).isNull();
+        });
+        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("10.000");
+        assertThat(count("stock_movements", "sale_item_id = " + item.id() + " and type = 'SALE_REVERSAL'"))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject("select reason from stock_movements where sale_item_id = ? and type = 'SALE_REVERSAL'",
+                String.class, item.id())).isEqualTo("Item removido antes do fechamento");
+
+        var report = reportService.generateDaily(LocalDate.now(businessClock), ReportChannel.ALL);
+        assertThat(report.cancellations().cancelledItems()).isZero();
+        assertThat(report.cancellations().mainReasons()).isEmpty();
+
+        saleService.removeItem(sale.id(), item.id());
+        assertThat(count("stock_movements", "sale_item_id = " + item.id() + " and type = 'SALE_REVERSAL'"))
+                .isEqualTo(1);
+        assertThatThrownBy(() -> saleService.close(sale.id())).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("vazia");
     }
 
     @Test
@@ -365,6 +407,8 @@ class SimplifiedSalesIntegrationTests {
         assertThatThrownBy(() -> saleService.addItem(sale.id(),
                 new AddSaleItemRequest(product.id(), 1, null, List.of()))).isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> saleService.cancelItem(sale.id(), item.id(), new CancellationRequest("Erro")))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> saleService.removeItem(sale.id(), item.id()))
                 .isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> saleService.updateItemQuantity(sale.id(), item.id(),
                 new UpdateSaleItemQuantityRequest(2))).isInstanceOf(BusinessException.class);

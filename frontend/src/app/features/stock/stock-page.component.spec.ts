@@ -202,6 +202,91 @@ describe('StockPageComponent', () => {
     expect(api.updateProductLink).toHaveBeenCalledWith(20, { stockItemId: 1, quantityPerSale: 0.2 });
   });
 
+  it('filters movement history by text, type and stock item and clears the filters', () => {
+    const saleMovement: StockMovement = {
+      ...movement,
+      id: 6,
+      stockItemId: 2,
+      stockItemName: 'Refrigerante lata',
+      type: 'SALE',
+      reason: null,
+      createdByUserName: 'Maria',
+    };
+    const instance = component();
+    instance.movements.set([movement, saleMovement]);
+
+    instance.movementSearchTerm = 'compra semanal';
+    expect(instance.filteredMovements()).toEqual([movement]);
+    instance.movementSearchTerm = 'maria';
+    expect(instance.filteredMovements()).toEqual([saleMovement]);
+    instance.movementSearchTerm = 'refrigerante';
+    expect(instance.filteredMovements()).toEqual([saleMovement]);
+
+    instance.movementSearchTerm = '';
+    instance.movementTypeFilter = 'ENTRY';
+    expect(instance.filteredMovements()).toEqual([movement]);
+    instance.movementTypeFilter = 'ALL';
+    instance.movementItemFilter = 2;
+    expect(instance.filteredMovements()).toEqual([saleMovement]);
+
+    instance.clearMovementFilters();
+    expect(instance.movementSearchTerm).toBe('');
+    expect(instance.movementTypeFilter).toBe('ALL');
+    expect(instance.movementItemFilter).toBe('ALL');
+    expect(instance.filteredMovements()).toHaveLength(2);
+  });
+
+  it('filters automatic stock links by product, category, stock item and link status', () => {
+    const linkedProduct: Product = {
+      ...product,
+      id: 21,
+      name: 'Coca-Cola lata',
+      categoryId: 3,
+      categoryName: 'Bebidas',
+    };
+    const linked: ProductStockLink = {
+      ...link,
+      productId: linkedProduct.id,
+      productName: linkedProduct.name,
+      stockItemName: 'Latas de refrigerante',
+    };
+    const instance = component();
+    instance.products.set([product, linkedProduct]);
+    instance.productLinks.set(new Map([[product.id, null], [linkedProduct.id, linked]]));
+
+    for (const query of ['coca-cola', 'bebidas', 'latas de refrigerante']) {
+      instance.linkSearchTerm = query;
+      expect(instance.filteredLinkProducts()).toEqual([linkedProduct]);
+    }
+
+    instance.linkSearchTerm = '';
+    instance.linkStatusFilter = 'LINKED';
+    expect(instance.filteredLinkProducts()).toEqual([linkedProduct]);
+    instance.linkStatusFilter = 'UNLINKED';
+    expect(instance.filteredLinkProducts()).toEqual([product]);
+    instance.linkStatusFilter = 'ALL';
+    instance.linkCategoryFilter = 3;
+    expect(instance.filteredLinkProducts()).toEqual([linkedProduct]);
+
+    instance.clearLinkFilters();
+    expect(instance.linkSearchTerm).toBe('');
+    expect(instance.linkStatusFilter).toBe('ALL');
+    expect(instance.linkCategoryFilter).toBe('ALL');
+    expect(instance.filteredLinkProducts()).toHaveLength(2);
+  });
+
+  it('uses a valid PrimeIcons class to deactivate an automatic link', () => {
+    const fixture = TestBed.createComponent(StockPageComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.view.set('LINKS');
+    fixture.detectChanges();
+
+    const button = fixture.nativeElement.querySelector('button[title="Desativar vínculo"]') as HTMLButtonElement;
+    expect(button).not.toBeNull();
+    expect(button.querySelector('i')?.classList.contains('pi-times-circle')).toBe(true);
+    expect(button.querySelector('i')?.classList.contains('pi-link-slash')).toBe(false);
+  });
+
   it('exposes load failures without replacing existing stock state', () => {
     const instance = component();
     instance.items.set([stockItem]);

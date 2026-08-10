@@ -45,6 +45,10 @@ export class SalesApiService {
     return this.http.patch<Sale>(`${this.baseUrl}/${saleId}/items/${itemId}/quantity`, request);
   }
 
+  removeItem(saleId: number, itemId: number): Observable<Sale> {
+    return this.http.delete<Sale>(`${this.baseUrl}/${saleId}/items/${itemId}`);
+  }
+
   cancelItem(saleId: number, itemId: number, request: CancellationRequest): Observable<Sale> {
     return this.http.post<Sale>(`${this.baseUrl}/${saleId}/items/${itemId}/cancel`, request);
   }

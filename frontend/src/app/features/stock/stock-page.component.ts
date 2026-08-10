@@ -103,7 +103,7 @@ type ManualMovement = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
             <input
               type="search"
               placeholder="Buscar item de estoque"
-              [(ngModel)]="searchTerm"
+              [(ngModel)]="itemSearchTerm"
               aria-label="Buscar item de estoque"
             />
           </label>
@@ -202,7 +202,44 @@ type ManualMovement = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
           Movimentações registradas preservam o histórico e não podem ser editadas.
         </p>
 
-        @if (movements().length) {
+        <div class="stock-toolbar stock-filter-toolbar">
+          <label class="search-box">
+            <i class="pi pi-search"></i>
+            <input
+              type="search"
+              placeholder="Buscar movimentação"
+              [(ngModel)]="movementSearchTerm"
+              aria-label="Buscar movimentação"
+            />
+          </label>
+          <label class="stock-filter">
+            <span>Tipo</span>
+            <select [(ngModel)]="movementTypeFilter" aria-label="Filtrar movimentações por tipo">
+              <option value="ALL">Todos</option>
+              @for (type of movementTypes; track type) {
+                <option [value]="type">{{ movementTypeLabel(type) }}</option>
+              }
+            </select>
+          </label>
+          <label class="stock-filter">
+            <span>Item</span>
+            <select [(ngModel)]="movementItemFilter" aria-label="Filtrar movimentações por item">
+              <option [ngValue]="'ALL'">Todos os itens</option>
+              @for (item of items(); track item.id) {
+                <option [ngValue]="item.id">{{ item.name }}</option>
+              }
+            </select>
+          </label>
+          <button type="button" class="ghost-button compact-button" (click)="clearMovementFilters()">
+            <i class="pi pi-times"></i>
+            Limpar filtros
+          </button>
+          <span class="stock-result-count">
+            {{ filteredMovements().length }} movimentaç{{ filteredMovements().length === 1 ? 'ão' : 'ões' }}
+          </span>
+        </div>
+
+        @if (filteredMovements().length) {
           <div class="data-table stock-movement-table" role="region" aria-label="Histórico de movimentações" tabindex="0">
             <table>
               <thead>
@@ -216,7 +253,7 @@ type ManualMovement = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
                 </tr>
               </thead>
               <tbody>
-                @for (movement of movements(); track movement.id) {
+                @for (movement of filteredMovements(); track movement.id) {
                   <tr>
                     <td><time>{{ dateTime(movement.createdAt) }}</time></td>
                     <td><strong>{{ movement.stockItemName }}</strong></td>
@@ -239,27 +276,60 @@ type ManualMovement = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
         } @else {
           <app-empty-state
             icon="pi pi-history"
-            title="Sem movimentações"
-            description="Entradas, saídas e vendas aparecerão aqui."
+            [title]="movements().length ? 'Nenhuma movimentação encontrada' : 'Sem movimentações'"
+            [description]="movements().length
+              ? 'Ajuste ou limpe os filtros para consultar o histórico.'
+              : 'Entradas, saídas e vendas aparecerão aqui.'"
           />
         }
       </app-section-card>
     } @else {
       <app-section-card class="stock-section" eyebrow="Integração" title="Baixa automática por produto">
-        <app-status-badge
-          card-action
-          [label]="products().length + (products().length === 1 ? ' produto' : ' produtos')"
-          tone="neutral"
-        />
-
         <p class="stock-section-note">
           <i class="pi pi-info-circle"></i>
           Cada produto pode descontar um item de estoque automaticamente após a venda.
         </p>
 
-        @if (products().length) {
+        <div class="stock-toolbar stock-filter-toolbar">
+          <label class="search-box">
+            <i class="pi pi-search"></i>
+            <input
+              type="search"
+              placeholder="Buscar produto ou vínculo"
+              [(ngModel)]="linkSearchTerm"
+              aria-label="Buscar produto ou vínculo de estoque"
+            />
+          </label>
+          <label class="stock-filter">
+            <span>Vínculo</span>
+            <select [(ngModel)]="linkStatusFilter" aria-label="Filtrar produtos por vínculo">
+              <option value="ALL">Todos</option>
+              <option value="LINKED">Com baixa automática</option>
+              <option value="UNLINKED">Sem baixa automática</option>
+            </select>
+          </label>
+          <label class="stock-filter">
+            <span>Categoria</span>
+            <select [(ngModel)]="linkCategoryFilter" aria-label="Filtrar produtos por categoria">
+              <option [ngValue]="'ALL'">Todas</option>
+              <option [ngValue]="'UNCATEGORIZED'">Sem categoria</option>
+              @for (category of linkCategories(); track category.id) {
+                <option [ngValue]="category.id">{{ category.name }}</option>
+              }
+            </select>
+          </label>
+          <button type="button" class="ghost-button compact-button" (click)="clearLinkFilters()">
+            <i class="pi pi-times"></i>
+            Limpar filtros
+          </button>
+          <span class="stock-result-count">
+            {{ filteredLinkProducts().length }} produto{{ filteredLinkProducts().length === 1 ? '' : 's' }}
+          </span>
+        </div>
+
+        @if (filteredLinkProducts().length) {
           <div class="stock-link-list">
-            @for (product of products(); track product.id) {
+            @for (product of filteredLinkProducts(); track product.id) {
               <article class="stock-link-row">
                 <div class="stock-link-main">
                   <span class="stock-link-icon"><i class="pi pi-box"></i></span>
@@ -298,7 +368,7 @@ type ManualMovement = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
                       (click)="deactivateLink(product)"
                       [disabled]="busyId() === product.id"
                     >
-                      <i class="pi pi-link-slash"></i>
+                      <i class="pi pi-times-circle"></i>
                     </button>
                   </div>
                 } @else {
@@ -317,8 +387,10 @@ type ManualMovement = 'ENTRY' | 'EXIT' | 'LOSS' | 'ADJUSTMENT';
         } @else {
           <app-empty-state
             icon="pi pi-link"
-            title="Nenhum produto"
-            description="Cadastre produtos antes de criar vínculos."
+            [title]="products().length ? 'Nenhum produto encontrado' : 'Nenhum produto'"
+            [description]="products().length
+              ? 'Ajuste ou limpe os filtros para localizar o produto.'
+              : 'Cadastre produtos antes de criar vínculos.'"
           />
         }
       </app-section-card>
@@ -568,20 +640,78 @@ export class StockPageComponent implements OnInit {
   readonly movementDialog = signal(false);
   readonly linkDialog = signal(false);
   readonly linkProduct = signal<Product | null>(null);
-  searchTerm = '';
+  itemSearchTerm = '';
+  movementSearchTerm = '';
+  movementTypeFilter: StockMovementType | 'ALL' = 'ALL';
+  movementItemFilter: number | 'ALL' = 'ALL';
+  linkSearchTerm = '';
+  linkStatusFilter: 'ALL' | 'LINKED' | 'UNLINKED' = 'ALL';
+  linkCategoryFilter: number | 'ALL' | 'UNCATEGORIZED' = 'ALL';
   itemForm: StockItemRequest = this.emptyItem();
   movementForm = { stockItemId: 0, type: 'ENTRY' as ManualMovement, quantity: 0, reason: '' };
   linkForm: ProductStockLinkRequest = { stockItemId: 0, quantityPerSale: 1 };
   readonly units: UnitOfMeasure[] = ['UN', 'KG', 'G', 'L', 'ML', 'CX', 'PACKAGE', 'TRAY'];
   readonly manualTypes: ManualMovement[] = ['ENTRY', 'EXIT', 'LOSS', 'ADJUSTMENT'];
+  readonly movementTypes: StockMovementType[] = ['ENTRY', 'SALE', 'SALE_REVERSAL', 'EXIT', 'LOSS', 'ADJUSTMENT'];
   readonly activeItems = computed(() => this.items().filter((item) => item.active));
   readonly alertCount = computed(() => this.items().filter((item) => item.active && item.status !== 'NORMAL').length);
 
   filteredItems(): StockItem[] {
-    const query = this.normalized(this.searchTerm);
+    const query = this.normalized(this.itemSearchTerm);
     return this.items()
       .filter((item) => !query || this.normalized(item.name).includes(query))
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }
+
+  filteredMovements(): StockMovement[] {
+    const query = this.normalized(this.movementSearchTerm);
+    return this.movements().filter((movement) => {
+      const searchable = [
+        movement.stockItemName,
+        movement.reason || this.automaticReason(movement),
+        movement.createdByUserName,
+      ].map((value) => this.normalized(value)).join(' ');
+      const matchesType = this.movementTypeFilter === 'ALL' || movement.type === this.movementTypeFilter;
+      const matchesItem = this.movementItemFilter === 'ALL' || movement.stockItemId === this.movementItemFilter;
+      return (!query || searchable.includes(query)) && matchesType && matchesItem;
+    });
+  }
+
+  filteredLinkProducts(): Product[] {
+    const query = this.normalized(this.linkSearchTerm);
+    return this.products().filter((product) => {
+      const link = this.linkFor(product.id);
+      const searchable = [product.name, product.categoryName || 'Sem categoria', link?.stockItemName || '']
+        .map((value) => this.normalized(value)).join(' ');
+      const matchesLink = this.linkStatusFilter === 'ALL'
+        || (this.linkStatusFilter === 'LINKED' ? Boolean(link) : !link);
+      const matchesCategory = this.linkCategoryFilter === 'ALL'
+        || (this.linkCategoryFilter === 'UNCATEGORIZED'
+          ? product.categoryId == null
+          : product.categoryId === this.linkCategoryFilter);
+      return (!query || searchable.includes(query)) && matchesLink && matchesCategory;
+    }).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }
+
+  linkCategories(): { id: number; name: string }[] {
+    const categories = new Map<number, string>();
+    this.products().forEach((product) => {
+      if (product.categoryId != null && product.categoryName) categories.set(product.categoryId, product.categoryName);
+    });
+    return [...categories].map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }
+
+  clearMovementFilters(): void {
+    this.movementSearchTerm = '';
+    this.movementTypeFilter = 'ALL';
+    this.movementItemFilter = 'ALL';
+  }
+
+  clearLinkFilters(): void {
+    this.linkSearchTerm = '';
+    this.linkStatusFilter = 'ALL';
+    this.linkCategoryFilter = 'ALL';
   }
 
   ngOnInit(): void {

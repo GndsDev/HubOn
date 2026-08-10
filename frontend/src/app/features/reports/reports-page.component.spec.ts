@@ -180,40 +180,66 @@ describe('ReportsPageComponent', () => {
     const instance = component();
     instance.year = 2026;
     instance.month = 8;
+    instance.channel = 'TABLE';
     instance.report.set(monthlyReport);
 
     instance.export('PDF');
     instance.export('XLSX');
 
-    expect(api.getMonthlyPdf).toHaveBeenCalledWith(2026, 8, 'ALL');
-    expect(api.getMonthlyXlsx).toHaveBeenCalledWith(2026, 8, 'ALL');
+    expect(api.getMonthlyPdf).toHaveBeenCalledWith(2026, 8, 'TABLE');
+    expect(api.getMonthlyXlsx).toHaveBeenCalledWith(2026, 8, 'TABLE');
     expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
     expect(feedback.success).toHaveBeenCalledWith('PDF gerado.');
     expect(feedback.success).toHaveBeenCalledWith('XLSX gerado.');
   });
 
-  it('exposes summary, raw data and exports as internal report views', () => {
+  it('keeps the summary visible without raw-data or export tabs', () => {
     const fixture = TestBed.createComponent(ReportsPageComponent);
     fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Resumo');
-    expect(text).toContain('Dados brutos');
-    expect(text).toContain('Exportações');
-
-    const navigationButtons = fixture.nativeElement.querySelectorAll('.report-view-navigation button');
-    navigationButtons[1].click();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Dados brutos das vendas');
+    expect(text).toContain('Faturamento líquido');
+    expect(text).toContain('Produtos vendidos');
+    expect(text).not.toContain('Dados brutos');
+    expect(text).not.toContain('Exportações');
+    expect(fixture.nativeElement.querySelector('.report-view-navigation')).toBeNull();
   });
 
-  it('generates CSV from the already loaded raw data without a new endpoint', () => {
+  it('opens a compact export dialog with CSV, XLSX and PDF', () => {
+    const fixture = TestBed.createComponent(ReportsPageComponent);
+    fixture.detectChanges();
+
+    const exportButton = Array.from(fixture.nativeElement.querySelectorAll('button'))
+      .find((button) => (button as HTMLButtonElement).textContent?.includes('Exportar dados')) as HTMLButtonElement;
+    exportButton.click();
+    fixture.detectChanges();
+
+    const dialog = document.querySelector('.report-export-dialog') as HTMLElement;
+    expect(dialog).not.toBeNull();
+    expect(dialog.textContent).toContain('CSV');
+    expect(dialog.textContent).toContain('XLSX');
+    expect(dialog.textContent).toContain('PDF');
+    expect(dialog.textContent).toContain('Dados tabulares das vendas');
+  });
+
+  it('generates an Excel-compatible CSV from the loaded sales', async () => {
     const instance = component();
-    instance.report.set(monthlyReport);
+    instance.report.set({
+      ...monthlyReport,
+      sales: [{ ...monthlyReport.sales[0], responsible: 'João "Chefe"; Norte' }],
+    });
 
     instance.export('CSV');
 
     expect(URL.createObjectURL).toHaveBeenCalledOnce();
+    const blob = vi.mocked(URL.createObjectURL).mock.calls[0][0] as Blob;
+    expect(blob.type).toBe('text/csv;charset=utf-8');
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+    const content = new TextDecoder().decode(bytes);
+    expect(content).toContain('"Venda";"Origem";"Abertura";"Fechamento";"Duração (min)"');
+    expect(content).toContain('"João ""Chefe""; Norte"');
+    expect(content).toContain('"165,00"');
     expect(api.getMonthlyPdf).not.toHaveBeenCalled();
     expect(api.getMonthlyXlsx).not.toHaveBeenCalled();
     expect(feedback.success).toHaveBeenCalledWith('CSV gerado.');
@@ -233,11 +259,10 @@ describe('ReportsPageComponent', () => {
     expect(api.getAnnualXlsx).toHaveBeenCalledWith(instance.year, 'ALL');
   });
 
-  it('formats payment methods and durations without legacy order fields', () => {
+  it('formats payment methods without legacy order fields', () => {
     const instance = component();
 
     expect(instance.paymentList('PIX,CREDIT_CARD')).toBe('PIX, Cr\u00e9dito');
     expect(instance.paymentList('')).toBe('Sem pagamento');
-    expect(instance.duration(75)).toBe('1h 15min');
   });
 });

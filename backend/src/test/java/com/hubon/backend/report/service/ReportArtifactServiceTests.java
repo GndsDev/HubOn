@@ -1,11 +1,16 @@
 package com.hubon.backend.report.service;
 
 import com.hubon.backend.report.domain.ReportChannel;
+import com.hubon.backend.report.controller.MonthlyReportController;
 import com.hubon.backend.report.dto.*;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.thymeleaf.spring6.SpringTemplateEngine;
@@ -18,6 +23,8 @@ import java.time.*;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ReportArtifactServiceTests {
     private ReportPdfService pdfService;
@@ -51,14 +58,44 @@ class ReportArtifactServiceTests {
     @Test
     void workbookUsesSalesProductsAndPaymentsSheets() throws Exception {
         byte[] xlsx = workbookService.monthly(monthly());
+        assertThat(xlsx).isNotEmpty();
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(xlsx))) {
-            assertThat(workbook.getSheet("Resumo")).isNotNull();
-            assertThat(workbook.getSheet("Vendas")).isNotNull();
-            assertThat(workbook.getSheet("Produtos")).isNotNull();
-            assertThat(workbook.getSheet("Pagamentos")).isNotNull();
+            assertThat(workbook.sheetIterator()).toIterable()
+                    .extracting(Sheet::getSheetName)
+                    .containsExactly("Resumo", "Evolucao", "Vendas", "Produtos", "Categorias", "Pagamentos",
+                            "Canais", "Cancelamentos");
             assertThat(workbook.getSheet("Variacoes")).isNull();
             assertThat(workbook.getSheet("Resumo").getRow(5).getCell(3).getNumericCellValue()).isEqualTo(22.0);
+            var sales = workbook.getSheet("Vendas");
+            assertThat(sales.getPaneInformation()).isNotNull();
+            assertThat(sales.getPaneInformation().isFreezePane()).isTrue();
+            assertThat(sales.getCTWorksheet().isSetAutoFilter()).isTrue();
+            assertThat(sales.getRow(1).getCell(2).getCellType()).isEqualTo(CellType.NUMERIC);
+            assertThat(sales.getRow(1).getCell(2).getCellStyle().getDataFormatString()).contains("dd/mm/yyyy");
+            assertThat(sales.getRow(1).getCell(10).getCellType()).isEqualTo(CellType.NUMERIC);
+            assertThat(sales.getRow(1).getCell(10).getCellStyle().getDataFormatString()).contains("R$");
         }
+    }
+
+    @Test
+    void controllerExportsOfficialContentTypesAndFileExtensions() {
+        MonthlyReportService reportService = mock(MonthlyReportService.class);
+        when(reportService.generate(2026, 8, ReportChannel.ALL)).thenReturn(monthly());
+        MonthlyReportController controller = new MonthlyReportController(reportService, pdfService, workbookService,
+                Clock.fixed(Instant.parse("2026-08-07T15:00:00Z"), ZoneOffset.UTC));
+
+        var xlsx = controller.monthlyXlsx(2026, 8, ReportChannel.ALL);
+        assertThat(xlsx.getHeaders().getContentType()).isEqualTo(MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        assertThat(xlsx.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION))
+                .isEqualTo("attachment; filename=\"hubon-relatorio-mensal-2026-08.xlsx\"");
+        assertThat(xlsx.getBody()).isNotEmpty();
+
+        var pdf = controller.monthlyPdf(2026, 8, ReportChannel.ALL);
+        assertThat(pdf.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PDF);
+        assertThat(pdf.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION))
+                .isEqualTo("attachment; filename=\"hubon-relatorio-mensal-2026-08.pdf\"");
+        assertThat(pdf.getBody()).isNotEmpty();
     }
 
     private MonthlyReportResponse monthly() {

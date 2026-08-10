@@ -31,6 +31,11 @@
     table.data td { border-bottom: 1px solid #e2e7ef; padding: 4px; vertical-align: top; word-wrap: break-word; }
     table.data tbody tr:nth-child(even) { background: #f8fafc; }
     .number { text-align: right; white-space: nowrap; }
+    table.data.evolution { font-size: 7.2pt; }
+    table.data.sales { font-size: 6.5pt; }
+    table.data.products { font-size: 7.5pt; }
+    table.data.sales td { line-height: 1.25; }
+    table.data.sales .payments { word-wrap: break-word; }
     tr { page-break-inside: avoid; }
     .rankings { width: 100%; border-collapse: separate; border-spacing: 7px; margin-top: 8px; }
     .rankings > tbody > tr > td { width: 33%; border: 1px solid #dce1ea; padding: 8px; vertical-align: top; }
@@ -67,7 +72,11 @@
 
   <section>
     <h2 th:text="${report.seriesTitle}">Desempenho</h2>
-    <table class="data"><thead><tr><th>Periodo</th><th class="number">Vendas</th><th class="number">Itens</th>
+    <table class="data evolution">
+      <colgroup><col style="width: 12%;"/><col style="width: 8%;"/><col style="width: 8%;"/>
+        <col style="width: 12%;"/><col style="width: 10%;"/><col style="width: 10%;"/>
+        <col style="width: 12%;"/><col style="width: 12%;"/><col style="width: 16%;"/></colgroup>
+      <thead><tr><th>Periodo</th><th class="number">Vendas</th><th class="number">Itens</th>
       <th class="number">Bruta</th><th class="number">Servico</th><th class="number">Descontos</th>
       <th class="number">Liquida</th><th class="number">Recebido</th><th class="number">Ticket</th></tr></thead>
       <tbody><tr th:each="row : ${report.series}"><td th:text="${row.label}">Periodo</td>
@@ -79,7 +88,12 @@
   </section>
 
   <section class="page-break"><h2>Vendas detalhadas</h2>
-    <table class="data" th:if="${!#lists.isEmpty(report.sales)}"><thead><tr><th>ID</th><th>Origem</th><th>Abertura</th>
+    <table class="data sales" th:if="${!#lists.isEmpty(report.sales)}">
+      <colgroup><col style="width: 4%;"/><col style="width: 7%;"/><col style="width: 10%;"/>
+        <col style="width: 10%;"/><col style="width: 6%;"/><col style="width: 10%;"/>
+        <col style="width: 5%;"/><col style="width: 8%;"/><col style="width: 8%;"/>
+        <col style="width: 8%;"/><col style="width: 8%;"/><col style="width: 16%;"/></colgroup>
+      <thead><tr><th>ID</th><th>Origem</th><th>Abertura</th>
       <th>Fechamento</th><th>Duracao</th><th>Responsavel</th><th class="number">Itens</th>
       <th class="number">Bruta</th><th class="number">Descontos</th><th class="number">Final</th>
       <th class="number">Recebido</th><th>Pagamentos</th></tr></thead>
@@ -88,12 +102,15 @@
         <td th:text="${sale.duration}">0 min</td><td th:text="${sale.responsible}">Pessoa</td>
         <td class="number" th:text="${sale.items}">0</td><td class="number" th:text="${sale.grossRevenue}">0</td>
         <td class="number" th:text="${sale.discounts}">0</td><td class="number" th:text="${sale.finalAmount}">0</td>
-        <td class="number" th:text="${sale.receivedAmount}">0</td><td th:text="${sale.paymentMethods}">PIX</td>
+        <td class="number" th:text="${sale.receivedAmount}">0</td><td class="payments" th:text="${sale.paymentMethods}">PIX</td>
       </tr></tbody></table><p class="empty" th:if="${#lists.isEmpty(report.sales)}">Nenhuma venda fechada no periodo.</p>
   </section>
 
   <section class="page-break"><h2>Produtos</h2>
-    <table class="data" th:if="${!#lists.isEmpty(report.products)}"><thead><tr><th>Produto</th><th>Categoria</th>
+    <table class="data products" th:if="${!#lists.isEmpty(report.products)}">
+      <colgroup><col style="width: 32%;"/><col style="width: 24%;"/><col style="width: 12%;"/>
+        <col style="width: 16%;"/><col style="width: 16%;"/></colgroup>
+      <thead><tr><th>Produto</th><th>Categoria</th>
       <th class="number">Quantidade</th><th class="number">Valor</th><th class="number">Participacao</th></tr></thead>
       <tbody><tr th:each="product : ${report.products}"><td th:text="${product.productName}">Produto</td>
         <td th:text="${product.categoryName}">Categoria</td><td class="number" th:text="${product.quantity}">0</td>

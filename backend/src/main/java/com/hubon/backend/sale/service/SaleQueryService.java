@@ -43,7 +43,8 @@ public class SaleQueryService {
     }
 
     public SaleResponse toResponse(Sale sale) {
-        List<SaleItem> items = itemRepository.findAllBySaleIdOrderByCreatedAtAscIdAsc(sale.getId());
+        List<SaleItem> items = itemRepository.findAllBySaleIdOrderByCreatedAtAscIdAsc(sale.getId()).stream()
+                .filter(item -> !item.isRemoved()).toList();
         Map<Long, List<SaleItemOption>> options = items.isEmpty() ? Map.of() : optionRepository
                 .findAllBySaleItemIdInOrderByIdAsc(items.stream().map(SaleItem::getId).toList())
                 .stream().collect(Collectors.groupingBy(option -> option.getSaleItem().getId()));

@@ -66,12 +66,27 @@ public class SaleItem {
     @Column(name = "cancellation_reason", length = 500)
     private String cancellationReason;
 
+    @Column(name = "removed_at")
+    private LocalDateTime removedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "removed_by_user_id")
+    private User removedByUser;
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) createdAt = LocalDateTime.now();
     }
 
     public boolean isActive() {
-        return cancelledAt == null;
+        return !isCancelled() && !isRemoved();
+    }
+
+    public boolean isCancelled() {
+        return cancelledAt != null;
+    }
+
+    public boolean isRemoved() {
+        return removedAt != null;
     }
 }

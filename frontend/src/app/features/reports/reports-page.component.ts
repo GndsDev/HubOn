@@ -7,6 +7,7 @@ import { MonthlyReportApiService } from '../../core/services/monthly-report-api.
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
+import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
 import {
   ReportChannel,
   ReportData,
@@ -14,48 +15,35 @@ import {
 } from '../../shared/models/monthly-report.model';
 import { apiErrorMessage } from '../../shared/util/api-error';
 
-type ReportView = 'SUMMARY' | 'RAW' | 'EXPORTS';
-
 @Component({
   selector: 'app-reports-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmptyStateComponent, PageHeaderComponent, SectionCardComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    EmptyStateComponent,
+    PageHeaderComponent,
+    SectionCardComponent,
+    AccessibleDialogDirective,
+  ],
   template: `
     <app-page-header
       kicker="Gestão"
       title="Relatórios"
       description="Resultados consolidados de comandas e vendas de balcão."
-    />
-
-    <nav class="report-view-navigation" aria-label="Seções dos relatórios">
-      <button
-        type="button"
-        [class.active]="view === 'SUMMARY'"
-        [attr.aria-current]="view === 'SUMMARY' ? 'page' : null"
-        (click)="view = 'SUMMARY'"
-      >
-        <i class="pi pi-chart-bar"></i>
-        Resumo
-      </button>
-      <button
-        type="button"
-        [class.active]="view === 'RAW'"
-        [attr.aria-current]="view === 'RAW' ? 'page' : null"
-        (click)="view = 'RAW'"
-      >
-        <i class="pi pi-table"></i>
-        Dados brutos
-      </button>
-      <button
-        type="button"
-        [class.active]="view === 'EXPORTS'"
-        [attr.aria-current]="view === 'EXPORTS' ? 'page' : null"
-        (click)="view = 'EXPORTS'"
-      >
-        <i class="pi pi-download"></i>
-        Exportações
-      </button>
-    </nav>
+    >
+      <div page-actions class="page-header-actions">
+        <button
+          type="button"
+          class="primary-button"
+          [disabled]="loading() || !report()"
+          (click)="exportDialogOpen.set(true)"
+        >
+          <i class="pi pi-download"></i>
+          Exportar dados
+        </button>
+      </div>
+    </app-page-header>
 
     <section class="report-filters" aria-label="Filtros do relatório">
       <div class="field report-period-filter">
@@ -141,8 +129,7 @@ type ReportView = 'SUMMARY' | 'RAW' | 'EXPORTS';
         </button>
       </div>
     } @else if (report(); as data) {
-      @if (view === 'SUMMARY') {
-        <section class="report-metrics" aria-label="Resumo do período">
+      <section class="report-metrics" aria-label="Resumo do período">
           <article class="report-metric-primary">
             <span>Faturamento líquido</span>
             <strong>{{ currency(data.summary.netRevenue) }}</strong>
@@ -226,77 +213,56 @@ type ReportView = 'SUMMARY' | 'RAW' | 'EXPORTS';
           <strong>{{ currency(data.cancellations.cancelledAmount) }}</strong>
         </section>
 
-        @if (data.cancellations.mainReasons.length) {
-          <div class="report-cancellation-reasons" aria-label="Principais motivos de cancelamento">
-            @for (reason of data.cancellations.mainReasons; track reason.reason) {
-              <span>{{ reason.reason }} · {{ reason.occurrences }}</span>
-            }
-          </div>
-        }
-      } @else if (view === 'RAW') {
-        <app-section-card eyebrow="Operação" title="Dados brutos das vendas">
-          <span card-action class="report-sales-count">
-            {{ data.sales.length }} venda{{ data.sales.length === 1 ? '' : 's' }}
-          </span>
-
-          @if (data.sales.length) {
-            <div class="report-sales-table" role="region" aria-label="Dados brutos das vendas" tabindex="0">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Origem</th>
-                    <th>Fechamento</th>
-                    <th>Responsável</th>
-                    <th>Itens</th>
-                    <th>Total</th>
-                    <th>Recebido</th>
-                    <th>Pagamento</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (sale of data.sales; track sale.id) {
-                    <tr>
-                      <td>
-                        <strong>{{ sale.origin }}</strong>
-                        <small>Venda #{{ sale.id }} · {{ duration(sale.durationMinutes) }}</small>
-                      </td>
-                      <td>{{ dateTime(sale.closedAt) }}</td>
-                      <td>{{ sale.responsible }}</td>
-                      <td>{{ sale.items }} un.</td>
-                      <td><strong>{{ currency(sale.finalAmount) }}</strong></td>
-                      <td><strong>{{ currency(sale.receivedAmount) }}</strong></td>
-                      <td>{{ paymentList(sale.paymentMethods) }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          } @else {
-            <app-empty-state
-              icon="pi pi-table"
-              title="Sem dados brutos"
-              description="Nenhuma venda concluída no período selecionado."
-            />
+      @if (data.cancellations.mainReasons.length) {
+        <div class="report-cancellation-reasons" aria-label="Principais motivos de cancelamento">
+          @for (reason of data.cancellations.mainReasons; track reason.reason) {
+            <span>{{ reason.reason }} · {{ reason.occurrences }}</span>
           }
-        </app-section-card>
-      } @else {
-        <app-section-card eyebrow="Arquivos" title="Exportar relatório">
-          <span card-action class="report-sales-count">{{ data.periodLabel }}</span>
+        </div>
+      }
+    }
 
-          <div class="report-export-list">
+    @if (exportDialogOpen()) {
+      <div class="modal-backdrop">
+        <section
+          class="modal-panel compact report-export-dialog"
+          appAccessibleDialog
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="report-export-title"
+          [dialogCloseDisabled]="exporting()"
+          (dialogClose)="exportDialogOpen.set(false)"
+        >
+          <div class="modal-header">
+            <div class="modal-heading">
+              <span class="modal-eyebrow">{{ report()?.periodLabel }}</span>
+              <h2 id="report-export-title">Exportar dados</h2>
+            </div>
+            <button
+              type="button"
+              class="icon-button"
+              aria-label="Fechar exportação"
+              [disabled]="exporting()"
+              (click)="exportDialogOpen.set(false)"
+            >
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+
+          <div class="modal-body report-export-list">
             <button type="button" (click)="export('CSV')" [disabled]="exporting()">
               <span class="report-export-icon csv"><i class="pi pi-file"></i></span>
               <span>
                 <strong>CSV</strong>
-                <small>Dados brutos para importação e análise.</small>
+                <small>Dados tabulares das vendas para análise externa.</small>
               </span>
               <i class="pi pi-download"></i>
             </button>
             <button type="button" (click)="export('XLSX')" [disabled]="exporting()">
               <span class="report-export-icon xlsx"><i class="pi pi-file-excel"></i></span>
               <span>
-                <strong>Excel</strong>
-                <small>Planilha formatada com resumo e detalhamento.</small>
+                <strong>XLSX</strong>
+                <small>Planilha Excel estruturada com resumo e detalhamento.</small>
               </span>
               <i class="pi pi-download"></i>
             </button>
@@ -304,18 +270,20 @@ type ReportView = 'SUMMARY' | 'RAW' | 'EXPORTS';
               <span class="report-export-icon pdf"><i class="pi pi-file-pdf"></i></span>
               <span>
                 <strong>PDF</strong>
-                <small>Documento pronto para consulta e compartilhamento.</small>
+                <small>Relatório formatado para consulta, impressão e compartilhamento.</small>
               </span>
               <i class="pi pi-download"></i>
             </button>
           </div>
 
-          <p class="report-export-note">
-            <i class="pi pi-info-circle"></i>
-            Os arquivos respeitam o período e a origem selecionados nos filtros acima.
-          </p>
-        </app-section-card>
-      }
+          <div class="modal-footer">
+            <p class="report-export-note">
+              <i class="pi pi-info-circle"></i>
+              O arquivo respeitará o período e a origem selecionados.
+            </p>
+          </div>
+        </section>
+      </div>
     }
   `,
 })
@@ -325,8 +293,8 @@ export class ReportsPageComponent implements OnInit {
   readonly report = signal<ReportData | null>(null);
   readonly loading = signal(true);
   readonly exporting = signal(false);
+  readonly exportDialogOpen = signal(false);
   readonly error = signal<string | null>(null);
-  view: ReportView = 'SUMMARY';
   period: ReportPeriod = 'MONTHLY';
   channel: ReportChannel = 'ALL';
   date = this.isoDate(new Date());
@@ -376,6 +344,7 @@ export class ReportsPageComponent implements OnInit {
     this.exportRequest(format).pipe(finalize(() => this.exporting.set(false))).subscribe({
       next: (blob) => {
         this.download(blob, format.toLocaleLowerCase());
+        this.exportDialogOpen.set(false);
         this.feedback.success(`${format} gerado.`);
       },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
@@ -410,10 +379,6 @@ export class ReportsPageComponent implements OnInit {
     return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
   }
 
-  duration(minutes: number): string {
-    return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h ${minutes % 60}min`;
-  }
-
   private reportRequest(): Observable<ReportData> {
     if (this.period === 'DAILY') return this.api.getDaily(this.date, this.channel);
     if (this.period === 'ANNUAL') return this.api.getAnnual(this.year, this.channel);
@@ -438,15 +403,20 @@ export class ReportsPageComponent implements OnInit {
 
   private exportCsv(data: ReportData): void {
     const headers = [
-      'Venda', 'Origem', 'Fechamento', 'Responsável', 'Itens',
-      'Total', 'Recebido', 'Pagamento',
+      'Venda', 'Origem', 'Abertura', 'Fechamento', 'Duração (min)', 'Responsável', 'Itens',
+      'Receita bruta', 'Taxa de serviço', 'Descontos', 'Total final', 'Recebido', 'Pagamentos',
     ];
     const rows = data.sales.map((sale) => [
       sale.id,
       sale.origin,
+      this.dateTime(sale.openedAt),
       this.dateTime(sale.closedAt),
+      sale.durationMinutes,
       sale.responsible,
       sale.items,
+      this.decimal(sale.grossRevenue),
+      this.decimal(sale.serviceFees),
+      this.decimal(sale.discounts),
       this.decimal(sale.finalAmount),
       this.decimal(sale.receivedAmount),
       this.paymentList(sale.paymentMethods),
@@ -455,6 +425,7 @@ export class ReportsPageComponent implements OnInit {
       .map((row) => row.map((value) => this.csvCell(value)).join(';'))
       .join('\r\n');
     this.download(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }), 'csv');
+    this.exportDialogOpen.set(false);
     this.feedback.success('CSV gerado.');
   }
 

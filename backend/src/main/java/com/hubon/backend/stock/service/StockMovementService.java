@@ -124,6 +124,10 @@ public class StockMovementService {
     }
 
     public void reverseSale(SaleItem saleItem, User user) {
+        reverseSale(saleItem, user, saleItem.getCancellationReason());
+    }
+
+    public void reverseSale(SaleItem saleItem, User user, String reason) {
         List<StockMovement> movements = saleMovements(saleItem);
         if (movements.isEmpty()) return;
         List<PendingMovement> pending = new ArrayList<>();
@@ -141,7 +145,7 @@ public class StockMovementService {
                 ));
             }
         }
-        applyPending(saleItem, pending, user, saleItem.getCancellationReason());
+        applyPending(saleItem, pending, user, reason);
     }
 
     private List<StockMovement> saleMovements(SaleItem saleItem) {

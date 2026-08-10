@@ -18,9 +18,9 @@ public interface SaleItemRepository extends JpaRepository<SaleItem, Long> {
     List<SaleItem> findAllBySaleIdIn(Collection<Long> saleIds);
     List<SaleItem> findAllByCancelledAtGreaterThanEqualAndCancelledAtLessThanOrderByCancelledAtAsc(
             LocalDateTime start, LocalDateTime end);
-    long countBySaleIdAndCancelledAtIsNull(Long saleId);
+    long countBySaleIdAndCancelledAtIsNullAndRemovedAtIsNull(Long saleId);
 
-    @Query("select coalesce(sum(item.subtotal), 0) from SaleItem item where item.sale.id = :saleId and item.cancelledAt is null")
+    @Query("select coalesce(sum(item.subtotal), 0) from SaleItem item where item.sale.id = :saleId and item.cancelledAt is null and item.removedAt is null")
     BigDecimal sumActiveSubtotal(@Param("saleId") Long saleId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

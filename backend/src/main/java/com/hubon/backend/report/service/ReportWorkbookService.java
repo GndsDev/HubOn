@@ -4,6 +4,7 @@ import com.hubon.backend.report.domain.ReportChannel;
 import com.hubon.backend.report.dto.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
@@ -100,7 +101,7 @@ public class ReportWorkbookService {
             cell(line, 6, value.net(), styles.money()); cell(line, 7, value.received(), styles.money());
             cell(line, 8, value.ticket(), styles.money());
         }
-        fit(sheet, headers.length);
+        finishTable(sheet, headers.length, row);
     }
 
     private void sales(XSSFWorkbook workbook, Styles styles, List<MonthlyReportResponse.SaleDetail> values) {
@@ -111,14 +112,15 @@ public class ReportWorkbookService {
         for (MonthlyReportResponse.SaleDetail value : values) {
             Row line = sheet.createRow(row++);
             cell(line, 0, value.id(), styles.number()); cell(line, 1, value.origin(), styles.text());
-            cell(line, 2, value.openedAt().toString(), styles.text()); cell(line, 3, value.closedAt().toString(), styles.text());
+            cell(line, 2, value.openedAt(), styles.dateTime()); cell(line, 3, value.closedAt(), styles.dateTime());
             cell(line, 4, value.durationMinutes(), styles.number()); cell(line, 5, value.responsible(), styles.text());
             cell(line, 6, value.items(), styles.number()); cell(line, 7, value.grossRevenue(), styles.money());
             cell(line, 8, value.serviceFees(), styles.money()); cell(line, 9, value.discounts(), styles.money());
             cell(line, 10, value.finalAmount(), styles.money()); cell(line, 11, value.receivedAmount(), styles.money());
             cell(line, 12, value.paymentMethods(), styles.text());
         }
-        fit(sheet, headers.length);
+        finishTable(sheet, headers.length, row);
+        widths(sheet, 2600, 5000, 5200, 5200, 3800, 6800, 2800, 4200, 4200, 4200, 4200, 4200, 7200);
     }
 
     private void products(XSSFWorkbook workbook, Styles styles, List<MonthlyReportResponse.ProductPerformance> values) {
@@ -130,7 +132,8 @@ public class ReportWorkbookService {
             cell(line, 1, value.categoryName(), styles.text()); cell(line, 2, value.quantity(), styles.number());
             cell(line, 3, value.salesAmount(), styles.money()); cell(line, 4, value.revenueSharePercentage(), styles.decimal());
         }
-        fit(sheet, 5);
+        finishTable(sheet, 5, row);
+        widths(sheet, 9000, 6500, 3800, 4200, 4200);
     }
 
     private void categories(XSSFWorkbook workbook, Styles styles, List<MonthlyReportResponse.CategoryPerformance> values) {
@@ -140,7 +143,7 @@ public class ReportWorkbookService {
         for (var value : values) { Row line = sheet.createRow(row++); cell(line, 0, value.categoryName(), styles.text());
             cell(line, 1, value.quantity(), styles.number()); cell(line, 2, value.salesAmount(), styles.money());
             cell(line, 3, value.revenueSharePercentage(), styles.decimal()); }
-        fit(sheet, 4);
+        finishTable(sheet, 4, row);
     }
 
     private void payments(XSSFWorkbook workbook, Styles styles, List<MonthlyReportResponse.PaymentPerformance> values) {
@@ -150,7 +153,7 @@ public class ReportWorkbookService {
         for (var value : values) { Row line = sheet.createRow(row++); cell(line, 0, value.method(), styles.text());
             cell(line, 1, value.payments(), styles.number()); cell(line, 2, value.amount(), styles.money());
             cell(line, 3, value.receivedSharePercentage(), styles.decimal()); }
-        fit(sheet, 4);
+        finishTable(sheet, 4, row);
     }
 
     private void channels(XSSFWorkbook workbook, Styles styles, List<MonthlyReportResponse.ChannelPerformance> values) {
@@ -160,7 +163,7 @@ public class ReportWorkbookService {
         for (var value : values) { Row line = sheet.createRow(row++); cell(line, 0, value.channel(), styles.text());
             cell(line, 1, value.closedSales(), styles.number()); cell(line, 2, value.netRevenue(), styles.money());
             cell(line, 3, value.averageTicket(), styles.money()); }
-        fit(sheet, 4);
+        finishTable(sheet, 4, row);
     }
 
     private void cancellations(XSSFWorkbook workbook, Styles styles, MonthlyReportResponse.CancellationSummary value) {
@@ -189,31 +192,44 @@ public class ReportWorkbookService {
     private void cell(Row row, int column, Object value, CellStyle style) {
         Cell cell = row.getCell(column) == null ? row.createCell(column) : row.getCell(column);
         if (value instanceof BigDecimal decimal) cell.setCellValue(decimal.doubleValue());
+        else if (value instanceof LocalDateTime dateTime) cell.setCellValue(dateTime);
         else if (value instanceof Number number) cell.setCellValue(number.doubleValue());
         else cell.setCellValue(value == null ? "" : value.toString());
         cell.setCellStyle(style);
+    }
+
+    private void finishTable(Sheet sheet, int columns, int nextRow) {
+        fit(sheet, columns);
+        sheet.setAutoFilter(new CellRangeAddress(0, Math.max(0, nextRow - 1), 0, columns - 1));
     }
 
     private void fit(Sheet sheet, int columns) {
         for (int column = 0; column < columns; column++) { sheet.autoSizeColumn(column); sheet.setColumnWidth(column, Math.min(sheet.getColumnWidth(column) + 600, 12000)); }
     }
 
+    private void widths(Sheet sheet, int... widths) {
+        for (int column = 0; column < widths.length; column++) sheet.setColumnWidth(column, widths[column]);
+    }
+
     private Styles styles(XSSFWorkbook workbook) {
-        CellStyle text = workbook.createCellStyle();
-        CellStyle number = workbook.createCellStyle(); number.setDataFormat(workbook.createDataFormat().getFormat("0"));
-        CellStyle decimal = workbook.createCellStyle(); decimal.setDataFormat(workbook.createDataFormat().getFormat("0.00"));
-        CellStyle money = workbook.createCellStyle(); money.setDataFormat(workbook.createDataFormat().getFormat("R$ #,##0.00"));
+        DataFormat formats = workbook.createDataFormat();
+        CellStyle text = workbook.createCellStyle(); text.setWrapText(true); text.setVerticalAlignment(VerticalAlignment.TOP);
+        CellStyle number = workbook.createCellStyle(); number.setDataFormat(formats.getFormat("0")); number.setAlignment(HorizontalAlignment.RIGHT);
+        CellStyle decimal = workbook.createCellStyle(); decimal.setDataFormat(formats.getFormat("0.00")); decimal.setAlignment(HorizontalAlignment.RIGHT);
+        CellStyle money = workbook.createCellStyle(); money.setDataFormat(formats.getFormat("R$ #,##0.00")); money.setAlignment(HorizontalAlignment.RIGHT);
+        CellStyle dateTime = workbook.createCellStyle(); dateTime.setDataFormat(formats.getFormat("dd/mm/yyyy hh:mm"));
         CellStyle header = workbook.createCellStyle(); header.setFillForegroundColor(IndexedColors.ROYAL_BLUE.getIndex());
         header.setFillPattern(FillPatternType.SOLID_FOREGROUND); Font headerFont = workbook.createFont();
         headerFont.setBold(true); headerFont.setColor(IndexedColors.WHITE.getIndex()); header.setFont(headerFont);
+        header.setWrapText(true); header.setVerticalAlignment(VerticalAlignment.CENTER);
         CellStyle title = workbook.createCellStyle(); Font titleFont = workbook.createFont(); titleFont.setBold(true); titleFont.setFontHeightInPoints((short) 16); title.setFont(titleFont);
-        return new Styles(text, number, decimal, money, header, title);
+        return new Styles(text, number, decimal, money, dateTime, header, title);
     }
 
     private String channel(ReportChannel channel) { return channel == ReportChannel.ALL ? "Todos os canais" : channel == ReportChannel.TABLE ? "Mesas" : "Balcao"; }
 
     private record Styles(CellStyle text, CellStyle number, CellStyle decimal, CellStyle money,
-                          CellStyle header, CellStyle title) { }
+                          CellStyle dateTime, CellStyle header, CellStyle title) { }
     private record Series(String label, long closedSales, long itemsSold, BigDecimal gross,
             BigDecimal fees, BigDecimal discounts, BigDecimal net, BigDecimal received, BigDecimal ticket) { }
     private record WorkbookData(String title, String period, ReportChannel channel,

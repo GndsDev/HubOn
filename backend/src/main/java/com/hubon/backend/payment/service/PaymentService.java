@@ -42,7 +42,7 @@ public class PaymentService {
         Sale sale = saleRepository.findByIdForUpdate(saleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Venda nao encontrada"));
         lifecycleService.ensureOpen(sale);
-        if (saleItemRepository.countBySaleIdAndCancelledAtIsNull(saleId) == 0) {
+        if (saleItemRepository.countBySaleIdAndCancelledAtIsNullAndRemovedAtIsNull(saleId) == 0) {
             throw new BusinessException("Adicione ao menos um item antes do pagamento");
         }
         if (request.amount().compareTo(BigDecimal.ZERO) <= 0) throw new BusinessException("Pagamento deve ser maior que zero");

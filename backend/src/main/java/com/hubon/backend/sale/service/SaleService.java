@@ -28,6 +28,8 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class SaleService {
+    private static final String REMOVAL_REVERSAL_REASON = "Item removido antes do fechamento";
+
     private final SaleRepository saleRepository;
     private final SaleItemRepository itemRepository;
     private final SaleItemOptionRepository itemOptionRepository;
@@ -125,6 +127,23 @@ public class SaleService {
         lifecycleService.ensureOpen(sale);
         ensureWithoutPayment(saleId);
         cancelItem(item, request.reason(), currentUser());
+        return queryService.toResponse(sale);
+    }
+
+    @Transactional
+    public SaleResponse removeItem(Long saleId, Long itemId) {
+        Sale sale = findForUpdate(saleId);
+        SaleItem item = itemRepository.findByIdAndSaleIdForUpdate(itemId, saleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Item da venda nao encontrado"));
+        lifecycleService.ensureOpen(sale);
+        ensureWithoutPayment(saleId);
+        if (item.isRemoved()) return queryService.toResponse(sale);
+        if (item.isCancelled()) throw new BusinessException("Item cancelado nao pode ser removido");
+
+        item.setRemovedAt(LocalDateTime.now(businessClock));
+        item.setRemovedByUser(currentUser());
+        stockMovementService.reverseSale(item, item.getRemovedByUser(), REMOVAL_REVERSAL_REASON);
+        itemRepository.saveAndFlush(item);
         return queryService.toResponse(sale);
     }
 

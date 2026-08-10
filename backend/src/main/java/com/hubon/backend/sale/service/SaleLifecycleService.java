@@ -24,7 +24,7 @@ public class SaleLifecycleService {
 
     public void close(Sale sale, SaleAmounts amounts, User user) {
         ensureOpen(sale);
-        if (saleItemRepository.countBySaleIdAndCancelledAtIsNull(sale.getId()) == 0) {
+        if (saleItemRepository.countBySaleIdAndCancelledAtIsNullAndRemovedAtIsNull(sale.getId()) == 0) {
             throw new BusinessException("Venda vazia nao pode ser fechada");
         }
         if (amounts.paidAmount().compareTo(amounts.finalAmount()) != 0) {

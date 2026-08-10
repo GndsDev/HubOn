@@ -2225,6 +2225,48 @@ app-categories-page {
   width: min(32rem, 100%);
 }
 
+.stock-filter-toolbar {
+  align-items: end;
+  justify-content: flex-start;
+}
+
+.stock-filter-toolbar .search-box {
+  flex: 1 1 18rem;
+}
+
+.stock-filter {
+  display: grid;
+  min-width: 10rem;
+  gap: var(--space-2xs);
+}
+
+.stock-filter > span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 750;
+}
+
+.stock-filter select {
+  min-height: var(--button-height-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  outline: none;
+  background: var(--surface-input-bg);
+  color: var(--color-text-strong);
+  padding: 0 var(--space-sm);
+  font: inherit;
+}
+
+.stock-filter select:focus-visible {
+  border-color: var(--border-interactive-strong);
+  box-shadow: var(--focus-ring);
+}
+
+.stock-filter-toolbar .stock-result-count {
+  margin-left: auto;
+  padding-bottom: var(--space-sm);
+}
+
 .stock-tabs {
   width: fit-content;
   min-width: 0;
@@ -2518,6 +2560,11 @@ app-categories-page {
 
   .stock-toolbar .search-box {
     width: 100%;
+  }
+
+  .stock-filter-toolbar .stock-result-count {
+    margin-left: 0;
+    padding-bottom: 0;
   }
 
   .stock-result-count {
@@ -4154,54 +4201,6 @@ app-categories-page {
   .counter-payment-form .primary-button {
     grid-column: auto;
   }
-}
-
-.report-view-navigation {
-  display: flex;
-  width: fit-content;
-  max-width: 100%;
-  align-items: center;
-  gap: var(--space-2xs);
-  overflow-x: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-control-bg);
-  padding: var(--space-2xs);
-}
-
-.report-view-navigation button {
-  display: inline-flex;
-  min-height: var(--button-height-md);
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--space-xs);
-  border: 1px solid transparent;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--color-text-muted);
-  padding: 0 var(--space-md);
-  font: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 750;
-  cursor: pointer;
-}
-
-.report-view-navigation button:hover,
-.report-view-navigation button:focus-visible {
-  background: var(--surface-row-hover-bg);
-  color: var(--color-text-strong);
-  outline: none;
-}
-
-.report-view-navigation button.active {
-  border-color: var(--border-interactive);
-  background: var(--surface-control-active-bg);
-  color: var(--color-text-strong);
-  box-shadow: var(--shadow-row);
-}
-
-.report-view-navigation button i {
-  color: var(--color-icon);
 }
 
 .report-filters {

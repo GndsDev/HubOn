@@ -287,10 +287,11 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose, 
                           <button
                             type="button"
                             class="text-action danger-text"
-                            [disabled]="saving()"
-                            (click)="openItemCancellation(item)"
+                            [disabled]="actionItemId() === item.id"
+                            (click)="removeItem(item)"
                           >
-                            Cancelar item
+                            <i class="pi pi-trash"></i>
+                            Remover item
                           </button>
                         }
                       </div>
@@ -396,41 +397,6 @@ import { activeSaleItems, itemMatchesRequest, saleCanChangeItems, saleCanClose, 
       />
     }
 
-    @if (cancelItemTarget(); as item) {
-      <div class="modal-backdrop">
-        <form
-          class="modal-panel compact"
-          appAccessibleDialog
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="cancel-item-title"
-          [dialogCloseDisabled]="saving()"
-          (dialogClose)="cancelItemTarget.set(null)"
-          (ngSubmit)="cancelItem(item)"
-        >
-          <div class="modal-header">
-            <div class="modal-heading">
-              <span class="modal-eyebrow">Cancelar item</span>
-              <h2 id="cancel-item-title">{{ item.productName }}</h2>
-            </div>
-            <button type="button" class="icon-button" aria-label="Fechar cancelamento" (click)="cancelItemTarget.set(null)">
-              <i class="pi pi-times"></i>
-            </button>
-          </div>
-          <div class="modal-body">
-            <label class="field">
-              <span>Motivo</span>
-              <textarea name="cancelReason" maxlength="500" [(ngModel)]="cancellationReason" required autofocus></textarea>
-            </label>
-          </div>
-          <div class="modal-footer modal-actions">
-            <button type="button" class="ghost-button" (click)="cancelItemTarget.set(null)">Voltar</button>
-            <button type="submit" class="danger-button" [disabled]="saving() || !cancellationReason.trim()">Cancelar item</button>
-          </div>
-        </form>
-      </div>
-    }
-
     @if (cancelSaleOpen()) {
       <div class="modal-backdrop">
         <form
@@ -484,7 +450,6 @@ export class TabsPageComponent implements OnInit, OnDestroy {
   readonly actionItemId = signal<number | null>(null);
   readonly paymentOpen = signal(false);
   readonly productPanelOpen = signal(false);
-  readonly cancelItemTarget = signal<SaleItem | null>(null);
   readonly cancelSaleOpen = signal(false);
   readonly formOpen = signal(false);
   form = { tableNumber: 1 };
@@ -588,23 +553,15 @@ export class TabsPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  openItemCancellation(item: SaleItem): void {
-    this.cancellationReason = '';
-    this.cancelItemTarget.set(item);
-  }
-
-  cancelItem(item: SaleItem): void {
+  removeItem(item: SaleItem): void {
     const sale = this.currentSale();
-    if (!sale || !this.cancellationReason.trim() || this.saving()) return;
+    if (!sale || !this.canChangeItems() || this.actionItemId() != null) return;
 
-    this.saving.set(true);
-    this.api.cancelItem(sale.id, item.id, { reason: this.cancellationReason.trim() }).pipe(
-      finalize(() => this.saving.set(false)),
+    this.actionItemId.set(item.id);
+    this.api.removeItem(sale.id, item.id).pipe(
+      finalize(() => this.actionItemId.set(null)),
     ).subscribe({
-      next: (updated) => {
-        this.cancelItemTarget.set(null);
-        this.applySale(updated, 'Item cancelado.');
-      },
+      next: (updated) => this.applySale(updated, 'Item removido da comanda.'),
       error: (error) => this.feedback.error(apiErrorMessage(error)),
     });
   }

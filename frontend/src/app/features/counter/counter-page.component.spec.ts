@@ -86,7 +86,7 @@ describe('CounterPageComponent', () => {
     open: vi.fn(() => of(sale({ items: [], subtotal: 0, finalAmount: 0, remainingAmount: 0 }))),
     addItem: vi.fn(() => of(sale())),
     updateItemQuantity: vi.fn(() => of(sale())),
-    cancelItem: vi.fn(() => of(sale())),
+    removeItem: vi.fn(() => of(sale())),
     pay: vi.fn(() => of(sale())),
     close: vi.fn(() => of(sale({ status: 'CLOSED' }))),
     cancel: vi.fn(() => of(sale({ status: 'CANCELLED' }))),
@@ -103,7 +103,7 @@ describe('CounterPageComponent', () => {
     api.open.mockReturnValue(of(sale({ items: [], subtotal: 0, finalAmount: 0, remainingAmount: 0 })));
     api.addItem.mockReturnValue(of(sale()));
     api.updateItemQuantity.mockReturnValue(of(sale()));
-    api.cancelItem.mockReturnValue(of(sale()));
+    api.removeItem.mockReturnValue(of(sale()));
     api.pay.mockReturnValue(of(sale()));
     api.close.mockReturnValue(of(sale({ status: 'CLOSED' })));
     api.cancel.mockReturnValue(of(sale({ status: 'CANCELLED' })));
@@ -241,22 +241,31 @@ describe('CounterPageComponent', () => {
     instance.addProduct({ productId: 10, quantity: 1, notes: null, optionIds: [] });
 
     expect(api.updateItemQuantity).toHaveBeenCalledWith(50, 70, { quantity: 2 });
-    expect(api.cancelItem).not.toHaveBeenCalled();
+    expect(api.removeItem).not.toHaveBeenCalled();
     expect(api.addItem).not.toHaveBeenCalled();
     expect(instance.currentSale()).toBe(updated);
     expect(instance.productFeedback()).toBe('Suco adicionado');
     expect(feedback.success).not.toHaveBeenCalled();
   });
 
-  it('cancels an item with a required reason', () => {
-    const instance = component();
-    instance.currentSale.set(sale());
-    instance.cancellationReason = 'Lancamento duplicado';
+  it('removes an item directly without opening a reason dialog', () => {
+    const updated = sale({ items: [], subtotal: 0, finalAmount: 0, remainingAmount: 0 });
+    api.removeItem.mockReturnValueOnce(of(updated));
+    fixture = TestBed.createComponent(CounterPageComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.currentSale.set(sale());
+    fixture.detectChanges();
 
-    instance.cancelItem(item);
+    const button = fixture.nativeElement.querySelector('button[title="Remover item"]') as HTMLButtonElement;
+    expect(button).not.toBeNull();
+    expect(button.getAttribute('aria-label')).toBe('Remover item');
+    button.click();
+    fixture.detectChanges();
 
-    expect(api.cancelItem).toHaveBeenCalledWith(50, 70, { reason: 'Lancamento duplicado' });
-    expect(instance.cancelItemTarget()).toBeNull();
+    expect(api.removeItem).toHaveBeenCalledWith(50, 70);
+    expect(document.querySelector('#counter-cancel-item-title')).toBeNull();
+    expect(fixture.componentInstance.currentSale()).toBe(updated);
+    expect(feedback.success).toHaveBeenCalledWith('Item removido da venda.');
   });
 
   it('keeps a partial payment in the active sale and updates the remaining amount', () => {
@@ -320,7 +329,7 @@ describe('CounterPageComponent', () => {
 
     expect(api.addItem).not.toHaveBeenCalled();
     expect(api.updateItemQuantity).not.toHaveBeenCalled();
-    expect(api.cancelItem).not.toHaveBeenCalled();
+    expect(api.removeItem).not.toHaveBeenCalled();
   });
 
   it('preserves the opened sale when adding the first item fails', () => {
