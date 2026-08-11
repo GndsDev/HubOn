@@ -205,21 +205,59 @@ describe('ReportsPageComponent', () => {
     expect(fixture.nativeElement.querySelector('.report-view-navigation')).toBeNull();
   });
 
-  it('opens a compact export dialog with CSV, XLSX and PDF', () => {
+  it('opens a compact export menu without a modal backdrop', () => {
     const fixture = TestBed.createComponent(ReportsPageComponent);
     fixture.detectChanges();
 
     const exportButton = Array.from(fixture.nativeElement.querySelectorAll('button'))
       .find((button) => (button as HTMLButtonElement).textContent?.includes('Exportar dados')) as HTMLButtonElement;
+    expect(exportButton.getAttribute('aria-haspopup')).toBe('menu');
+    expect(exportButton.getAttribute('aria-expanded')).toBe('false');
     exportButton.click();
     fixture.detectChanges();
 
-    const dialog = document.querySelector('.report-export-dialog') as HTMLElement;
-    expect(dialog).not.toBeNull();
-    expect(dialog.textContent).toContain('CSV');
-    expect(dialog.textContent).toContain('XLSX');
-    expect(dialog.textContent).toContain('PDF');
-    expect(dialog.textContent).toContain('Dados tabulares das vendas');
+    const menu = fixture.nativeElement.querySelector('.report-export-menu') as HTMLElement;
+    expect(menu).not.toBeNull();
+    expect(menu.getAttribute('role')).toBe('menu');
+    expect(menu.textContent).toContain('CSV');
+    expect(menu.textContent).toContain('Excel (.xlsx)');
+    expect(menu.textContent).toContain('PDF');
+    expect(menu.textContent).toContain('Dados das vendas para análise.');
+    expect(menu.querySelectorAll('[role="menuitem"]')).toHaveLength(3);
+    expect(fixture.nativeElement.querySelector('.modal-backdrop')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.report-export-dialog')).toBeNull();
+    expect(exportButton.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('closes the export menu when toggled, dismissed or a format is chosen', () => {
+    const fixture = TestBed.createComponent(ReportsPageComponent);
+    fixture.detectChanges();
+    const instance = fixture.componentInstance;
+    const exportButton = Array.from(fixture.nativeElement.querySelectorAll('button'))
+      .find((button) => (button as HTMLButtonElement).textContent?.includes('Exportar dados')) as HTMLButtonElement;
+
+    exportButton.click();
+    fixture.detectChanges();
+    exportButton.click();
+    expect(instance.exportMenuOpen()).toBe(false);
+
+    exportButton.click();
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(instance.exportMenuOpen()).toBe(false);
+
+    exportButton.click();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(instance.exportMenuOpen()).toBe(false);
+
+    instance.channel = 'TABLE';
+    exportButton.click();
+    fixture.detectChanges();
+    const pdfButton = Array.from(fixture.nativeElement.querySelectorAll('[role="menuitem"]'))
+      .find((button) => (button as HTMLButtonElement).textContent?.includes('PDF')) as HTMLButtonElement;
+    pdfButton.click();
+
+    expect(instance.exportMenuOpen()).toBe(false);
+    expect(api.getMonthlyPdf).toHaveBeenCalledWith(instance.year, instance.month, 'TABLE');
   });
 
   it('generates an Excel-compatible CSV from the loaded sales', async () => {

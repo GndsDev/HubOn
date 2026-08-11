@@ -13,11 +13,9 @@ public record ReportPdfView(
             String netRevenue, String receivedAmount, String averageTicket,
             long closedSales, long tableSales, long counterSales, long itemsSold) { }
     public record SeriesRow(String label, long closedSales, long itemsSold, String grossRevenue,
-            String serviceFees, String discounts, String netRevenue, String receivedAmount,
-            String averageTicket) { }
-    public record SaleRow(long id, String origin, String openedAt, String closedAt, String duration,
-            String responsible, long items, String grossRevenue, String discounts,
-            String finalAmount, String receivedAmount, String paymentMethods) { }
+            String netRevenue, String receivedAmount, String averageTicket) { }
+    public record SaleRow(long id, String origin, String closedAt, String responsible,
+            long items, String finalAmount, String receivedAmount, String paymentMethods) { }
     public record ProductRow(String productName, String categoryName, long quantity,
             String salesAmount, String revenueShare) { }
     public record RankingRow(String label, String detail, String value) { }

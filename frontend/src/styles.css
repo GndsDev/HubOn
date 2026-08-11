@@ -4255,11 +4255,95 @@ app-categories-page {
   font-size: var(--font-size-sm);
 }
 
+.report-export-menu-container {
+  position: relative;
+}
+
 .report-export-menu {
-  width: max-content;
-  min-width: 15.5rem;
-  max-width: calc(100vw - 1.5rem);
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  right: 0;
+  z-index: var(--layer-overlay);
+  display: grid;
+  width: 20rem;
+  max-width: calc(100vw - 2rem);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-card-bg);
   box-shadow: var(--shadow-dropdown);
+}
+
+.report-export-menu button {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  min-height: 4rem;
+  align-items: center;
+  gap: var(--space-sm);
+  border: 0;
+  border-bottom: 1px solid var(--color-border-soft);
+  background: transparent;
+  color: var(--color-text);
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  cursor: pointer;
+}
+
+.report-export-menu button:last-child {
+  border-bottom: 0;
+}
+
+.report-export-menu button:hover,
+.report-export-menu button:focus-visible {
+  background: var(--surface-row-hover-bg);
+  outline: none;
+}
+
+.report-export-menu button:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.report-export-menu button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.report-export-menu-copy {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2xs);
+}
+
+.report-export-menu-copy strong {
+  color: var(--color-text-strong);
+  font-size: var(--font-size-sm);
+}
+
+.report-export-menu-copy small {
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
+.report-export-menu > button > i {
+  color: var(--color-icon);
+}
+
+.report-export-menu-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--surface-control-muted-bg);
+}
+
+.report-export-menu-icon.csv,
+.report-export-menu-icon.xlsx {
+  color: var(--color-success-strong);
+}
+
+.report-export-menu-icon.pdf {
+  color: var(--color-danger-strong);
 }
 
 .button-trailing-icon {
@@ -4439,90 +4523,6 @@ app-categories-page {
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-md);
   background: var(--surface-subtle-bg);
-}
-
-.report-export-list {
-  display: grid;
-  border-top: 1px solid var(--color-border-soft);
-}
-
-.report-export-list button {
-  display: grid;
-  grid-template-columns: 2.75rem minmax(0, 1fr) auto;
-  min-height: 4.75rem;
-  align-items: center;
-  gap: var(--space-md);
-  border: 0;
-  border-bottom: 1px solid var(--color-border-soft);
-  background: transparent;
-  color: var(--color-text);
-  padding: var(--space-sm) var(--space-xs);
-  text-align: left;
-  cursor: pointer;
-}
-
-.report-export-list button:hover,
-.report-export-list button:focus-visible {
-  background: var(--surface-row-hover-bg);
-  outline: none;
-}
-
-.report-export-list button:disabled {
-  cursor: wait;
-  opacity: 0.58;
-}
-
-.report-export-list button > span:nth-child(2) {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-2xs);
-}
-
-.report-export-list button strong {
-  color: var(--color-text-strong);
-}
-
-.report-export-list button small {
-  color: var(--color-text-muted);
-  line-height: 1.45;
-}
-
-.report-export-list button > i {
-  color: var(--color-icon);
-}
-
-.report-export-icon {
-  display: grid;
-  width: 2.75rem;
-  height: 2.75rem;
-  place-items: center;
-  border-radius: var(--radius-sm);
-  background: var(--surface-control-muted-bg);
-  font-size: 1.05rem;
-}
-
-.report-export-icon.csv,
-.report-export-icon.xlsx {
-  color: var(--color-success-strong);
-}
-
-.report-export-icon.pdf {
-  color: var(--color-danger-strong);
-}
-
-.report-export-note {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-xs);
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  line-height: 1.5;
-}
-
-.report-export-note i {
-  margin-top: 0.15rem;
-  color: var(--color-icon);
 }
 
 .report-sales-table table,
@@ -4820,6 +4820,12 @@ app-report-product-sort {
 }
 
 @media (max-width: 38rem) {
+  .report-export-menu {
+    right: auto;
+    left: 0;
+    width: min(20rem, calc(100vw - 2rem));
+  }
+
   .report-filters,
   .report-metrics {
     grid-template-columns: 1fr;

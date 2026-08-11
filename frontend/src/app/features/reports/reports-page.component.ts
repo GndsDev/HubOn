@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize, Observable } from 'rxjs';
 import { FeedbackService } from '../../core/services/feedback.service';
@@ -7,7 +7,6 @@ import { MonthlyReportApiService } from '../../core/services/monthly-report-api.
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { SectionCardComponent } from '../../shared/components/section-card/section-card.component';
-import { AccessibleDialogDirective } from '../../shared/directives/accessible-dialog.directive';
 import {
   ReportChannel,
   ReportData,
@@ -24,7 +23,6 @@ import { apiErrorMessage } from '../../shared/util/api-error';
     EmptyStateComponent,
     PageHeaderComponent,
     SectionCardComponent,
-    AccessibleDialogDirective,
   ],
   template: `
     <app-page-header
@@ -33,15 +31,49 @@ import { apiErrorMessage } from '../../shared/util/api-error';
       description="Resultados consolidados de comandas e vendas de balcão."
     >
       <div page-actions class="page-header-actions">
-        <button
-          type="button"
-          class="primary-button"
-          [disabled]="loading() || !report()"
-          (click)="exportDialogOpen.set(true)"
-        >
-          <i class="pi pi-download"></i>
-          Exportar dados
-        </button>
+        <div #exportMenuContainer class="report-export-menu-container">
+          <button
+            type="button"
+            class="primary-button"
+            aria-haspopup="menu"
+            [attr.aria-expanded]="exportMenuOpen()"
+            [disabled]="loading() || !report()"
+            (click)="toggleExportMenu($event)"
+          >
+            <i class="pi pi-download"></i>
+            Exportar dados
+            <i class="pi pi-chevron-down button-trailing-icon" aria-hidden="true"></i>
+          </button>
+
+          @if (exportMenuOpen()) {
+            <div class="report-export-menu" role="menu" aria-label="Formatos de exportação">
+              <button type="button" role="menuitem" (click)="export('CSV')" [disabled]="exporting()">
+                <span class="report-export-menu-icon csv"><i class="pi pi-file"></i></span>
+                <span class="report-export-menu-copy">
+                  <strong>CSV</strong>
+                  <small>Dados das vendas para análise.</small>
+                </span>
+                <i class="pi pi-download" aria-hidden="true"></i>
+              </button>
+              <button type="button" role="menuitem" (click)="export('XLSX')" [disabled]="exporting()">
+                <span class="report-export-menu-icon xlsx"><i class="pi pi-file-excel"></i></span>
+                <span class="report-export-menu-copy">
+                  <strong>Excel (.xlsx)</strong>
+                  <small>Planilha completa e formatada.</small>
+                </span>
+                <i class="pi pi-download" aria-hidden="true"></i>
+              </button>
+              <button type="button" role="menuitem" (click)="export('PDF')" [disabled]="exporting()">
+                <span class="report-export-menu-icon pdf"><i class="pi pi-file-pdf"></i></span>
+                <span class="report-export-menu-copy">
+                  <strong>PDF</strong>
+                  <small>Relatório pronto para consulta.</small>
+                </span>
+                <i class="pi pi-download" aria-hidden="true"></i>
+              </button>
+            </div>
+          }
+        </div>
       </div>
     </app-page-header>
 
@@ -222,69 +254,6 @@ import { apiErrorMessage } from '../../shared/util/api-error';
       }
     }
 
-    @if (exportDialogOpen()) {
-      <div class="modal-backdrop">
-        <section
-          class="modal-panel compact report-export-dialog"
-          appAccessibleDialog
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="report-export-title"
-          [dialogCloseDisabled]="exporting()"
-          (dialogClose)="exportDialogOpen.set(false)"
-        >
-          <div class="modal-header">
-            <div class="modal-heading">
-              <span class="modal-eyebrow">{{ report()?.periodLabel }}</span>
-              <h2 id="report-export-title">Exportar dados</h2>
-            </div>
-            <button
-              type="button"
-              class="icon-button"
-              aria-label="Fechar exportação"
-              [disabled]="exporting()"
-              (click)="exportDialogOpen.set(false)"
-            >
-              <i class="pi pi-times"></i>
-            </button>
-          </div>
-
-          <div class="modal-body report-export-list">
-            <button type="button" (click)="export('CSV')" [disabled]="exporting()">
-              <span class="report-export-icon csv"><i class="pi pi-file"></i></span>
-              <span>
-                <strong>CSV</strong>
-                <small>Dados tabulares das vendas para análise externa.</small>
-              </span>
-              <i class="pi pi-download"></i>
-            </button>
-            <button type="button" (click)="export('XLSX')" [disabled]="exporting()">
-              <span class="report-export-icon xlsx"><i class="pi pi-file-excel"></i></span>
-              <span>
-                <strong>XLSX</strong>
-                <small>Planilha Excel estruturada com resumo e detalhamento.</small>
-              </span>
-              <i class="pi pi-download"></i>
-            </button>
-            <button type="button" (click)="export('PDF')" [disabled]="exporting()">
-              <span class="report-export-icon pdf"><i class="pi pi-file-pdf"></i></span>
-              <span>
-                <strong>PDF</strong>
-                <small>Relatório formatado para consulta, impressão e compartilhamento.</small>
-              </span>
-              <i class="pi pi-download"></i>
-            </button>
-          </div>
-
-          <div class="modal-footer">
-            <p class="report-export-note">
-              <i class="pi pi-info-circle"></i>
-              O arquivo respeitará o período e a origem selecionados.
-            </p>
-          </div>
-        </section>
-      </div>
-    }
   `,
 })
 export class ReportsPageComponent implements OnInit {
@@ -293,8 +262,9 @@ export class ReportsPageComponent implements OnInit {
   readonly report = signal<ReportData | null>(null);
   readonly loading = signal(true);
   readonly exporting = signal(false);
-  readonly exportDialogOpen = signal(false);
+  readonly exportMenuOpen = signal(false);
   readonly error = signal<string | null>(null);
+  @ViewChild('exportMenuContainer') private exportMenuContainer?: ElementRef<HTMLElement>;
   period: ReportPeriod = 'MONTHLY';
   channel: ReportChannel = 'ALL';
   date = this.isoDate(new Date());
@@ -324,6 +294,25 @@ export class ReportsPageComponent implements OnInit {
     this.load();
   }
 
+  toggleExportMenu(event: MouseEvent): void {
+    event.stopPropagation();
+    this.exportMenuOpen.update((open) => !open);
+  }
+
+  @HostListener('document:click', ['$event'])
+  closeExportMenuOnOutsideClick(event: MouseEvent): void {
+    if (!this.exportMenuOpen()) return;
+    const target = event.target;
+    if (target instanceof Node && !this.exportMenuContainer?.nativeElement.contains(target)) {
+      this.exportMenuOpen.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  closeExportMenuOnEscape(): void {
+    this.exportMenuOpen.set(false);
+  }
+
   load(): void {
     this.loading.set(true);
     this.error.set(null);
@@ -335,6 +324,7 @@ export class ReportsPageComponent implements OnInit {
 
   export(format: 'CSV' | 'PDF' | 'XLSX'): void {
     if (!this.report() || this.exporting()) return;
+    this.exportMenuOpen.set(false);
     if (format === 'CSV') {
       this.exportCsv(this.report()!);
       return;
@@ -344,7 +334,6 @@ export class ReportsPageComponent implements OnInit {
     this.exportRequest(format).pipe(finalize(() => this.exporting.set(false))).subscribe({
       next: (blob) => {
         this.download(blob, format.toLocaleLowerCase());
-        this.exportDialogOpen.set(false);
         this.feedback.success(`${format} gerado.`);
       },
       error: (error) => this.feedback.error(apiErrorMessage(error)),
@@ -425,7 +414,6 @@ export class ReportsPageComponent implements OnInit {
       .map((row) => row.map((value) => this.csvCell(value)).join(';'))
       .join('\r\n');
     this.download(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }), 'csv');
-    this.exportDialogOpen.set(false);
     this.feedback.success('CSV gerado.');
   }
 

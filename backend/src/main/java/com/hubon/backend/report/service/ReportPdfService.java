@@ -22,13 +22,14 @@ import java.util.Locale;
 public class ReportPdfService {
     private static final Locale PT_BR = Locale.forLanguageTag("pt-BR");
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", PT_BR);
+    private static final DateTimeFormatter SHORT_DATE_TIME = DateTimeFormatter.ofPattern("dd/MM HH:mm", PT_BR);
     private final SpringTemplateEngine templateEngine;
     private final Clock businessClock;
 
     public byte[] daily(DailyReportResponse report) {
         List<ReportPdfView.SeriesRow> series = report.hourly().stream().map(row -> series(row.hourLabel(),
-                row.closedSales(), row.itemsSold(), row.grossRevenue(), row.serviceFees(), row.discounts(),
-                row.netRevenue(), row.receivedAmount(), row.averageTicket())).toList();
+                row.closedSales(), row.itemsSold(), row.grossRevenue(), row.netRevenue(),
+                row.receivedAmount(), row.averageTicket())).toList();
         return render(view("Relat\u00f3rio di\u00e1rio", report.periodLabel(), report.channel(), report.summary(),
                 comparison(report.comparison().percentageChange(), "dia anterior"), "Desempenho por hora",
                 series, report.sales(), report.products(), report.categories(), report.paymentMethods(),
@@ -38,8 +39,7 @@ public class ReportPdfService {
     public byte[] monthly(MonthlyReportResponse report) {
         List<ReportPdfView.SeriesRow> series = report.daily().stream().map(row -> series(
                 row.date().format(DateTimeFormatter.ofPattern("dd/MM")), row.closedSales(), row.itemsSold(),
-                row.grossRevenue(), row.serviceFees(), row.discounts(), row.netRevenue(),
-                row.receivedAmount(), row.averageTicket())).toList();
+                row.grossRevenue(), row.netRevenue(), row.receivedAmount(), row.averageTicket())).toList();
         return render(view("Relat\u00f3rio mensal", report.periodLabel(), report.channel(), report.summary(),
                 comparison(report.comparison().percentageChange(), "m\u00eas anterior"), "Desempenho por dia",
                 series, report.sales(), report.products(), report.categories(), report.paymentMethods(),
@@ -48,8 +48,8 @@ public class ReportPdfService {
 
     public byte[] annual(AnnualReportResponse report) {
         List<ReportPdfView.SeriesRow> series = report.monthly().stream().map(row -> series(row.monthLabel(),
-                row.closedSales(), row.itemsSold(), row.grossRevenue(), row.serviceFees(), row.discounts(),
-                row.netRevenue(), row.receivedAmount(), row.averageTicket())).toList();
+                row.closedSales(), row.itemsSold(), row.grossRevenue(), row.netRevenue(),
+                row.receivedAmount(), row.averageTicket())).toList();
         return render(view("Relat\u00f3rio anual", report.periodLabel(), report.channel(), report.summary(),
                 comparison(report.comparison().percentageChange(), "ano anterior"), "Desempenho por m\u00eas",
                 series, report.sales(), report.products(), report.categories(), report.paymentMethods(),
@@ -76,9 +76,9 @@ public class ReportPdfService {
                         percent(product.revenueSharePercentage()))).toList(),
                 categories.stream().map(category -> new ReportPdfView.RankingRow(category.categoryName(),
                         category.quantity() + " itens", money(category.salesAmount()))).toList(),
-                payments.stream().map(payment -> new ReportPdfView.RankingRow(payment.method(),
+                payments.stream().map(payment -> new ReportPdfView.RankingRow(paymentMethod(payment.method()),
                         payment.payments() + " recebimentos", money(payment.amount()))).toList(),
-                channels.stream().map(value -> new ReportPdfView.RankingRow(value.channel(),
+                channels.stream().map(value -> new ReportPdfView.RankingRow(channelLabel(value.channel()),
                         value.closedSales() + " vendas", money(value.netRevenue()))).toList(),
                 new ReportPdfView.CancellationBlock(cancellations.cancelledSales(),
                         cancellations.cancelledItems(), money(cancellations.cancelledAmount()),
@@ -87,16 +87,15 @@ public class ReportPdfService {
     }
 
     private ReportPdfView.SeriesRow series(String label, long sales, long items, BigDecimal gross,
-            BigDecimal fees, BigDecimal discounts, BigDecimal net, BigDecimal received, BigDecimal ticket) {
-        return new ReportPdfView.SeriesRow(label, sales, items, money(gross), money(fees), money(discounts),
-                money(net), money(received), money(ticket));
+            BigDecimal net, BigDecimal received, BigDecimal ticket) {
+        return new ReportPdfView.SeriesRow(label, sales, items, money(gross), money(net), money(received),
+                money(ticket));
     }
 
     private ReportPdfView.SaleRow sale(MonthlyReportResponse.SaleDetail sale) {
-        return new ReportPdfView.SaleRow(sale.id(), sale.origin(), sale.openedAt().format(DATE_TIME),
-                sale.closedAt().format(DATE_TIME), sale.durationMinutes() + " min", sale.responsible(),
-                sale.items(), money(sale.grossRevenue()), money(sale.discounts()), money(sale.finalAmount()),
-                money(sale.receivedAmount()), sale.paymentMethods());
+        return new ReportPdfView.SaleRow(sale.id(), sale.origin(), sale.closedAt().format(SHORT_DATE_TIME),
+                sale.responsible(), sale.items(), money(sale.finalAmount()), money(sale.receivedAmount()),
+                paymentMethods(sale.paymentMethods()));
     }
 
     private byte[] render(ReportPdfView view) {
@@ -114,5 +113,25 @@ public class ReportPdfService {
     private String money(BigDecimal value) { return NumberFormat.getCurrencyInstance(PT_BR).format(value); }
     private String percent(BigDecimal value) { return value.setScale(2) + "%"; }
     private String channelLabel(ReportChannel channel) { return channel == ReportChannel.ALL ? "Todos os canais" : channel == ReportChannel.TABLE ? "Mesas" : "Balcao"; }
+    private String channelLabel(String channel) { return "TABLE".equals(channel) ? "Comandas" : "COUNTER".equals(channel) ? "Balcao" : channel; }
     private String comparison(BigDecimal percentage, String base) { return "Variacao sobre " + base + ": " + (percentage.signum() > 0 ? "+" : "") + percent(percentage); }
+
+    private String paymentMethods(String methods) {
+        if (methods == null || methods.isBlank()) return "Sem pagamento";
+        return List.of(methods.split(",")).stream()
+                .map(String::trim)
+                .map(this::paymentMethod)
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("");
+    }
+
+    private String paymentMethod(String method) {
+        return switch (method) {
+            case "CASH" -> "Dinheiro";
+            case "CREDIT_CARD" -> "Credito";
+            case "DEBIT_CARD" -> "Debito";
+            case "VOUCHER" -> "Voucher";
+            default -> method;
+        };
+    }
 }

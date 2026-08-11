@@ -6,7 +6,7 @@
   <style>
     @page { size: A4 landscape; margin: 13mm 10mm 15mm; }
     * { box-sizing: border-box; }
-    body { margin: 0; color: #172033; font-family: Arial, sans-serif; font-size: 8pt; line-height: 1.35; }
+    body { margin: 0; color: #172033; font-family: Arial, sans-serif; font-size: 8.2pt; line-height: 1.35; }
     h1, h2, h3, p { margin: 0; }
     header { border-bottom: 2px solid #3156e8; padding-bottom: 8px; }
     .brand { color: #3156e8; font-size: 10pt; font-weight: bold; }
@@ -16,32 +16,43 @@
     .summary td { width: 20%; border: 1px solid #dce1ea; background: #f6f8fc; padding: 7px 8px; }
     .summary td:first-child { border-color: #97abf6; background: #eef2ff; }
     .summary span { display: block; color: #667085; font-size: 6.5pt; text-transform: uppercase; }
-    .summary strong { display: block; margin-top: 3px; font-size: 11pt; }
+    .summary strong { display: block; margin-top: 3px; font-size: 11pt; white-space: nowrap; }
     .operations { width: 100%; margin-top: 4px; border-collapse: collapse; }
     .operations td { border-right: 1px solid #dce1ea; padding: 4px 8px; text-align: center; }
-    .operations strong { display: block; font-size: 10pt; }
+    .operations td:last-child { border-right: 0; }
+    .operations strong { display: block; font-size: 10pt; white-space: nowrap; }
     .operations span { color: #667085; }
     .comparison { margin-top: 7px; border-left: 3px solid #3156e8; background: #f6f8fc; padding: 6px 8px; }
     section { margin-top: 13px; }
     h2 { border-bottom: 1px solid #cdd5e2; padding-bottom: 4px; font-size: 11pt; }
+    h3 { font-size: 9pt; }
     .page-break { page-break-before: always; }
-    table.data { width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed; -fs-table-paginate: paginate; }
+    table.data { width: 270mm; border-collapse: collapse; margin: 6px auto 0; table-layout: fixed; -fs-table-paginate: paginate; }
     table.data thead { display: table-header-group; }
-    table.data th { background: #3156e8; color: white; padding: 5px 4px; font-size: 6.3pt; text-align: left; }
-    table.data td { border-bottom: 1px solid #e2e7ef; padding: 4px; vertical-align: top; word-wrap: break-word; }
+    table.data th { background: #3156e8; color: #ffffff; padding: 5px 5px; font-size: 7pt; vertical-align: middle; }
+    table.data td { border-bottom: 1px solid #e2e7ef; padding: 4px 5px; vertical-align: top; }
     table.data tbody tr:nth-child(even) { background: #f8fafc; }
-    .number { text-align: right; white-space: nowrap; }
-    table.data.evolution { font-size: 7.2pt; }
-    table.data.sales { font-size: 6.5pt; }
-    table.data.products { font-size: 7.5pt; }
-    table.data.sales td { line-height: 1.25; }
-    table.data.sales .payments { word-wrap: break-word; }
+    table.data .text { text-align: left; }
+    table.data .center { text-align: center; }
+    table.data .date { text-align: center; white-space: nowrap; }
+    table.data .number,
+    table.data .money { text-align: right; white-space: nowrap; }
+    table.data .wrap { text-align: left; white-space: normal; word-wrap: break-word; }
+    table.data.evolution { font-size: 7.6pt; }
+    table.data.sales { font-size: 7.5pt; }
+    table.data.products { font-size: 7.8pt; }
     tr { page-break-inside: avoid; }
     .rankings { width: 100%; border-collapse: separate; border-spacing: 7px; margin-top: 8px; }
     .rankings > tbody > tr > td { width: 33%; border: 1px solid #dce1ea; padding: 8px; vertical-align: top; }
     .ranking { width: 100%; border-collapse: collapse; margin-top: 4px; }
     .ranking td { border-bottom: 1px solid #edf0f5; padding: 4px 0; }
-    .ranking td:last-child { text-align: right; font-weight: bold; }
+    .ranking td:last-child { text-align: right; font-weight: bold; white-space: nowrap; }
+    .cancellation-reasons { width: 100%; margin-top: 7px; border-collapse: collapse; }
+    .cancellation-reasons th,
+    .cancellation-reasons td { border-bottom: 1px solid #e2e7ef; padding: 4px 6px; text-align: left; }
+    .cancellation-reasons th:last-child,
+    .cancellation-reasons td:last-child { text-align: right; white-space: nowrap; }
+    .cancellations { page-break-inside: avoid; }
     .empty { margin-top: 6px; border: 1px solid #dce1ea; background: #f8fafc; color: #667085; padding: 10px; }
   </style>
 </head>
@@ -73,49 +84,65 @@
   <section>
     <h2 th:text="${report.seriesTitle}">Desempenho</h2>
     <table class="data evolution">
-      <colgroup><col style="width: 12%;"/><col style="width: 8%;"/><col style="width: 8%;"/>
-        <col style="width: 12%;"/><col style="width: 10%;"/><col style="width: 10%;"/>
-        <col style="width: 12%;"/><col style="width: 12%;"/><col style="width: 16%;"/></colgroup>
-      <thead><tr><th>Periodo</th><th class="number">Vendas</th><th class="number">Itens</th>
-      <th class="number">Bruta</th><th class="number">Servico</th><th class="number">Descontos</th>
-      <th class="number">Liquida</th><th class="number">Recebido</th><th class="number">Ticket</th></tr></thead>
-      <tbody><tr th:each="row : ${report.series}"><td th:text="${row.label}">Periodo</td>
+      <colgroup class="evolution-columns">
+        <col style="width: 48mm;"/><col style="width: 28mm;"/><col style="width: 25mm;"/>
+        <col style="width: 42mm;"/><col style="width: 42mm;"/><col style="width: 42mm;"/>
+        <col style="width: 43mm;"/>
+      </colgroup>
+      <thead><tr>
+        <th class="text">Periodo</th><th class="number">Vendas</th><th class="number">Itens</th>
+        <th class="money">Bruta</th><th class="money">Liquida</th><th class="money">Recebido</th>
+        <th class="money">Ticket</th>
+      </tr></thead>
+      <tbody><tr th:each="row : ${report.series}">
+        <td class="text" th:text="${row.label}">Periodo</td>
         <td class="number" th:text="${row.closedSales}">0</td><td class="number" th:text="${row.itemsSold}">0</td>
-        <td class="number" th:text="${row.grossRevenue}">0</td><td class="number" th:text="${row.serviceFees}">0</td>
-        <td class="number" th:text="${row.discounts}">0</td><td class="number" th:text="${row.netRevenue}">0</td>
-        <td class="number" th:text="${row.receivedAmount}">0</td><td class="number" th:text="${row.averageTicket}">0</td>
-      </tr></tbody></table>
+        <td class="money" th:text="${row.grossRevenue}">0</td><td class="money" th:text="${row.netRevenue}">0</td>
+        <td class="money" th:text="${row.receivedAmount}">0</td><td class="money" th:text="${row.averageTicket}">0</td>
+      </tr></tbody>
+    </table>
   </section>
 
   <section class="page-break"><h2>Vendas detalhadas</h2>
     <table class="data sales" th:if="${!#lists.isEmpty(report.sales)}">
-      <colgroup><col style="width: 4%;"/><col style="width: 7%;"/><col style="width: 10%;"/>
-        <col style="width: 10%;"/><col style="width: 6%;"/><col style="width: 10%;"/>
-        <col style="width: 5%;"/><col style="width: 8%;"/><col style="width: 8%;"/>
-        <col style="width: 8%;"/><col style="width: 8%;"/><col style="width: 16%;"/></colgroup>
-      <thead><tr><th>ID</th><th>Origem</th><th>Abertura</th>
-      <th>Fechamento</th><th>Duracao</th><th>Responsavel</th><th class="number">Itens</th>
-      <th class="number">Bruta</th><th class="number">Descontos</th><th class="number">Final</th>
-      <th class="number">Recebido</th><th>Pagamentos</th></tr></thead>
-      <tbody><tr th:each="sale : ${report.sales}"><td th:text="${sale.id}">1</td><td th:text="${sale.origin}">Origem</td>
-        <td th:text="${sale.openedAt}">Abertura</td><td th:text="${sale.closedAt}">Fechamento</td>
-        <td th:text="${sale.duration}">0 min</td><td th:text="${sale.responsible}">Pessoa</td>
-        <td class="number" th:text="${sale.items}">0</td><td class="number" th:text="${sale.grossRevenue}">0</td>
-        <td class="number" th:text="${sale.discounts}">0</td><td class="number" th:text="${sale.finalAmount}">0</td>
-        <td class="number" th:text="${sale.receivedAmount}">0</td><td class="payments" th:text="${sale.paymentMethods}">PIX</td>
-      </tr></tbody></table><p class="empty" th:if="${#lists.isEmpty(report.sales)}">Nenhuma venda fechada no periodo.</p>
+      <colgroup class="sales-columns">
+        <col style="width: 16mm;"/><col style="width: 38mm;"/><col style="width: 31mm;"/>
+        <col style="width: 54mm;"/><col style="width: 18mm;"/><col style="width: 32mm;"/>
+        <col style="width: 32mm;"/><col style="width: 49mm;"/>
+      </colgroup>
+      <thead><tr>
+        <th class="number">Venda</th><th class="text">Origem</th><th class="date">Fechamento</th>
+        <th class="text">Responsavel</th><th class="number">Itens</th><th class="money">Total</th>
+        <th class="money">Recebido</th><th class="text">Pagamento</th>
+      </tr></thead>
+      <tbody><tr th:each="sale : ${report.sales}">
+        <td class="number" th:text="${'#' + sale.id}">#1</td><td class="text wrap" th:text="${sale.origin}">Origem</td>
+        <td class="date" th:text="${sale.closedAt}">Fechamento</td><td class="text wrap" th:text="${sale.responsible}">Pessoa</td>
+        <td class="number" th:text="${sale.items}">0</td><td class="money" th:text="${sale.finalAmount}">0</td>
+        <td class="money" th:text="${sale.receivedAmount}">0</td><td class="text wrap" th:text="${sale.paymentMethods}">PIX</td>
+      </tr></tbody>
+    </table>
+    <p class="empty" th:if="${#lists.isEmpty(report.sales)}">Nenhuma venda fechada no periodo.</p>
   </section>
 
   <section class="page-break"><h2>Produtos</h2>
     <table class="data products" th:if="${!#lists.isEmpty(report.products)}">
-      <colgroup><col style="width: 32%;"/><col style="width: 24%;"/><col style="width: 12%;"/>
-        <col style="width: 16%;"/><col style="width: 16%;"/></colgroup>
-      <thead><tr><th>Produto</th><th>Categoria</th>
-      <th class="number">Quantidade</th><th class="number">Valor</th><th class="number">Participacao</th></tr></thead>
-      <tbody><tr th:each="product : ${report.products}"><td th:text="${product.productName}">Produto</td>
-        <td th:text="${product.categoryName}">Categoria</td><td class="number" th:text="${product.quantity}">0</td>
-        <td class="number" th:text="${product.salesAmount}">0</td><td class="number" th:text="${product.revenueShare}">0%</td>
-      </tr></tbody></table>
+      <colgroup class="product-columns">
+        <col style="width: 90mm;"/><col style="width: 60mm;"/><col style="width: 30mm;"/>
+        <col style="width: 45mm;"/><col style="width: 45mm;"/>
+      </colgroup>
+      <thead><tr>
+        <th class="text">Produto</th><th class="text">Categoria</th>
+        <th class="number">Quantidade</th><th class="money">Valor</th><th class="number">Participacao</th>
+      </tr></thead>
+      <tbody><tr th:each="product : ${report.products}">
+        <td class="text wrap" th:text="${product.productName}">Produto</td>
+        <td class="text wrap" th:text="${product.categoryName}">Categoria</td>
+        <td class="number" th:text="${product.quantity}">0</td><td class="money" th:text="${product.salesAmount}">0</td>
+        <td class="number" th:text="${product.revenueShare}">0%</td>
+      </tr></tbody>
+    </table>
+    <p class="empty" th:if="${#lists.isEmpty(report.products)}">Nenhum produto vendido no periodo.</p>
   </section>
 
   <table class="rankings"><tbody><tr>
@@ -124,10 +151,18 @@
     <td><h3>Canais</h3><table class="ranking"><tbody><tr th:each="row : ${report.channels}"><td><strong th:text="${row.label}">Canal</strong><br/><small th:text="${row.detail}">0 vendas</small></td><td th:text="${row.value}">0</td></tr></tbody></table></td>
   </tr></tbody></table>
 
-  <section><h2>Cancelamentos</h2>
-    <table class="operations"><tbody><tr><td><strong th:text="${report.cancellations.cancelledSales}">0</strong><span>vendas</span></td>
+  <section class="cancellations"><h2>Cancelamentos</h2>
+    <table class="operations"><tbody><tr>
+      <td><strong th:text="${report.cancellations.cancelledSales}">0</strong><span>vendas</span></td>
       <td><strong th:text="${report.cancellations.cancelledItems}">0</strong><span>itens</span></td>
-      <td><strong th:text="${report.cancellations.cancelledAmount}">0</strong><span>valor cancelado</span></td></tr></tbody></table>
+      <td><strong th:text="${report.cancellations.cancelledAmount}">0</strong><span>valor cancelado</span></td>
+    </tr></tbody></table>
+    <table class="cancellation-reasons" th:if="${!#lists.isEmpty(report.cancellations.reasons)}">
+      <thead><tr><th>Motivo</th><th>Ocorrencias</th></tr></thead>
+      <tbody><tr th:each="reason : ${report.cancellations.reasons}">
+        <td th:text="${reason.reason}">Motivo</td><td th:text="${reason.occurrences}">0</td>
+      </tr></tbody>
+    </table>
   </section>
 </body>
 </html>
