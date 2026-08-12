@@ -1,149 +1,81 @@
-# Configuração Segura
+# Configuração
 
-Este documento define quais arquivos de configuração entram no Git e quais
-devem permanecer apenas na máquina de desenvolvimento ou no ambiente de
-execução.
+## Arquivo `.env`
 
-## Arquivos versionados
-
-Devem permanecer no repositório:
-
-- `backend/src/main/resources/application.properties`
-- `backend/src/main/resources/application-prod.properties`
-- `backend/src/main/resources/application-local.example.properties`
-- `backend/src/main/resources/db/migration/`
-- `frontend/src/`
-- `frontend/public/`
-- `docs/`
-- `README.md`
-- `backend/pom.xml`
-- `backend/mvnw`
-- `backend/mvnw.cmd`
-- `frontend/package.json`
-- `frontend/package-lock.json`
-
-## Arquivos não versionados
-
-Não devem entrar no Git:
-
-- `backend/src/main/resources/application-local.properties`
-- `.env`
-- `.env.*`, exceto `.env.example`
-- `backend/target/`
-- `frontend/node_modules/`
-- `frontend/dist/`
-- `frontend/.angular/`
-- `frontend/.playwright/`
-- relatórios, caches, logs, dumps e bancos locais
-
-Esses arquivos podem conter senhas, secrets, tokens, dados locais ou artefatos
-gerados automaticamente.
-
-## Criar configuração local
-
-Copie o exemplo seguro:
+Crie o arquivo a partir de `.env.example` somente na primeira preparação:
 
 ```powershell
-Copy-Item backend\src\main\resources\application-local.example.properties `
-  backend\src\main\resources\application-local.properties
+Copy-Item .env.example .env
 ```
 
-Depois edite `application-local.properties` com valores do seu ambiente. Esse
-arquivo é ignorado pelo Git.
+Troque todos os valores `change-me`. Em atualização, preserve o `.env` existente
+e nunca o substitua pelo exemplo.
 
-## Banco de dados
+## Compose
 
-Configure via variáveis de ambiente ou no arquivo local ignorado:
+| Variável | Uso | Padrão/obrigação |
+| --- | --- | --- |
+| `COMPOSE_PROJECT_NAME` | nome estável do projeto e do volume | `hubon` |
 
-```powershell
-$env:DB_URL="jdbc:postgresql://localhost:5432/hubon_db"
-$env:DB_USERNAME="hubon_user"
-$env:DB_PASSWORD="change-me"
-```
+## PostgreSQL
 
-No arquivo local:
-
-```properties
-spring.datasource.url=${DB_URL:jdbc:postgresql://localhost:5432/hubon_db}
-spring.datasource.username=${DB_USERNAME:hubon_user}
-spring.datasource.password=${DB_PASSWORD:change-me}
-```
+| Variável | Uso | Padrão/obrigação |
+| --- | --- | --- |
+| `POSTGRES_DB` | banco da aplicação | `hubon_db` |
+| `POSTGRES_USER` | usuário do PostgreSQL | `hubon_user` |
+| `POSTGRES_PASSWORD` | senha do PostgreSQL | obrigatória |
 
 ## JWT
 
-O segredo do JWT deve vir do ambiente em qualquer uso real:
+| Variável | Uso | Padrão/obrigação |
+| --- | --- | --- |
+| `JWT_SECRET` | assinatura dos tokens | obrigatório e forte |
 
-```powershell
-$env:HUBON_JWT_SECRET="use-um-segredo-longo-e-aleatorio"
-```
+## CORS
 
-O perfil `prod` exige `HUBON_JWT_SECRET`. Não use placeholders como segredo de
-produção.
+| Variável | Uso | Padrão/obrigação |
+| --- | --- | --- |
+| `HUBON_CORS_ALLOWED_ORIGINS` | origens web permitidas | `http://localhost:4200` |
 
-## Seeder local
+## Seed
 
-O usuário `OWNER` inicial é configurado por:
+| Variável | Uso | Padrão/obrigação |
+| --- | --- | --- |
+| `HUBON_SEED_ENABLED` | habilita a carga inicial | `false` no Compose quando omitida |
+| `HUBON_SEED_OWNER_NAME` | nome do Dono inicial | obrigatório com seed ativo |
+| `HUBON_SEED_OWNER_USERNAME` | nome de usuário do Dono | obrigatório com seed ativo |
+| `HUBON_SEED_OWNER_PASSWORD` | senha inicial do Dono | obrigatória com seed ativo |
+| `HUBON_SEED_ADMIN_ENABLED` | cria o Gerente inicial | `true` |
+| `HUBON_SEED_ADMIN_NAME` | nome do Gerente inicial | obrigatório quando habilitado |
+| `HUBON_SEED_ADMIN_USERNAME` | nome de usuário do Gerente | obrigatório quando habilitado |
+| `HUBON_SEED_ADMIN_PASSWORD` | senha inicial do Gerente | obrigatória quando habilitado |
 
-```powershell
-$env:HUBON_SEED_OWNER_NAME="Proprietario"
-$env:HUBON_SEED_OWNER_USERNAME="owner"
-$env:HUBON_SEED_OWNER_PASSWORD="change-me"
-```
+## Portas
 
-O `ADMIN` inicial, se habilitado, é configurado por:
+| Variável | Uso | Padrão |
+| --- | --- | --- |
+| `FRONTEND_PORT` | porta local do sistema | `4200` |
+| `POSTGRES_PORT` | PostgreSQL no Compose de desenvolvimento | `5432` |
+| `BACKEND_PORT` | backend no Compose de desenvolvimento | `8080` |
 
-```powershell
-$env:HUBON_SEED_ADMIN_ENABLED="true"
-$env:HUBON_SEED_ADMIN_NAME="Administrador"
-$env:HUBON_SEED_ADMIN_USERNAME="admin"
-$env:HUBON_SEED_ADMIN_PASSWORD="change-me"
-```
+O instalador Windows exige `POSTGRES_DB=hubon_db`, aceita somente
+`COMPOSE_PROJECT_NAME=hubon`, rejeita segredos de exemplo e valida os nomes de
+usuário iniciais.
 
-As senhas seedadas são gravadas com BCrypt. Configure os valores antes da
-primeira criação dos usuários no banco.
+## Perfis Spring
 
-## Diferença entre os arquivos
+- `local`: usado ao executar o backend diretamente; propriedades particulares
+  ficam em `application-local.properties`, que não deve conter segredos
+  versionados.
+- `prod`: usado no container; recebe banco, JWT e CORS por variáveis de ambiente.
 
-`application.properties`
-: Configuração base versionada. Mantém segurança fechada por padrão, com
-`hubon.security.permit-all=false`, `hubon.seed.enabled=false` e
-`hubon.jwt.secret=${HUBON_JWT_SECRET}` sem fallback.
+Em ambos, Flyway está habilitado e o Hibernate usa `ddl-auto=validate`.
 
-`application-prod.properties`
-: Configuração versionada do perfil de produção. Deve exigir secrets por
-variáveis de ambiente.
+## Volume do banco
 
-`application-local.example.properties`
-: Modelo versionado para desenvolvimento local. Deve conter apenas placeholders
-ou valores seguros de exemplo.
+O Compose declara `hubon_postgres_data`. Com `COMPOSE_PROJECT_NAME=hubon`, o nome
+efetivo costuma ser `hubon_hubon_postgres_data`. Confirme sempre pelo `docker
+inspect hubon-postgres` antes de qualquer manutenção excepcional.
 
-`application-local.properties`
-: Configuração real da máquina local. Pode conter senhas locais, URL de banco e
-segredo JWT local. Fica fora do Git.
-
-## Boas práticas
-
-- Não coloque secrets em HTML, TypeScript, JavaScript ou documentação pública.
-- Use `HUBON_PORTFOLIO_USERNAME` e `HUBON_PORTFOLIO_PASSWORD` apenas no terminal
-  quando for gerar screenshots ou vídeo do portfólio.
-- Não commite `target/`, `dist/`, `node_modules/`, caches ou relatórios.
-- Não altere migrations para esconder dados locais; migrations são parte do
-  histórico do banco.
-- Troque qualquer senha ou segredo que tenha sido exposto antes de publicar o
-  repositório.
-
-## Resetar banco Docker
-
-Para descartar os dados locais do PostgreSQL criado pelo Docker Compose:
-
-```powershell
-docker compose down -v
-docker compose up -d
-```
-
-Isso remove o volume `hubon_postgres_data`. Use apenas quando quiser recriar o
-banco local do zero.
-
-## Fuso comercial
-
-`HUBON_BUSINESS_ZONE_ID` define o fuso usado para a data comercial de fechamento e para o relatorio mensal. O padrao e `America/Sao_Paulo`. Configure um identificador IANA valido e mantenha o mesmo valor entre instancias do estabelecimento.
+Recriar containers preserva o volume. Não use remoção de volumes, `down -v` ou
+comandos globais de limpeza em uma atualização comum.

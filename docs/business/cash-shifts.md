@@ -1,47 +1,55 @@
-# Turno de Caixa
+# Caixa
 
-## Responsabilidade
+## Turno
 
-O Caixa controla o turno e o dinheiro. Ele não monta pedidos, não recebe uma
-venda por um formulário próprio e não altera preparo, entrega ou fechamento de
-atendimento. Pagamentos acontecem no Balcão ou na Comanda e são associados ao
-turno aberto pelo backend.
+O caixa trabalha com um único `CashShift` aberto por vez. A abertura registra
+responsável, data/hora e saldo inicial. O histórico retorna os 50 turnos mais
+recentes.
 
-## Ciclo
+Todo pagamento exige um turno aberto e fica vinculado a ele. As formas aceitas
+são Dinheiro, PIX, Débito, Crédito e Voucher.
 
-1. **Abrir caixa** informa o saldo inicial e registra operador e horário.
-2. Pagamentos recebidos alimentam os totais do turno por método.
-3. **Suprimento** adiciona dinheiro com valor, responsável e observação.
-4. **Sangria** retira dinheiro com a mesma trilha de auditoria.
-5. **Fechar caixa** informa o valor contado, calcula a diferença e exige
-   observação quando ela não é zero.
-6. O histórico preserva turnos fechados e todas as movimentações.
+## Resumo financeiro
 
-O saldo esperado em dinheiro considera saldo inicial, pagamentos em dinheiro,
-suprimentos, sangrias, cancelamentos e estornos aplicáveis. Valores eletrônicos
-são exibidos separadamente.
+O backend devolve:
 
-## Persistência
+- total recebido e divisão por forma de pagamento;
+- valor de itens cancelados durante o turno;
+- total de suprimentos e sangrias;
+- dinheiro esperado;
+- valor contado, diferença e observação após o fechamento;
+- lista cronológica de pagamentos, movimentos manuais e cancelamentos.
 
-A migration `V8__cash_shifts_and_movements.sql` cria:
+O dinheiro esperado é calculado por:
 
-- `cash_shifts`, com abertura, fechamento, conferência e diferença;
-- `cash_movements`, com tipo, origem, referência, responsável e observação;
-- `payments.cash_shift_id`, vínculo explícito entre recebimento e turno;
-- índices para turno atual, movimentações e pagamentos por data.
+```text
+saldo inicial
++ pagamentos em dinheiro
++ suprimentos
+- sangrias
+```
 
-A busca do turno aberto usa lock pessimista. Assim, abertura, fechamento,
-movimentações e associação de pagamentos não dependem de comparação imprecisa
-de horários.
+Pagamentos eletrônicos compõem o total recebido, mas não o dinheiro físico
+esperado.
 
-## Endpoints
+## Suprimento e sangria
 
-| Método | Endpoint | Uso |
-| --- | --- | --- |
-| `GET` | `/api/cash-shifts/current` | Retorna o turno aberto ou `null`. |
-| `GET` | `/api/cash-shifts/history` | Lista turnos para consulta. |
-| `POST` | `/api/cash-shifts` | Abre o turno com saldo inicial. |
-| `POST` | `/api/cash-shifts/{id}/movements` | Registra sangria ou suprimento. |
-| `POST` | `/api/cash-shifts/{id}/close` | Confere e fecha o turno. |
+Movimentos manuais aceitam somente `SUPPLY` ou `WITHDRAWAL`. O valor deve ser
+maior que zero e a observação é obrigatória.
 
-`OWNER`, `ADMIN` e `CASHIER` podem operar o Caixa. Outros perfis recebem `403`.
+## Fechamento
+
+O usuário informa o dinheiro contado. A diferença é `contado - esperado`. Quando
+ela não é zero, uma observação é obrigatória. Depois de fechado, o turno não pode
+receber novos movimentos.
+
+## Cancelamentos
+
+Cancelamentos de itens ocorridos entre abertura e fechamento aparecem no extrato
+e no total informativo de cancelamentos. Eles não reduzem o dinheiro esperado,
+pois itens não podem ser cancelados depois que a venda recebe pagamento.
+
+## Limitações
+
+Não há estorno de pagamento, reabertura de turno ou exclusão de movimentos. A
+conciliação é operacional e não substitui contabilidade fiscal.

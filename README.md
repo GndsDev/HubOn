@@ -1,302 +1,141 @@
 # HubOn
 
-Sistema local para gerenciamento da operação de restaurantes, cobrindo o fluxo
-completo de atendimento:
+O HubOn é um sistema interno de gestão para restaurantes. Ele foi desenhado para
+o dono ou gerente controlar a operação diária com poucos cliques: comandas por
+número de mesa, vendas de balcão, catálogo, estoque, caixa, relatórios e usuários.
 
-**Atendimento → Pedido → Pagamento → Preparo → Entrega → Fechamento**
+O produto não é um cardápio para consumidores e não possui fluxo de produção.
+Cada lançamento já faz parte da venda, e a operação financeira e o estoque são
+registrados com histórico auditável.
 
-O projeto foi construído como um MVP funcional e estudável, com frontend e
-backend integrados em um monorepo.
+## Funcionalidades atuais
 
-## Objetivo
+- **Dashboard:** vendas do dia, atendimentos abertos, pendências e resumo do caixa.
+- **Comandas:** vendas `TABLE` identificadas pelo número informado para a mesa.
+- **Balcão:** vendas `COUNTER` com inclusão rápida de produtos e recebimento.
+- **Histórico:** consulta de vendas fechadas ou canceladas.
+- **Categorias e Produtos:** catálogo simples, preços e escolhas opcionais.
+- **Estoque:** saldos, alertas, movimentações e baixas automáticas.
+- **Caixa:** abertura, recebimentos, suprimentos, sangrias e conferência.
+- **Relatórios:** períodos diário, mensal e anual, com filtro por origem.
+- **Usuários e Minha Conta:** acesso por nome de usuário e troca de senha.
 
-Centralizar a operação diária do estabelecimento sem duplicar responsabilidades.
-O Balcão conclui vendas diretas, Comandas concluem vendas de mesa, Pedidos
-acompanha a operação e o Caixa controla o turno e o dinheiro.
-
-## Stack
-
-**Backend**
-
-- Java 21
-- Spring Boot 4
-- Spring Data JPA
-- Spring Security
-- PostgreSQL
-- Flyway
-- Maven Wrapper
-- Lombok
-
-**Frontend**
-
-- Angular 21
-- TypeScript
-- Angular Router
-- Tailwind CSS
-- PrimeIcons
-- RxJS
-
-## Funcionalidades do MVP
-
-- Dashboard operacional com atualização periódica.
-- Cadastro e ativação de categorias e produtos.
-- Gestão de mesas livres, reservadas, ocupadas e desativadas.
-- Abertura, consulta, fechamento e cancelamento de comandas.
-- Criação de pedidos com snapshots de nome e preço.
-- Central persistente de vendas de balcão, com retomada por URL.
-- Fluxo de preparo por item acompanhado em Pedidos e Balcão.
-- Pagamento parcial ou integral compartilhado entre Balcão e Comandas.
-- Início automático do preparo após pagamento integral de vendas `COUNTER`.
-- Turno de Caixa com abertura, suprimento, sangria, conferência e fechamento.
-- Estoque híbrido, baixa automática, vínculo por variação e estornos.
-- Relatório mensal por canal, impressão e exportação CSV.
-- Login JWT com roles `OWNER`, `ADMIN`, `WAITER`, `KITCHEN` e `CASHIER`.
-- Página Minha Conta com dados do usuário autenticado e alteração de senha.
-- Autoria das operações pelo usuário autenticado.
-- Cadastro de usuários com hierarquia de permissões.
-- Relatórios operacionais básicos.
-- Temas dark e light.
-- Layout responsivo com sidebar recolhível.
-
-## Demonstração visual
+## Visão do sistema
 
 ### Dashboard
 
-![Dashboard operacional do HubOn](docs/media/screenshots/01-dashboard.png)
+Resumo do movimento atual e atalhos para as áreas operacionais.
 
-O fluxo atual é organizado em Comandas, Balcão, Histórico, Estoque e Caixa,
-sem estados de preparo ou uma tela separada de cozinha.
+![Dashboard operacional do HubOn](docs/media/screenshots/dashboard.png)
 
-[Assistir à demonstração navegável em WebM](docs/media/videos/hubon-demo.webm)
+### Comandas e Balcão
 
-As dez telas documentadas e as instruções para regenerar as mídias estão em
-[portfolio-media.md](docs/portfolio/portfolio-media.md).
+Atendimentos rápidos, com catálogo, itens e valores no mesmo espaço de trabalho.
 
-## Estrutura do repositório
+![Comanda aberta no HubOn](docs/media/screenshots/comandas.png)
+
+![Venda de balcão no HubOn](docs/media/screenshots/balcao.png)
+
+### Estoque e Caixa
+
+Controle dos saldos físicos e da conferência financeira do turno.
+
+![Controle de estoque do HubOn](docs/media/screenshots/estoque.png)
+
+![Turno de caixa do HubOn](docs/media/screenshots/caixa.png)
+
+### Relatórios
+
+Indicadores por período e origem, com exportação em CSV, XLSX e PDF.
+
+![Relatórios do HubOn](docs/media/screenshots/relatorios.png)
+
+## Arquitetura
 
 ```text
-HubOn/
-├── backend/    API Spring Boot, regras de negócio e migrations
-├── frontend/   aplicação Angular
-├── docs/       documentação funcional e técnica
-├── scripts/    instalação e inicialização automática no Windows
-├── .env.example
-├── docker-compose.yml
-└── docker-compose.dev.yml
+Angular 21 -> HTTP/JSON -> Spring Boot 4 / Java 21 -> JPA -> PostgreSQL 16
 ```
 
-## Instalação Windows para cliente
+A execução local recomendada usa Docker Compose com três serviços: frontend,
+backend e PostgreSQL. O frontend publica `http://localhost:4200` e encaminha
+`/api` ao backend dentro da rede Docker.
 
-A instalação do cliente é feita uma única vez por um responsável técnico. Ela
-copia o HubOn para `C:\HubOn`, cria a tarefa agendada `HubOn`, prepara os
-containers e adiciona um atalho opcional na Área de Trabalho.
+## Instalação no Windows
 
-Antes de executar, configure um `.env` real a partir do modelo. Em seguida, abra
-o PowerShell como administrador na raiz do pacote e execute:
+Pré-requisitos:
+
+- Windows 10 ou 11;
+- Docker Desktop com Docker Compose;
+- PowerShell executado como administrador;
+- arquivo `.env` configurado a partir de `.env.example`, sem valores de exemplo.
+
+No diretório do repositório:
 
 ```powershell
 Copy-Item .env.example .env
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\scripts\install-hubon-windows.ps1
+notepad .env
+PowerShell -ExecutionPolicy Bypass -File .\scripts\install-hubon-windows.ps1
 ```
 
-O instalador valida Docker Desktop, Docker Compose e segredos, preserva um
-`.env` já instalado, reutiliza o volume `hubon_hubon_postgres_data`, constrói a
-stack e só conclui depois que os três containers ficam saudáveis. Ele nunca cria
-`hubon_test`.
+O instalador copia o sistema para `C:\HubOn`, preserva um `.env` já existente,
+valida a configuração, cria as imagens, registra a inicialização automática e
+cria um atalho para o HubOn. Os detalhes estão em
+[Instalação no Windows](docs/deployment/windows-installation.md).
 
-Depois disso, o uso diário é apenas:
+## Execução para desenvolvimento
 
-1. ligar o computador e entrar no Windows;
-2. abrir o atalho **HubOn** ou acessar `http://localhost:4200`.
-
-A tarefa agendada inicia o Docker Desktop silenciosamente quando necessário,
-executa `docker compose up -d` pelo caminho absoluto instalado e aguarda a saúde
-da stack. Todos os containers também usam `restart: always`.
-
-Somente `127.0.0.1:4200` é publicado no cliente. Nginx encaminha `/api` para
-`backend:8080`, e o backend acessa `postgres:5432` pela rede interna. Banco e API
-não ficam expostos no host.
-
-Mantenha habilitado no Docker Desktop:
-**Settings > General > Start Docker Desktop when you sign in to your computer**.
-A tarefa do Windows também consegue iniciar o Docker Desktop, tornando o boot
-resiliente mesmo sem interação do cliente.
-
-Detalhes de instalação, manutenção e desenvolvimento estão em
-[deployment-local.md](docs/deployment/deployment-local.md).
-
-## Pré-requisitos
-
-Para executar os serviços diretamente, sem Docker:
-
-- Java 21 ou superior compatível com o projeto.
-- Node.js e npm.
-- PostgreSQL em execução.
-- Banco PostgreSQL local configurado.
-
-Configure banco, credenciais seedadas e JWT no arquivo local ignorado
-`backend/src/main/resources/application-local.properties` ou por variáveis de
-ambiente. Use o modelo seguro
-`backend/src/main/resources/application-local.example.properties`.
-
-Exemplo de variáveis principais:
+Com toda a stack em Docker:
 
 ```powershell
-$env:DB_URL="jdbc:postgresql://localhost:5432/hubon_db"
-$env:DB_USERNAME="hubon_user"
-$env:DB_PASSWORD="change-me"
-$env:HUBON_JWT_SECRET="use-um-segredo-longo-e-aleatorio"
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
-As credenciais dos usuários seedados são definidas por `hubon.seed.owner.*` e
-`hubon.seed.admin.*` ou pelas variáveis `HUBON_SEED_OWNER_*` e
-`HUBON_SEED_ADMIN_*`. O acesso usa `username` normalizado em letras minúsculas;
-as senhas são gravadas com BCrypt.
+O complemento de desenvolvimento publica também o PostgreSQL em `5432` e o
+backend em `8080`, sempre vinculados a `127.0.0.1`.
 
-## Como executar
+Para executar frontend e backend diretamente, consulte
+[Execução local](docs/deployment/deployment-local.md).
 
-### Backend
-
-```powershell
-cd backend
-.\mvnw.cmd spring-boot:run
-```
-
-A API fica disponível em `http://localhost:8080/api`.
-
-### Frontend
-
-Em outro terminal:
-
-```powershell
-cd frontend
-npm install
-npm start
-```
-
-A interface fica disponível em `http://localhost:4200`.
-
-Para acesso por outro computador da rede:
-
-```powershell
-npm run start:network
-```
-
-Consulte [deployment-local.md](docs/deployment/deployment-local.md) antes de liberar portas
-ou configurar o CORS.
-
-## Como testar
+## Testes e build
 
 Backend:
-
-Esta seção é exclusiva para desenvolvimento e CI. Não crie nem execute o banco
-`hubon_test` na máquina do cliente.
-
-Crie uma vez o banco exclusivo de testes:
-
-```sql
-CREATE DATABASE hubon_test OWNER hubon_user;
-```
-
-Configure as credenciais no terminal quando forem diferentes dos valores do
-perfil `test`:
-
-```powershell
-$env:TEST_DB_URL="jdbc:postgresql://localhost:5432/hubon_test"
-$env:TEST_DB_USERNAME="hubon_user"
-$env:TEST_DB_PASSWORD="change-me"
-$env:TEST_HUBON_JWT_SECRET="use-um-segredo-longo-exclusivo-para-testes"
-```
 
 ```powershell
 cd backend
 .\mvnw.cmd clean verify
 ```
 
-As suítes Spring usam `application-test.properties` e interrompem a criação do
-contexto, antes do Flyway, se `current_database()` não identificar um banco
-terminado em `_test` ou `-test`.
-
 Frontend:
 
 ```powershell
 cd frontend
-npm test
+npm ci
+npm test -- --watch=false
 npm run build
+```
+
+A captura visual documental usa `playwright-core` apenas como automação de
+navegação e screenshots. Ela não é uma suíte E2E:
+
+```powershell
+cd frontend
 npm run visual:audit
 ```
 
-Para validar o produto manualmente, siga
-[manual-test-flow.md](docs/testing/manual-test-flow.md). O roteiro cobre a jornada de
-uma mesa livre até o fechamento da comanda e sua volta ao estado Livre.
+## Segurança e dados
 
-## Status atual
+- O login usa nome de usuário e senha; o backend normaliza o identificador.
+- A API usa JWT stateless e aplica autorização no servidor.
+- Senhas são armazenadas com BCrypt.
+- Segredos pertencem ao `.env`, que não deve ser versionado.
+- O volume `hubon_postgres_data` preserva o banco quando containers são recriados.
+- Nunca use `docker compose down -v` ou comandos de limpeza de volumes em uma
+  atualização normal.
 
-O fluxo operacional principal está funcional e integrado à API. As regras
-financeiras críticas, transições operacionais, consistência de mesas e regras de
-segurança por perfil possuem testes no backend. O frontend possui build validado
-e rotas protegidas por perfil.
-
-Este projeto ainda é um MVP para uso local ou em rede privada confiável. Já há
-JWT, autorização por perfil e troca de senha, mas ainda não há refresh token,
-recuperação de senha, auditoria completa nem hardening para internet pública.
-
-Consulte [status-mvp.md](docs/status-mvp.md) para o detalhamento completo.
-
-## Fora do MVP
-
-- Delivery e integrações com marketplaces.
-- WhatsApp e QR Code.
-- Nota fiscal e integração com maquininha.
-- Ficha técnica completa por receita, compras e fornecedores.
-- Aplicativo mobile.
-- Multiempresa e multiunidade.
-- WebSocket.
-- Integração fiscal e conciliação com adquirentes.
-
-## Roadmap pós-MVP
-
-O roadmap oficial do produto está em [ROADMAP.md](docs/product/ROADMAP.md).
-
-1. Evoluir o estoque híbrido com receitas, compras e fornecedores.
-2. Adicionar refresh token, recuperação de senha e política de tentativas.
-3. Isolar ambientes de teste com banco dedicado.
-4. Ampliar testes do frontend e adicionar testes end-to-end.
-5. Criar paginação navegável e filtros por período.
-6. Adicionar observabilidade, auditoria e estratégia de backup.
-7. Preparar implantação segura com TLS, proxy reverso e gestão de segredos.
-
-## Governança
-
-O HubOn passa a ser tratado como produto de software. Mudanças novas devem partir de problema real, documentação clara e decisões registradas quando necessário.
-
-- [CONTRIBUTING](CONTRIBUTING.md) — guia oficial de desenvolvimento, fluxo Git, PRs e regras do projeto.
-- [Product Vision](docs/product/PRODUCT_VISION.md) — visão geral do produto e contexto de uso.
-- [Roadmap](docs/product/ROADMAP.md) — direção pós-MVP e próximas prioridades planejadas.
-- [Standards](docs/STANDARDS.md) — regras oficiais para evolução do projeto.
-- [Glossary](docs/GLOSSARY.md) — glossário oficial de termos de produto, negócio e tecnologia.
-- [Templates](docs/README.md#templates) — modelos para módulos, features, APIs e ADRs.
-- [ADR](docs/adr/README.md) — índice de decisões arquiteturais relevantes.
+Consulte [Segurança](docs/security/security.md) e
+[Atualização do HubOn](docs/deployment/updating-hubon.md).
 
 ## Documentação
 
-| Área | Documento |
-| --- | --- |
-| Índice geral | [docs/README.md](docs/README.md) |
-| Contribuição | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| Product Vision | [docs/product/PRODUCT_VISION.md](docs/product/PRODUCT_VISION.md) |
-| Roadmap | [docs/product/ROADMAP.md](docs/product/ROADMAP.md) |
-| Changelog | [docs/product/CHANGELOG.md](docs/product/CHANGELOG.md) |
-| Decisions | [docs/product/DECISIONS.md](docs/product/DECISIONS.md) |
-| Standards | [docs/STANDARDS.md](docs/STANDARDS.md) |
-| Glossary | [docs/GLOSSARY.md](docs/GLOSSARY.md) |
-| Architecture | [docs/architecture/architecture.md](docs/architecture/architecture.md) |
-| Business Rules | [docs/business/regras-negocio.md](docs/business/regras-negocio.md) |
-| Database | [docs/database/database-model.md](docs/database/database-model.md) |
-| API | [docs/api/endpoints.md](docs/api/endpoints.md) |
-| Deployment | [docs/deployment/deployment-local.md](docs/deployment/deployment-local.md) |
-| Testing | [docs/testing/testing.md](docs/testing/testing.md) |
-| Portfolio | [docs/portfolio/portfolio-media.md](docs/portfolio/portfolio-media.md) |
-| ADR | [docs/adr/README.md](docs/adr/README.md) |
-| Templates | [docs/templates/](docs/templates/) |
+O [índice da documentação](docs/README.md) reúne arquitetura, regras de negócio,
+API, banco, implantação, homologação e decisões arquiteturais.

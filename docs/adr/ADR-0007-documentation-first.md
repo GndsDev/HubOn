@@ -1,42 +1,22 @@
-# ADR-0007 Documentation First
+# ADR-0007: Documentação alinhada à implementação
 
 Data: 2026-06-25
 Status: Aceito
 
 ## Contexto
 
-O HubOn esta sendo transformado em um produto de software profissional. Para
-evoluir com seguranca, futuras implementacoes precisam seguir uma fonte oficial
-de produto, arquitetura e dominio.
+Documentos desatualizados criam um segundo domínio fictício e aumentam o risco de
+decisões incorretas.
 
-## Problema
+## Decisão
 
-Implementar funcionalidades sem documentar problema, regra, arquitetura e impacto
-gera inconsistencia, retrabalho e decisoes dificeis de auditar.
+Atualizar documentação, testes e contratos públicos junto com mudanças
+relevantes. Migrations, código executável e testes são a fonte de verdade para
+auditar o estado atual; ADRs registram decisões duradouras, não funcionalidades
+planejadas como se estivessem entregues.
 
-## Alternativas consideradas
+## Consequências
 
-- Documentar apenas depois da implementacao.
-- Manter documentacao minima no README.
-- Adotar documentacao oficial antes de mudancas relevantes.
-
-## Decisao
-
-Adotar Documentation First para funcionalidades relevantes. Antes de implementar,
-o projeto deve registrar problema, objetivo, arquitetura, modelo de dados, regras
-de negocio, roadmap, testes e documentacao afetada.
-
-## Consequencias
-
-- O produto passa a ter uma base decisoria clara.
-- Novas funcionalidades precisam justificar valor real para o cliente.
-- ADRs se tornam obrigatorios para decisoes estruturais.
-- Mudancas podem demorar um pouco mais no inicio, mas reduzem risco e retrabalho.
-
-## Status
-
-Aceito.
-
-## Data
-
-2026-06-25.
+- Toda mudança de domínio revisa regras, API, banco e homologação afetados.
+- Documentos históricos conflitantes são removidos ou marcados claramente.
+- Decisões arquiteturais relevantes continuam registradas em ADR.

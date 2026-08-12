@@ -1,135 +1,71 @@
-# Regras de negócio do HubOn MVP
+# Regras de negócio
 
-As regras abaixo descrevem o que está implementado no MVP. As regras de estoque
-híbrido, baixa automática simples, saldo negativo e estorno estão separadas em
-[stock-management.md](stock-management.md).
+Este documento resume as invariantes do domínio atual. Os detalhes operacionais
+estão nos documentos de cada módulo.
 
-## Categorias e produtos
+## Acesso
 
-- Categoria exige nome e pode ser ativada ou desativada sem apagar histórico.
-- Produto base exige nome, categoria e fluxo de preparo.
-- O nome do produto deve ser único dentro da categoria, ignorando maiúsculas e
-  minúsculas.
-- O preço pertence a `ProductVariant`, não ao produto base.
-- Variação exige nome e preço maior ou igual a zero.
-- O nome da variação deve ser único dentro do produto, ignorando maiúsculas e
-  minúsculas.
-- Produto só pode ser vendido quando possui ao menos uma variação ativa e disponível.
-- Produto inativo ou indisponível não pode entrar em um novo pedido.
-- Produto pertencente a uma categoria inativa não pode entrar em um novo pedido.
-- Variação inativa ou indisponível não pode entrar em um novo pedido.
-- Alterar nome ou preço de produto/variação não muda itens antigos.
-- Cada item congela `productNameSnapshot`, `productVariantNameSnapshot` e
-  `unitPriceSnapshot`.
-- Quantidade deve ser maior que zero.
-- Subtotal e `unitPriceSnapshot * quantity`.
+- O login usa nome de usuário e senha.
+- O nome de usuário é aparado e convertido para minúsculas.
+- Somente usuários ativos autenticam.
+- O fluxo atual permite ao Dono criar usuários Gerentes.
+- A autorização do backend prevalece sobre menus e guards do frontend.
 
-## Mesas
+## Vendas
 
-- Número é obrigatório e único.
-- Status disponíveis: `AVAILABLE`, `OCCUPIED`, `RESERVED` e `DISABLED`.
-- Na interface: Livre, Ocupada, Reservada e Desativada.
-- Cadastro e edição manual permitem apenas `AVAILABLE`, `RESERVED` e `DISABLED`.
-- `OCCUPIED` é controlado exclusivamente pelo ciclo da comanda.
-- `active=false` é tratado como `DISABLED`.
-- `DISABLED` sempre grava `active=false`.
-- Qualquer outro status grava `active=true`.
-- Mesa reservada não abre comanda diretamente no MVP.
-- Mesa desativada não abre comanda.
-- Mesa ocupada ou com comanda aberta não pode ser desativada.
-- Não há exclusão definitiva de mesa.
+- Toda venda nasce `OPEN` e é `TABLE` ou `COUNTER`.
+- Uma comanda exige número de mesa positivo.
+- Não podem existir duas comandas abertas para o mesmo número de mesa.
+- Uma venda de balcão não aceita número de mesa.
+- Venda vazia não recebe pagamento nem pode fechar.
+- Os valores são derivados de itens ativos, taxa, desconto e pagamentos.
+- Pagamentos não podem exceder o valor restante e exigem caixa aberto.
+- Depois do primeiro pagamento, itens e a própria venda não podem ser alterados
+  ou cancelados.
+- Balcão com valor positivo fecha automaticamente ao ser integralmente pago.
+- Comanda integralmente paga exige fechamento explícito.
+- Venda com total zero exige ao menos um item ativo e fechamento explícito.
 
-## Comandas
+## Itens
 
-- Uma mesa não pode ter mais de uma comanda aberta.
-- Somente mesa livre e ativa pode abrir comanda.
-- Mesa `RESERVED` não pode abrir comanda diretamente no MVP.
-- Ao abrir, a mesa muda para `OCCUPIED`.
-- Comanda fechada ou cancelada não recebe pedidos nem pagamentos.
-- Uma comanda não pode ser fechada ou cancelada enquanto possuir pedidos pendentes.
-- Comanda com qualquer pagamento registrado não pode ser cancelada.
-- Comanda com pedido entregue não pode ser cancelada.
-- Cancelar uma comanda devolve a mesa para `AVAILABLE`.
-- Fechar exige que o valor pago seja exatamente igual ao `finalAmount`.
-- Pagamento incompleto ou excedente impede o fechamento.
-- Ao fechar, a mesa volta para `AVAILABLE`.
+- Produto precisa estar ativo e disponível no momento da inclusão.
+- Quantidade é sempre maior que zero.
+- Nome, categoria, preço base, preço final e escolhas são preservados em snapshots.
+- Remover corrige um lançamento sem criar métrica de cancelamento.
+- Cancelar exige motivo e registra responsável e data.
+- Remoção e cancelamento revertem a baixa automática de estoque quando existir.
 
-## Pedidos e preparo
+## Catálogo
 
-- Pedido pertence a uma comanda aberta, começa como `CREATED` e seus itens como `DRAFT`.
-- A confirmação envia itens `REQUIRES_PREPARATION` para `WAITING_PREPARATION`.
-- Itens `DIRECT_SERVICE` não entram na fila e ficam `READY` imediatamente.
-- Pedido composto somente por itens `DIRECT_SERVICE` fica `READY`.
-- A fila segue por item: `WAITING_PREPARATION` -> `IN_PREPARATION` -> `READY`.
-- Transições fora dessa sequência são rejeitadas.
-- Pedido entregue não pode ser cancelado.
-- Pedido não pode ser cancelado se sua comanda já possui pagamento registrado.
-- Um pedido pendente ligado a uma comanda cancelada pode apenas ser cancelado,
-  permitindo regularizar dados antigos sem avançar a produção.
-- Pedido ligado a uma comanda fechada não pode ser alterado.
-- Pedido cancelado não entra no total da comanda.
-- Um pedido possui um ou mais itens.
-- Item confirmado pode ser cancelado com motivo, auditoria e estorno idempotente
-  da baixa automática quando aplicável.
-- A interface não possui tela exclusiva de Cozinha. Pedidos e Balcão exibem o
-  preparo; `KITCHEN` recebe somente a fila filtrada e marca item como pronto.
+- Produto possui preço próprio e pode existir sem categoria.
+- Categoria organiza a consulta, mas não é requisito para venda.
+- Grupos de escolhas definem limites mínimo e máximo.
+- Escolhas podem acrescentar valor e possuir vínculo próprio de estoque.
 
-## Pagamentos e totais
+## Estoque
 
-- Pagamento exige método e valor maior que zero.
-- Pagamento pertence a uma comanda aberta.
-- A soma paga não pode ultrapassar `finalAmount`.
-- Pagamento maior que o saldo restante é rejeitado.
-- Pagamento excedente já existente impede o fechamento da comanda.
-- Registro de pagamento e fechamento obtêm lock pessimista da comanda.
-- Pagamentos concorrentes são serializados; somente valores compatíveis com o
-  saldo atualizado são aceitos.
-- Em conflito de lock, a API retorna erro para recarregar os dados e tentar
-  novamente.
-- `totalAmount` soma itens ativos de pedidos não cancelados.
-- `finalAmount = totalAmount + serviceFee - discountAmount`, limitado a zero.
-- `remainingAmount = finalAmount - paidAmount`, limitado a zero.
-- A consulta de pagamentos retorna total, pago, restante e histórico.
-- `POST /payments` retorna também estado financeiro, pedidos atualizados e
-  próxima ação.
-- Em comanda `COUNTER`, pagamento parcial não inicia preparo.
-- Em comanda `COUNTER`, pagamento integral e início dos itens elegíveis ocorrem
-  na mesma transação; uma falha desfaz o pagamento.
-- Comandas `TABLE` preservam o fluxo anterior.
+- Saldos nunca podem ficar negativos.
+- Toda mudança de saldo gera um `StockMovement`.
+- Saldo atual e ledger são atualizados na mesma transação.
+- Baixas automáticas usam o vínculo ativo do produto e os vínculos das escolhas.
+- Movimentos históricos não são editados.
 
 ## Caixa
 
-- Só pode existir um turno aberto.
-- Abertura registra operador, horário e saldo inicial.
-- Sangria e suprimento exigem valor positivo e observação.
-- Pagamentos são vinculados ao turno aberto pelo backend.
-- Fechamento registra valor contado, diferença e observação obrigatória quando
-  houver divergência.
-- Fechar Caixa não altera pedido, preparo, entrega ou comanda.
-- Caixa não possui fluxo alternativo de pagamento.
+- Existe no máximo um turno aberto.
+- Todo pagamento pertence ao turno aberto no momento do recebimento.
+- Suprimento e sangria exigem valor positivo e observação.
+- O esperado em dinheiro é saldo inicial + recebimentos em dinheiro + suprimentos
+  - sangrias.
+- Diferença no fechamento exige observação.
 
-## Segurança e persistência
+## Relatórios
 
-- Endpoints operacionais exigem JWT válido.
-- Autorização é definida por perfil no backend.
-- O frontend apenas oculta ações indisponíveis; não é fonte de segurança.
-- Entidades históricas usam desativação quando há impacto em auditoria.
-- Alterações financeiras, de comanda, pedidos e estoque usam transação.
+- Receita considera somente vendas fechadas no período.
+- Itens removidos não aparecem em vendas nem em cancelamentos.
+- Cancelamentos consideram vendas e itens cancelados com motivo.
+- Filtros de origem usam `ALL`, `TABLE` e `COUNTER`.
 
-## Venda no balcão
-
-- Cada atendimento cria imediatamente uma comanda `COUNTER` própria e sem mesa.
-- A comanda permanece na central do Balcão até ser finalizada ou cancelada.
-- Itens, quantidades, variações, escolhas e observações do rascunho são persistidos no backend.
-- O backend deriva o canal do pedido a partir da comanda.
-- Itens preparados aguardam pagamento; a quitação integral inicia o preparo automaticamente.
-- A entrega exige todos os itens ativos prontos, e o fechamento exige entrega ou cancelamento operacional e pagamento exato.
-- Nome, telefone e referência são opcionais.
-- `OWNER`, `ADMIN` e `CASHIER` operam o Balcão; `WAITER` não recebe acesso implícito.
-
-## Relatório mensal
-
-- A competência é a data comercial de fechamento no fuso configurado.
-- Somente comandas fechadas com item vendido válido entram em receita e quantidades.
-- Rascunhos e cancelamentos são excluídos das vendas e apresentados separadamente quando aplicável.
-- Snapshots protegem nomes, categorias, variações e preços históricos.
+Consulte [Vendas](sales.md), [Produtos](products.md),
+[Estoque](stock-management.md), [Caixa](cash-shifts.md) e
+[Relatórios](reports.md).

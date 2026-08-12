@@ -1,287 +1,67 @@
-# Testes do HubOn
-
-## Visão geral
-
-O projeto combina três níveis de validação:
-
-1. Testes automatizados de integração no backend.
-2. Testes unitários e de componente no frontend.
-3. Build de produção e roteiro manual do fluxo operacional.
-
-Os testes de integração do backend usam o perfil `test` e um PostgreSQL
-exclusivo. Eles não usam `application-local.properties` nem o banco de
-desenvolvimento.
+# Testes e automações
 
 ## Backend
 
-Crie o banco uma vez com um usuário autorizado:
+O backend usa JUnit, Spring Boot Test, Spring Security Test e PostgreSQL real para
+integração. A suíte cobre contexto, seed, autenticação por nome de usuário,
+autorização, vendas simplificadas, estoque, caixa, relatórios e artefatos PDF/XLSX.
 
-```sql
-CREATE DATABASE hubon_test OWNER hubon_user;
-```
-
-Configure as variáveis quando as credenciais locais forem diferentes dos
-valores padrão de `application-test.properties`:
+O banco de teste padrão é `hubon_test`. Um guard impede que a suíte de integração
+use o banco operacional.
 
 ```powershell
-$env:TEST_DB_URL="jdbc:postgresql://localhost:5432/hubon_test"
-$env:TEST_DB_USERNAME="hubon_user"
-$env:TEST_DB_PASSWORD="change-me"
-$env:TEST_HUBON_JWT_SECRET="use-um-segredo-longo-exclusivo-para-testes"
-```
-
-Na pasta `backend`:
-
-```powershell
+cd backend
 .\mvnw.cmd clean verify
 ```
 
-O comando compila a aplicação, inicializa o contexto Spring, valida a migration
-Flyway e executa as suítes JUnit.
-
-### Cobertura atual
-
-`BackendApplicationTests`
-
-- Inicialização do contexto Spring.
-- Carregamento das configurações, repositories e entidades.
-
-`FinancialRulesIntegrationTests`
-
-- Pagamento válido.
-- Rejeição de pagamento zero.
-- Rejeição de pagamento acima do saldo.
-- Proteção contra pagamentos simultâneos que excedam a comanda.
-- Bloqueio de cancelamento de pedido após pagamento.
-- Bloqueio de cancelamento de pedido entregue.
-- Exclusão de pedido cancelado dos totais.
-- Bloqueio de cancelamento de comanda com pagamento.
-- Bloqueio de cancelamento de comanda com pedido entregue.
-- Rejeição de fechamento com pagamento incompleto ou excedente.
-- Fechamento com pagamento exato e liberação da mesa.
-
-`PaymentPreparationRollbackIntegrationTests`
-
-- Pagamento parcial de `COUNTER` não inicia preparo.
-- Pagamento integral inicia apenas itens preparados elegíveis.
-- Venda mista preserva item direto pronto.
-- Transição repetida não regride itens nem duplica efeito.
-- Falha no início do preparo desfaz o pagamento inteiro.
-
-`CashShiftIntegrationTests`
-
-- Abertura única, saldo inicial e operador autenticado.
-- Associação de pagamentos ao turno aberto.
-- Sangria, suprimento e saldo esperado.
-- Conferência, diferença, observação obrigatória e fechamento.
-- Fechamento sem alterar estados operacionais.
-
-`OperationalConsistencyIntegrationTests`
-
-- Bloqueio de `OCCUPIED` em cadastro e edição manual de mesa.
-- Bloqueio de abertura de comanda em mesa reservada.
-- Controle do estado ocupado pelo ciclo da comanda.
-- Bloqueio de venda de produto pertencente a categoria inativa.
-- Limite de cinco pedidos recentes no Dashboard.
-
-`SecurityAuthorizationIntegrationTests`
-
-- `401` para endpoint protegido sem token.
-- `403` para token válido com perfil inadequado.
-- `KITCHEN` acessa somente a fila e a transição de item em preparo para pronto.
-- `KITCHEN` recebe `403` ao listar pedidos, acessar estoque ou criar, confirmar,
-  cancelar e alterar globalmente um pedido.
-- Itens `DIRECT_SERVICE` não aceitam transições do perfil de preparo.
-- `OWNER` e `ADMIN` preservam seus acessos administrativos.
-- Login inválido rejeitado.
-- Consulta de `/api/auth/me` exige autenticação e não expõe senha.
-- Alteração de senha exige autenticação.
-- Alteração de senha rejeita senha atual inválida.
-- Alteração de senha rejeita confirmação divergente.
-- Alteração de senha rejeita senha igual à atual.
-- Alteração de senha rejeita senha fraca.
-- Alteração de senha válida salva hash BCrypt e invalida a senha antiga.
-- `OWNER` cria `ADMIN` e perfis operacionais, mas não cria outro `OWNER`.
-- `ADMIN` cria somente perfis operacionais.
-- Usuário operacional não cria usuários.
-
-`DataSeederIntegrationTests`
-
-- Criação de usuários seedados a partir de `hubon.seed.owner.*` e
-  `hubon.seed.admin.*`.
-- Senhas seedadas gravadas com BCrypt, nunca em texto puro.
-- Login funcionando com a senha configurada no ambiente de teste.
-- Fluxos explícitos para suco, refrigerante e prato executivo.
-- Variação Padrão e preço mantidos em `product_variants`.
-- Nova execução do seeder não duplica catálogo, usuários, variações ou mesas.
-
-`LegacyDirectServiceMigrationIntegrationTests`
-
-- Itens legados `DIRECT_SERVICE` presos em preparo são corrigidos para `READY`.
-- Pedido somente direto é liberado quando não restam itens pendentes.
-- Pedido misto continua em preparo enquanto houver item preparado pendente.
-- Itens e pedidos cancelados ou entregues permanecem inalterados.
-- Flyway registra a migration V6 como aplicada.
-
-### Dependência do banco
-
-Todas as classes com `@SpringBootTest` ativam `@ActiveProfiles("test")`. O guard
-`IntegrationTestDatabaseGuard` consulta `select current_database()` durante a
-inicialização, antes do Flyway, e aceita somente nomes terminados em `_test` ou
-`-test`. Uma configuração apontando para `hubon_db`, produção ou qualquer outro
-banco encerra o contexto com uma mensagem indicando `TEST_DB_URL`.
+Quando necessário, configure `TEST_DB_URL`, `TEST_DB_USERNAME`,
+`TEST_DB_PASSWORD` e `TEST_HUBON_JWT_SECRET` para um PostgreSQL descartável.
 
 ## Frontend
 
-Instale as dependências antes da primeira execução:
+O Angular usa Vitest pelo builder de testes. A suíte cobre rotas e guards,
+autenticação, temas, Dashboard, Comandas, Balcão, Histórico, Produtos, Estoque,
+Caixa, Relatórios, Usuários e componentes compartilhados.
 
 ```powershell
-npm install
-```
-
-Para executar os testes uma vez:
-
-```powershell
+cd frontend
+npm ci
 npm test -- --watch=false
-```
-
-Para validar tipos dos specs sem abrir o runner:
-
-```powershell
-npx tsc -p tsconfig.spec.json --noEmit
-```
-
-Para manter o runner observando mudanças:
-
-```powershell
-npm test
-```
-
-### Cobertura atual
-
-`app.spec.ts`
-
-- Criação do componente raiz.
-- Renderização da tela de login quando não há sessão.
-- Redirecionamento de rota protegida para login com `returnUrl`.
-- Redirecionamento de rota desconhecida.
-- Acesso autenticado à rota `/minha-conta`.
-
-`auth.service.spec.ts`
-
-- Consulta de `/auth/me` e atualização do usuário salvo na sessão.
-- Envio do payload de alteração de senha para `/auth/change-password`.
-
-`account-page.component.spec.ts`
-
-- Renderização dos dados do usuário autenticado.
-- Alteração de senha com logout e redirecionamento para `/login`.
-
-O build garante que interceptor, guards de rotas e templates compilam.
-
-Na validação de 31/07/2026, o frontend concluiu 73 testes em 21 arquivos sem
-falhas.
-
-Em ambientes de sandbox muito restritivos, o runner Angular pode falhar ao
-resolver arquivos locais com mensagens de acesso negado. Nesse caso, valide em
-um terminal normal do Windows, rode `npx tsc -p tsconfig.spec.json --noEmit`
-para checar tipos dos specs e use o build como verificação adicional.
-
-## Build do frontend
-
-Na pasta `frontend`:
-
-```powershell
 npm run build
 ```
 
-O build deve terminar sem erros e gerar os artefatos em `frontend/dist/`.
+Os testes priorizam regras observáveis: pesquisa local, escolhas, inclusão e
+remoção de itens, quantidade, bloqueio após pagamento, fechamento, vínculos de
+estoque, filtros, downloads e acessibilidade de overlays.
 
-Scripts disponíveis:
+## Auditoria visual
 
-| Comando | Finalidade |
-| --- | --- |
-| `npm start` | Servidor de desenvolvimento em localhost. |
-| `npm run start:network` | Servidor acessível pela rede local. |
-| `npm run build` | Build otimizado de produção. |
-| `npm run visual:audit` | Auditoria automatizada no Microsoft Edge. |
-| `npm run watch` | Build de desenvolvimento em modo observação. |
-| `npm test` | Testes Angular em modo observação. |
-
-## Automação de mídia
-
-Com backend e frontend rodando, configure um usuário `OWNER` ou `ADMIN` somente
-no terminal:
+Com o frontend em execução:
 
 ```powershell
-$env:HUBON_PORTFOLIO_USERNAME="owner"
-$env:HUBON_PORTFOLIO_PASSWORD="senha-local-nao-versionada"
+cd frontend
+npm run visual:audit
 ```
 
-Depois, na pasta `frontend`:
+`frontend/scripts/visual-audit.mjs` usa `playwright-core` e um navegador instalado
+para abrir a aplicação atual com dados controlados, capturar os dois temas e
+registrar overflow, heading, erros de execução e cópias incompatíveis. A saída
+temporária fica em `frontend/dist/visual-audit`.
 
-```powershell
-npm run portfolio:screenshots
-npm run portfolio:video
-```
+Essa automação serve para inspeção visual e geração de screenshots. Ela não é
+uma suíte E2E, não valida regras de negócio e não substitui testes unitários,
+integração ou homologação manual.
 
-O script autentica em `/api/auth/login`, grava a sessão no `localStorage` com a
-mesma chave do frontend e envia `Authorization: Bearer <token>` nas chamadas
-diretas à API. Não salve `HUBON_PORTFOLIO_PASSWORD` em arquivo versionado.
+## CI
 
-## Como interpretar falhas
+O workflow da `main` executa:
 
-- **Falha de conexão com PostgreSQL:** verifique serviço, banco, usuário, senha e
-  variáveis `TEST_DB_URL`, `TEST_DB_USERNAME` e `TEST_DB_PASSWORD`.
-- **Falha do Flyway:** confira se o banco não possui alteração manual conflitante
-  com as migrations.
-- **Falha de regra de negócio:** leia o nome do teste e a mensagem esperada; não
-  ajuste o teste antes de confirmar a regra em
-  [regras-negocio.md](../business/regras-negocio.md).
-- **Falha de contexto Spring:** procure primeiro por propriedades ausentes,
-  consultas inválidas ou mapeamentos JPA incompatíveis.
-- **Falha de TypeScript/template:** execute `npm run build` para obter o arquivo e
-  a linha envolvidos.
-- **Falha no login local:** confirme se o usuário seedado foi criado com as
-  propriedades `hubon.seed.owner.*` ou `hubon.seed.admin.*` e se a senha foi
-  configurada antes da primeira criação desse usuário no banco.
-- **Falha de teste visual ou de rota:** confirme se o mock do serviço e a rota
-  usada pelo teste ainda correspondem à aplicação.
+- backend com Java 21 e PostgreSQL 16;
+- testes e build do frontend com Node.js 22;
+- validação do Compose e construção das imagens.
 
-## Teste manual
+## Escopo por mudança
 
-Depois dos testes automatizados, execute o roteiro em
-[manual-test-flow.md](manual-test-flow.md). Ele valida a integração real entre
-Angular, API e PostgreSQL.
-
-Valide também permissões por perfil:
-
-- Deslogado: abrir `http://localhost:4200` e confirmar redirecionamento para
-  `/login`.
-- `OWNER`: acessar Dashboard, Usuários, Categorias e Produtos.
-- `WAITER`: acessar Mesas e Pedidos, mas não Usuários, Categorias ou Produtos.
-- `ADMIN`: confirmar que não consegue criar `OWNER` nem outro `ADMIN`.
-- `KITCHEN`: entrar em Pedidos, ver apenas itens preparados e marcar somente como pronto.
-- `CASHIER`: acessar Balcão, Comandas, Pedidos e o turno financeiro do Caixa.
-- Logout: confirmar retorno ao login.
-
-## Testes recomendados para a próxima versão
-
-- Banco PostgreSQL descartável com Testcontainers.
-- Testes HTTP dos controllers e do formato de erros.
-- Testes unitários para cálculos de comanda.
-- Testes de acessibilidade dos modais e navegação por teclado.
-- Testes de componentes para Mesas e estados de erro mais amplos.
-- Testes end-to-end do fluxo completo.
-- Testes de CORS e perfis `local`/`prod`.
-- Testes de carga para pedidos, Dashboard e pagamentos concorrentes.
-- Quando o Estoque Inteligente for implementado: conversão de unidades,
-  movimentações atômicas, venda com saldo negativo e alerta, capacidade de
-  produção, concorrência de baixas e estornos idempotentes. O planejamento do
-  módulo está em [stock-management.md](../business/stock-management.md).
-
-## Balcão, relatório e overlays
-
-`CounterSalesAndMonthlyReportsIntegrationTests` cobre comanda sem mesa, rascunho vazio ou com itens, retomada em nova requisição, venda direta, preparada e mista, estoque idempotente, pagamento parcial e total, preparo automático, entrega, finalização, histórico, cancelamento, estorno e agregações mensal e anual. `ReportPdfServiceTests` renderiza os templates Thymeleaf, lê os PDFs resultantes e confirma a ordem empresarial fixa. `CashShiftIntegrationTests`, `PaymentPreparationRollbackIntegrationTests` e `SecurityAuthorizationIntegrationTests` completam turno, atomicidade, 401/403, URL direta e perfis. Todo teste de integração mantém `IntegrationTestDatabaseGuard` e o perfil `test`, apontado exclusivamente para `hubon_test`.
-
-No frontend, as suítes de `counter-page`, `cashier-page`, `orders-page`, `tabs-page`, `products-page`, `payment-dialog`, `counter-activity`, `counter-workflow`, `monthly-report-csv`, `reports-page`, `report-product-sort`, `overlay-stack` e `accessible-dialog` cobrem persistência, pagamento compartilhado, ausência de duplicação no Caixa e em Pedidos, perfil `KITCHEN`, relatórios mensal/anual, CSV, solicitação de PDF, ordenação, ESC, foco e teclado. Os quatro viewports e os temas claro/escuro permanecem na auditoria visual automatizada com Microsoft Edge.
+Mudanças somente em documentação exigem validação de links, formatação, termos,
+imagens e escopo do diff. Não é necessário executar todas as suítes funcionais
+quando nenhum código de aplicação foi alterado.

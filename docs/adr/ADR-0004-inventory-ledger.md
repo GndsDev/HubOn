@@ -1,41 +1,21 @@
-# ADR-0004 Inventory Ledger
+# ADR-0004: Ledger de estoque
 
 Data: 2026-06-25
-Status: Implementado no modulo de estoque
+Status: Aceito e implementado
 
 ## Contexto
 
-O Estoque Inteligente controla itens de estoque, movimentacoes manuais, baixa
-automatica simples por venda e estornos.
+O saldo atual, isoladamente, não explica entradas, vendas, perdas, ajustes e
+reversões.
 
-## Problema
+## Decisão
 
-Atualizar apenas o saldo atual de um insumo nao explica por que a quantidade
-mudou, dificulta auditoria e torna estornos arriscados.
+Registrar toda alteração como `StockMovement`, com tipo, delta, saldo anterior,
+saldo resultante, origem, motivo quando aplicável, responsável e data. O ledger é
+imutável e constitui o histórico oficial.
 
-## Alternativas consideradas
+## Consequências
 
-- Armazenar somente quantidade atual.
-- Recalcular estoque a partir de pedidos e compras.
-- Registrar um ledger de movimentacoes como fonte de verdade.
-
-## Decisao
-
-O estoque deve possuir ledger de movimentacoes como fonte oficial de historico.
-Entradas, saidas, ajustes, perdas e estornos sao registrados como eventos
-auditaveis, com origem manual ou referencia a pedido quando aplicavel.
-
-## Consequencias
-
-- O historico de estoque fica rastreavel.
-- Estornos podem ser representados por movimentos inversos.
-- Relatorios podem explicar origem das quantidades.
-- O modelo exige cuidado transacional e regras claras de idempotencia.
-
-## Status
-
-Implementado para o escopo atual.
-
-## Data
-
-2026-06-25.
+- Movimentos de venda e reversão podem ser associados ao item comercial.
+- Auditoria não depende de reconstruir eventos a partir do saldo final.
+- Operações automáticas e manuais obedecem às mesmas regras de consistência.

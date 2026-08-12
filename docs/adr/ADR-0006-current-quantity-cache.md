@@ -1,41 +1,21 @@
-# ADR-0006 CurrentQuantity Cache
+# ADR-0006: Saldo atual junto ao ledger
 
 Data: 2026-06-25
-Status: Aceito para implementacao futura
+Status: Aceito e implementado
 
 ## Contexto
 
-Consultas operacionais de estoque precisam mostrar rapidamente a quantidade atual
-de cada insumo.
+Recalcular o saldo por todo o ledger em cada tela seria desnecessariamente caro,
+mas armazenar apenas a quantidade atual eliminaria rastreabilidade.
 
-## Problema
+## Decisão
 
-Calcular saldo sempre a partir de todo o ledger pode ficar caro conforme o uso
-cresce, mas armazenar somente o saldo atual remove a rastreabilidade.
+Manter `currentStock` no item de estoque e atualizá-lo na mesma transação que
+grava o `StockMovement`. O ledger preserva a explicação histórica e o saldo
+materializado atende às consultas operacionais.
 
-## Alternativas consideradas
+## Consequências
 
-- Calcular quantidade atual sempre pelo ledger.
-- Manter apenas uma coluna de quantidade atual.
-- Usar ledger como fonte de verdade e uma quantidade atual como cache
-  transacional.
-
-## Decisao
-
-Usar `currentQuantity` como cache derivado, atualizado junto com o ledger dentro
-da mesma transacao. O ledger permanece a fonte de verdade historica.
-
-## Consequencias
-
-- Leituras operacionais ficam mais simples e rapidas.
-- Inconsistencias entre cache e ledger precisam ser detectaveis.
-- Ajustes e estornos devem atualizar ambos de forma transacional.
-- Rotinas futuras de conciliacao podem ser necessarias.
-
-## Status
-
-Aceito para implementacao futura.
-
-## Data
-
-2026-06-25.
+- Leituras são simples e rápidas.
+- Toda entrada, saída, perda, ajuste, venda ou reversão precisa atualizar ambos.
+- Falha em qualquer parte da operação reverte a transação completa.

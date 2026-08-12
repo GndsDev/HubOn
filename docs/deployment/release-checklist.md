@@ -1,77 +1,36 @@
 # Checklist de release
 
-Use esta lista antes de criar uma versão do HubOn.
-
 ## Código e banco
 
-- [ ] Backend compila.
-- [ ] `.\mvnw.cmd test` passa.
-- [ ] Flyway valida todas as migrations.
-- [ ] `ddl-auto` permanece como `validate`.
-- [ ] Nenhuma migration aplicada foi reescrita.
-- [ ] Não existem credenciais reais versionadas.
+- [ ] Branch e commit de entrega confirmados.
+- [ ] Working tree limpo.
+- [ ] Migrations existentes não foram alteradas.
+- [ ] Mudanças de esquema usam uma nova migration.
+- [ ] Nenhum segredo, dump, token ou credencial foi versionado.
 
-## Frontend
+## Validação
 
-- [ ] `npm install` conclui sem erro.
-- [ ] `npm test -- --watch=false` passa em ambiente local.
-- [ ] `npm run build` passa.
-- [ ] Rotas diretas e recarga funcionam.
-- [ ] Rota desconhecida redireciona para Dashboard.
-- [ ] Sidebar desktop e drawer mobile funcionam.
-- [ ] Tema dark e light estão legíveis.
-- [ ] Branding e logo estão corretos.
-- [ ] Favicon aparece após recarga sem cache.
-- [ ] Não existem botões principais sem ação.
-- [ ] Recursos futuros estão desabilitados ou marcados como “em breve”.
-- [ ] Não existem mocks silenciosos nos módulos operacionais.
+- [ ] `backend/.\mvnw.cmd clean verify` concluído.
+- [ ] `frontend/npm test -- --watch=false` concluído.
+- [ ] `frontend/npm run build` concluído.
+- [ ] Compose validado com `.env.example` sem imprimir valores expandidos.
+- [ ] Imagens Docker construídas.
+- [ ] Fluxos principais homologados em tema claro e escuro.
 
-## Fluxo operacional
+## Operação
 
-- [ ] Usuário autenticado aparece corretamente como responsável operacional.
-- [ ] Mesa livre abre uma comanda.
-- [ ] Mesa ocupada não abre segunda comanda.
-- [ ] Pedido é criado com produto ativo.
-- [ ] Pedidos e Balcão mostram os estados individuais de preparo.
-- [ ] A sidebar não mostra uma tela exclusiva de Cozinha.
-- [ ] Pagamento parcial de Balcão não inicia preparo.
-- [ ] Pagamento integral de Balcão inicia automaticamente apenas itens elegíveis.
-- [ ] Caixa abre turno, registra sangria/suprimento e fecha com conferência.
-- [ ] Caixa e Pedidos não exibem formulário próprio de pagamento.
-- [ ] Pedido entregue não pode ser cancelado.
-- [ ] Pagamento válido reduz o saldo.
-- [ ] Pagamento zero ou excedente é rejeitado.
-- [ ] Comanda só fecha com saldo zero.
-- [ ] Mesa volta para Livre após fechamento.
+- [ ] Login por nome de usuário.
+- [ ] Comanda aberta, movimentada, paga e fechada.
+- [ ] Venda de balcão concluída.
+- [ ] Remoção e cancelamento de item verificados separadamente.
+- [ ] Caixa aberto, movimentado e conferido.
+- [ ] Baixa e reversão de estoque verificadas.
+- [ ] Relatórios e exportações verificados.
 
-## Casos negativos
+## Documentação
 
-- [ ] Mesa reservada não abre comanda diretamente.
-- [ ] Mesa desativada não abre comanda.
-- [ ] Produto ou categoria inativa bloqueia nova venda.
-- [ ] Pedido não é cancelado após pagamento da comanda.
-- [ ] Comanda com pagamento não é cancelada.
-- [ ] Comanda com pedido entregue não é cancelada.
-- [ ] Pagamentos concorrentes não excedem o valor final.
-
-## Qualidade
-
-- [ ] Modais principais fecham com `Escape`.
-- [ ] Foco inicial e restauração de foco funcionam.
-- [ ] Botões de ícone possuem nome acessível.
-- [ ] Layout não apresenta rolagem horizontal inesperada.
-- [ ] Estados de loading, erro e vazio são compreensíveis.
-- [ ] Console do navegador não apresenta erros inesperados.
-- [ ] API não registra exceções inesperadas durante o roteiro manual.
-
-## Documentação e entrega
-
-- [ ] README está atualizado.
-- [ ] Endpoints estão atualizados.
-- [ ] Regras de negócio estão atualizadas.
-- [ ] Status do MVP corresponde ao que foi entregue.
-- [ ] Roteiro manual foi executado.
-- [ ] Notas de segurança foram revisadas.
-- [ ] Alterações da versão foram resumidas.
-- [ ] Tag de release foi criada.
-
+- [ ] README e índice atualizados.
+- [ ] API, banco, regras e implantação coerentes com a entrega.
+- [ ] Links locais válidos.
+- [ ] Capturas representam a `main` e não contêm dados sensíveis.
+- [ ] Termos e fluxos removidos não aparecem como funcionalidades atuais.

@@ -1,92 +1,59 @@
-# Controle de estoque híbrido
+# Estoque
 
-Status: implementado para operação manual e baixa automática simples por venda.
+## Itens controlados
 
-## Modos de controle
+`StockItem` representa um item físico com:
 
-`MANUAL` atende ingredientes e itens de consumo variável. Pedidos não alteram
-seu saldo. A operação usa entrada, saída, perda e ajuste.
+- nome e descrição opcional;
+- unidade `KG`, `G`, `L`, `ML`, `UN`, `CX`, `PACKAGE` ou `TRAY`;
+- saldo atual;
+- estoque mínimo;
+- situação derivada (`NORMAL`, `LOW_STOCK` ou `OUT_OF_STOCK`);
+- atividade.
 
-`DIRECT_SALE` atende bebidas e mercadorias prontas. Uma variação pode ter um
-vínculo ativo com um item desse modo e informar `quantityPerSale`.
+Saldos e mínimos usam três casas decimais. O sistema não permite saldo negativo.
 
-## Vínculo por variação
+## Ledger de movimentos
 
-O vínculo pertence à `ProductVariant`, nunca ao produto base. Regras:
+Toda alteração gera um `StockMovement` com saldo anterior, delta, saldo
+resultante, responsável, data e motivo quando aplicável.
 
-- no máximo um vínculo ativo por variação;
-- variação, produto e item de estoque ativos;
-- item obrigatoriamente `DIRECT_SALE`;
-- quantidade por venda maior que zero;
-- remoção apenas desativa o vínculo e preserva histórico;
-- unidade não muda após existir movimentação;
-- item vinculado não pode ser desativado nem convertido para `MANUAL`.
+| Tipo | Uso |
+| --- | --- |
+| `ENTRY` | entrada manual |
+| `EXIT` | saída manual |
+| `LOSS` | perda manual com motivo obrigatório |
+| `ADJUSTMENT` | ajuste para um novo saldo com motivo obrigatório |
+| `SALE` | baixa automática de venda |
+| `SALE_REVERSAL` | devolução gerada por redução, remoção ou cancelamento |
 
-## Confirmação do pedido
-
-A baixa automática ocorre em `POST /api/orders/{id}/confirm`, na mesma
-transação da confirmação. Para cada item:
-
-```text
-quantidade movimentada = quantidade vendida * quantityPerSale
-```
-
-O serviço agrega necessidades pelo item de estoque, ordena os IDs, aplica lock
-pessimista e valida todos os saldos antes de gravar. Se faltar saldo, a
-confirmação inteira é revertida e a mensagem consolida os produtos afetados,
-saldo disponível, necessário e unidade formatada.
-
-Cada baixa grava `SALE`, saldos anterior/resultante, usuário autenticado,
-pedido, item do pedido, motivo e origem `ORDER_ITEM`. O índice único por
-`ingredient_id + order_item_id + SALE` e a validação do serviço garantem
-idempotência.
-
-O endpoint legado `send-to-kitchen` delega temporariamente para a confirmação,
-mas não define mais a regra de estoque.
-
-## Cancelamento e estorno
-
-Cancelamento exige motivo. Uma venda automática já baixada gera `REVERSAL` com
-a quantidade exata da `SALE`, usuário autenticado, pedido, item e origem
-`ORDER_CANCELLATION`. A venda original permanece no ledger.
-
-Cancelar novamente não duplica estorno. Item sem baixa apenas muda para
-`CANCELED`. Cancelamento total processa todos os itens na mesma transação.
-Pedidos entregues, comandas fechadas ou comandas com pagamentos seguem as
-restrições financeiras existentes.
+O ledger é somente leitura. O `currentStock` funciona como saldo operacional e é
+atualizado junto com o movimento na mesma transação.
 
 ## Movimentações manuais
 
-- `ENTRY`: aumenta o saldo;
-- `EXIT`: reduz o saldo sem permitir resultado negativo;
-- `LOSS`: reduz com motivo obrigatório;
-- `ADJUSTMENT`: registra o saldo físico encontrado e exige motivo.
+Entradas, saídas e perdas exigem quantidade positiva. Ajuste recebe o novo saldo,
+que deve ser diferente do atual. Perda e ajuste exigem motivo; entrada e saída
+aceitam motivo opcional.
 
-Todas usam `BigDecimal`, lock pessimista, usuário autenticado e saldos
-anterior/resultante. Movimentações automáticas não têm edição ou exclusão.
+## Baixa automática
 
-## Interface
+`ProductStockLink` relaciona um produto a um item de estoque e define
+`quantityPerSale`. Existe no máximo um vínculo ativo por produto.
 
-A tela mantém resumos, busca, filtros, cadastro, histórico e ações por menu de
-três pontos. O menu é um overlay fixo fora da linha, calculado pelo botão:
+`ProductOptionStockLink` faz o mesmo para uma escolha e define
+`quantityPerSelection`. Existe no máximo um vínculo ativo por escolha.
 
-- abre acima quando não há espaço inferior;
-- limita altura e permite scroll;
-- corrige posição horizontal para não sair da viewport;
-- fecha por clique externo ou `Escape`;
-- oferece foco visível e navegação por teclado;
-- usa tokens dos temas claro e escuro.
+Ao adicionar um item à venda, os consumos do produto e das escolhas selecionadas
+são somados por item de estoque e lançados como `SALE`. Alterações de quantidade
+geram deltas. Remoção ou cancelamento gera `SALE_REVERSAL` referenciando o
+movimento original quando aplicável.
 
-Saída manual mostra saldo atual, quantidade e saldo previsto, bloqueando valor
-superior ao disponível. Sugestões de motivo continuam editáveis.
+Se faltar saldo ou o item vinculado estiver inativo, a operação comercial é
+interrompida antes de deixar dados inconsistentes.
 
-## Unidades
+## Escopo
 
-O formatter central apresenta `kg`, `g`, `L`, `mL`, `UN`, `CX`, `Pacote` e
-`Bandeja` sem alterar os enums persistidos.
-
-## Limites
-
-Não há receita multi-ingrediente, ficha técnica, produção, conversão automática
-de unidades, compras, fornecedores, lotes, validade, múltiplos depósitos ou
-custo médio.
+O controle automático é deliberadamente simples. Não existem ficha técnica,
+receitas com múltiplos componentes, compras, fornecedores, rendimento ou
+conversão automática de unidades.

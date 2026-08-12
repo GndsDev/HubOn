@@ -1,33 +1,16 @@
-# API: [Nome do endpoint ou recurso]
+# API: [recurso]
 
-## Endpoint
+## Objetivo
 
-`/api/...`
+[Problema resolvido pelo endpoint.]
 
-## Método
+## Contrato
 
-`GET | POST | PUT | PATCH | DELETE`
+- Método: `GET | POST | PUT | PATCH | DELETE`
+- Caminho: `/api/...`
+- Acesso: `OWNER | ADMIN | outro perfil realmente autorizado`
 
-## Permissões
-
-Perfis autorizados:
-
-- `OWNER`
-- `ADMIN`
-- `WAITER`
-- `KITCHEN`
-- `CASHIER`
-
-## Request
-
-### Headers
-
-```http
-Authorization: Bearer <token>
-Content-Type: application/json
-```
-
-### Body
+### Request
 
 ```json
 {
@@ -35,11 +18,7 @@ Content-Type: application/json
 }
 ```
 
-## Response
-
-### Sucesso
-
-Status esperado: `200 OK`
+### Response
 
 ```json
 {
@@ -47,33 +26,16 @@ Status esperado: `200 OK`
 }
 ```
 
-## Erros
+## Regras e erros
 
-- `400 Bad Request`: requisição inválida.
-- `401 Unauthorized`: usuário não autenticado.
-- `403 Forbidden`: usuário sem permissão.
-- `404 Not Found`: recurso não encontrado.
-- `409 Conflict`: conflito com regra de negócio ou estado atual.
+- [Validações e invariantes.]
+- `400`: dados ou estado inválido.
+- `401`: autenticação necessária.
+- `403`: acesso negado.
+- `404`: recurso ausente.
+- `409`: integridade ou concorrência.
 
-## Regras
+## Validação
 
-Liste regras de negócio e validações aplicadas pelo endpoint.
-
-- 
-
-## Exemplos
-
-### Requisição
-
-```http
-POST /api/exemplo
-```
-
-### Resposta
-
-```json
-{
-  "mensagem": "exemplo"
-}
-```
-
+- [Teste automatizado.]
+- [Cenário de homologação.]
