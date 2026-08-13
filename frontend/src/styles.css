@@ -512,7 +512,6 @@ a {
 }
 
 .sidebar-brand-copy strong,
-.sidebar-brand-copy span,
 .operator-chip small,
 .operator-chip strong,
 .operator-chip select {
@@ -531,13 +530,8 @@ a {
   letter-spacing: 0;
 }
 
-.sidebar-brand-copy span {
-  color: var(--color-text-muted);
-}
-
 .sidebar-card span,
 .sidebar-card small,
-.topbar-title span,
 .page-kicker,
 .page-header p,
 .section-card-header span,
@@ -771,17 +765,9 @@ a {
   display: none;
 }
 
-.topbar-title {
-  min-width: 0;
-}
-
-.topbar-title strong {
-  color: #f8fafc;
-  font-size: 1rem;
-}
-
 .topbar-actions {
   gap: 0.75rem;
+  margin-left: auto;
 }
 
 .local-status {
@@ -6305,7 +6291,6 @@ app-report-product-sort {
 }
 
 :root[data-theme="light"] .sidebar-card strong,
-:root[data-theme="light"] .topbar-title strong,
 :root[data-theme="light"] .operator-chip strong,
 :root[data-theme="light"] .operator-chip select,
 :root[data-theme="light"] .page-header h1,
@@ -6808,7 +6793,6 @@ app-report-product-sort {
 }
 
 .sidebar-card strong,
-.topbar-title strong,
 .operator-chip strong,
 .operator-chip select,
 .account-identity strong,
@@ -6845,7 +6829,6 @@ app-report-product-sort {
 .order-card-footer > strong,
 .payment-history strong,
 :root[data-theme="light"] .sidebar-card strong,
-:root[data-theme="light"] .topbar-title strong,
 :root[data-theme="light"] .operator-chip strong,
 :root[data-theme="light"] .operator-chip select,
 :root[data-theme="light"] .account-identity strong,
@@ -7749,8 +7732,7 @@ app-report-product-sort {
     padding: 0 1rem;
   }
 
-  .operator-chip small,
-  .topbar-title {
+  .operator-chip small {
     display: none;
   }
 

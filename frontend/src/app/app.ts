@@ -55,7 +55,6 @@ export class App {
 
   readonly navOpen = signal(false);
   readonly sidebarCollapsed = signal(false);
-  readonly currentLabel = signal('Dashboard');
   readonly currentPath = signal('/');
 
   readonly theme = this.themeService.theme;
@@ -112,15 +111,15 @@ export class App {
           roles: ['OWNER', 'ADMIN'],
         },
         {
-          path: '/historico',
-          label: 'Histórico',
-          icon: 'pi pi-history',
-          roles: ['OWNER', 'ADMIN'],
-        },
-        {
           path: '/balcao',
           label: 'Balcão',
           icon: 'pi pi-shopping-bag',
+          roles: ['OWNER', 'ADMIN'],
+        },
+        {
+          path: '/historico',
+          label: 'Histórico',
+          icon: 'pi pi-history',
           roles: ['OWNER', 'ADMIN'],
         },
       ],
@@ -223,15 +222,6 @@ export class App {
                 `${navItem.path}/`,
               ),
           );
-
-        this.currentLabel.set(
-          item?.label ??
-            (
-              currentPath === '/minha-conta'
-                ? 'Minha Conta'
-                : 'Dashboard'
-            ),
-        );
 
         this.navOpen.set(false);
 

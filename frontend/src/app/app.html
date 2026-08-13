@@ -5,7 +5,7 @@
   <main class="hub-shell" [class.sidebar-collapsed]="sidebarCollapsed()">
     <aside class="hub-sidebar" [class.open]="navOpen()" [class.collapsed]="sidebarCollapsed()">
       <div class="sidebar-header">
-        <div class="sidebar-brand" aria-label="HubOn, operação local">
+        <div class="sidebar-brand" aria-label="HubOn">
           <img
             class="sidebar-brand-logo"
             src="assets/brand/logo-hubon.png"
@@ -16,7 +16,6 @@
           />
           <div class="sidebar-brand-copy">
             <strong>HubOn</strong>
-            <span>Operação local</span>
           </div>
         </div>
         <button
@@ -71,10 +70,6 @@
         <button type="button" class="mobile-menu-button" (click)="toggleNav()" aria-label="Abrir menu">
           <i class="pi pi-bars"></i>
         </button>
-
-        <div class="topbar-title">
-          <strong>{{ currentLabel() }}</strong>
-        </div>
 
         <div class="topbar-actions">
           <button
