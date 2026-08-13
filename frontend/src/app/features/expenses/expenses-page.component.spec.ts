@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ExpenseApiService } from '../../core/services/expense-api.service';
@@ -11,18 +12,18 @@ import { ExpensesPageComponent } from './expenses-page.component';
 const expense: Expense = {
   id: 42,
   expenseDate: '2026-08-12',
-  description: 'Compra de Coca-Cola',
+  description: 'Compra de Cerveja Lata',
   category: 'BEVERAGE',
-  supplier: 'Distribuidora local',
+  supplier: 'Distribuidora Central',
   valueMode: 'DETAILED',
   quantity: 2,
   unit: 'CX',
-  unitPrice: 60,
-  totalAmount: 120,
+  unitPrice: 42,
+  totalAmount: 84,
   paymentMethod: 'PIX',
-  status: 'PENDING',
+  status: 'PAID',
   stockItemId: 7,
-  stockItemName: 'Coca-Cola 350ml',
+  stockItemName: 'Cerveja Lata',
   stockItemUnit: 'UN',
   stockQuantity: 24,
   stockMovementId: 91,
@@ -34,21 +35,40 @@ const expense: Expense = {
 
 const response: ExpenseListResponse = {
   summary: {
-    totalAmount: 120,
-    paidAmount: 0,
-    pendingAmount: 120,
-    stockPurchaseAmount: 120,
-    expenseCount: 1,
+    totalAmount: 1264,
+    paidAmount: 1084,
+    pendingAmount: 180,
+    stockPurchaseAmount: 234,
+    expenseCount: 4,
   },
   items: [expense],
 };
 
+const energyExpense: Expense = {
+  ...expense,
+  id: 43,
+  description: 'Conta de energia',
+  category: 'UTILITIES',
+  supplier: null,
+  valueMode: 'DIRECT',
+  quantity: null,
+  unit: null,
+  unitPrice: null,
+  totalAmount: 850,
+  status: 'PAID',
+  stockItemId: null,
+  stockItemName: null,
+  stockItemUnit: null,
+  stockQuantity: null,
+  stockMovementId: null,
+};
+
 const stockItem: StockItem = {
   id: 7,
-  name: 'Coca-Cola 350ml',
+  name: 'Cerveja Lata',
   description: null,
   unit: 'UN',
-  currentStock: 24,
+  currentStock: 34,
   minimumStock: 10,
   status: 'NORMAL',
   active: true,
@@ -90,7 +110,13 @@ describe('ExpensesPageComponent', () => {
     instance.ngOnInit();
 
     expect(instance.expenses()).toEqual([expense]);
-    expect(instance.summary().pendingAmount).toBe(120);
+    expect(instance.summary()).toEqual({
+      totalAmount: 1264,
+      paidAmount: 1084,
+      pendingAmount: 180,
+      stockPurchaseAmount: 234,
+      expenseCount: 4,
+    });
     expect(instance.stockItems()).toEqual([stockItem]);
     expect(instance.loading()).toBe(false);
   });
@@ -103,7 +129,7 @@ describe('ExpensesPageComponent', () => {
       category: 'BEVERAGE',
       status: 'PENDING',
       paymentMethod: 'PIX',
-      search: ' coca ',
+      search: ' cerveja ',
     };
 
     instance.load();
@@ -114,7 +140,7 @@ describe('ExpensesPageComponent', () => {
       category: 'BEVERAGE',
       status: 'PENDING',
       paymentMethod: 'PIX',
-      search: 'coca',
+      search: 'cerveja',
     });
   });
 
@@ -122,11 +148,43 @@ describe('ExpensesPageComponent', () => {
     const instance = component();
     instance.openCreate();
     instance.setValueMode('DETAILED');
-    instance.form.quantity = 2.5;
-    instance.form.unitPrice = 12.34;
+    instance.form.quantity = 5;
+    instance.form.unitPrice = 36.9;
 
-    expect(instance.calculatedTotal()).toBeCloseTo(30.85);
-    expect(instance.detailedCalculation()).toContain('2,5');
+    expect(instance.calculatedTotal()).toBeCloseTo(184.5);
+    expect(instance.detailedCalculation()).toContain('5');
+
+    instance.form.quantity = 12.5;
+    instance.form.unitPrice = 34.9;
+    expect(instance.calculatedTotal()).toBeCloseTo(436.25);
+  });
+
+  it('creates a direct paid expense without a stock entry', () => {
+    const instance = component();
+    api.create.mockReturnValueOnce(of(energyExpense));
+    instance.openCreate();
+    instance.form = {
+      ...instance.form,
+      expenseDate: '2026-08-12',
+      description: ' Conta de energia ',
+      category: 'UTILITIES',
+      supplier: null,
+      valueMode: 'DIRECT',
+      totalAmount: 850,
+      paymentMethod: 'PIX',
+      status: 'PAID',
+      generateStockEntry: false,
+    };
+
+    instance.save();
+
+    expect(api.create).toHaveBeenCalledWith(expect.objectContaining({
+      description: 'Conta de energia',
+      totalAmount: 850,
+      quantity: null,
+      stockItemId: null,
+      stockQuantity: null,
+    }));
   });
 
   it('creates an expense with optional stock integration', () => {
@@ -136,14 +194,15 @@ describe('ExpensesPageComponent', () => {
     instance.form = {
       ...instance.form,
       expenseDate: '2026-08-12',
-      description: ' Compra de Coca-Cola ',
+      description: ' Compra de Cerveja Lata ',
       category: 'BEVERAGE',
+      supplier: ' Distribuidora Central ',
       valueMode: 'DETAILED',
       quantity: 2,
       unit: 'CX',
-      unitPrice: 60,
+      unitPrice: 42,
       paymentMethod: 'PIX',
-      status: 'PENDING',
+      status: 'PAID',
       generateStockEntry: true,
       stockItemId: 7,
       stockQuantity: 24,
@@ -152,8 +211,13 @@ describe('ExpensesPageComponent', () => {
     instance.save();
 
     expect(api.create).toHaveBeenCalledWith(expect.objectContaining({
-      description: 'Compra de Coca-Cola',
+      description: 'Compra de Cerveja Lata',
+      supplier: 'Distribuidora Central',
       totalAmount: null,
+      quantity: 2,
+      unitPrice: 42,
+      paymentMethod: 'PIX',
+      status: 'PAID',
       generateStockEntry: true,
       stockItemId: 7,
       stockQuantity: 24,
@@ -176,19 +240,91 @@ describe('ExpensesPageComponent', () => {
     expect(api.create).not.toHaveBeenCalled();
   });
 
+  it('shows an inactive stock error without reporting a successful expense', () => {
+    const instance = component();
+    api.create.mockReturnValueOnce(throwError(() => new HttpErrorResponse({
+      status: 422,
+      error: { message: 'Item de estoque esta inativo: Cerveja Lata' },
+    })));
+    instance.stockItems.set([stockItem]);
+    instance.openCreate();
+    instance.form = {
+      ...instance.form,
+      description: 'Compra de Cerveja Lata',
+      category: 'BEVERAGE',
+      valueMode: 'DETAILED',
+      quantity: 2,
+      unit: 'CX',
+      unitPrice: 42,
+      paymentMethod: 'PIX',
+      status: 'PAID',
+      generateStockEntry: true,
+      stockItemId: 7,
+      stockQuantity: 24,
+    };
+
+    instance.save();
+
+    expect(feedback.error).toHaveBeenCalledWith('Item de estoque esta inativo: Cerveja Lata');
+    expect(feedback.success).not.toHaveBeenCalled();
+    expect(instance.formOpen()).toBe(true);
+    expect(instance.saving()).toBe(false);
+  });
+
+  it('allows changing the amount of a simple expense', () => {
+    const instance = component();
+    api.update.mockReturnValueOnce(of({ ...energyExpense, totalAmount: 850 }));
+    instance.openEdit({ ...energyExpense, totalAmount: 800 });
+    instance.form.totalAmount = 850;
+
+    expect(instance.stockHistoryLocked()).toBe(false);
+    instance.save();
+
+    expect(api.update).toHaveBeenCalledWith(43, expect.objectContaining({
+      totalAmount: 850,
+      generateStockEntry: false,
+    }));
+  });
+
   it('keeps linked stock history locked while allowing status updates', () => {
     const instance = component();
     instance.openEdit(expense);
 
     expect(instance.stockHistoryLocked()).toBe(true);
-    instance.form.status = 'PAID';
+    instance.setValueMode('DIRECT');
+    expect(instance.form.valueMode).toBe('DETAILED');
+    instance.form.status = 'PENDING';
     instance.save();
 
     expect(api.update).toHaveBeenCalledWith(42, expect.objectContaining({
-      status: 'PAID',
+      status: 'PENDING',
+      quantity: 2,
+      unit: 'CX',
+      unitPrice: 42,
       stockItemId: 7,
       stockQuantity: 24,
     }));
+  });
+
+  it('keeps the current linked item visible when it is no longer active', () => {
+    const instance = component();
+    instance.stockItems.set([]);
+    instance.openEdit(expense);
+
+    expect(instance.activeStockItems()).toEqual([
+      expect.objectContaining({ id: 7, name: 'Cerveja Lata', active: false }),
+    ]);
+  });
+
+  it('renders both desktop and compact layouts with the same current expense', () => {
+    const fixture = TestBed.createComponent(ExpensesPageComponent);
+    fixture.detectChanges();
+    const page: HTMLElement = fixture.nativeElement;
+
+    expect(page.querySelector('.expense-table')).not.toBeNull();
+    expect(page.querySelector('.expense-mobile-list')).not.toBeNull();
+    expect(page.textContent).toContain('Compra de Cerveja Lata');
+    expect(page.textContent).toContain('R$\u00a01.264,00');
   });
 
   it('shows API errors and translates statuses', () => {

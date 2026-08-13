@@ -33,6 +33,7 @@ class SecurityAuthorizationIntegrationTests {
     private String ownerUsername;
     private String adminUsername;
     private String waiterUsername;
+    private String cashierUsername;
     private String kitchenUsername;
 
     @BeforeEach
@@ -40,6 +41,7 @@ class SecurityAuthorizationIntegrationTests {
         ownerUsername = user("OWNER");
         adminUsername = user("ADMIN");
         waiterUsername = user("WAITER");
+        cashierUsername = user("CASHIER");
         kitchenUsername = user("KITCHEN");
     }
 
@@ -82,11 +84,20 @@ class SecurityAuthorizationIntegrationTests {
 
     @Test
     void expensesAreRestrictedToOwnerAndAdmin() throws Exception {
+        mockMvc.perform(get("/api/expenses"))
+                .andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/expenses").header("Authorization", bearer(token(ownerUsername))))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/expenses").header("Authorization", bearer(token(adminUsername))))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/expenses").header("Authorization", bearer(token(waiterUsername))))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/expenses").header("Authorization", bearer(token(cashierUsername))))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/expenses")
+                        .header("Authorization", bearer(token(cashierUsername)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
                 .andExpect(status().isForbidden());
         mockMvc.perform(post("/api/expenses")
                         .header("Authorization", bearer(token(kitchenUsername)))
