@@ -12,10 +12,23 @@ app-expenses-page { display: grid; min-width: 0; align-content: start; gap: var(
 .expense-surface { display: grid; min-width: 0; gap: var(--space-xl); border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--surface-card-bg); box-shadow: var(--shadow-card); padding: var(--space-xl); }
 .expense-filters { display: grid; grid-template-columns: repeat(5, minmax(8.5rem, 1fr)) minmax(13rem, 1.5fr) auto; align-items: end; gap: var(--space-sm); }
 .expense-search .search-box, .expense-search .search-box input { width: 100%; }
+.expense-search .search-box { min-height: 2.75rem; }
+.expense-search .search-box input,
+.expense-search .search-box input:focus {
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
 .expense-filter-actions { display: flex; gap: var(--space-xs); align-items: center; }
 .expense-loading { display: flex; min-height: 12rem; align-items: center; justify-content: center; gap: var(--space-sm); color: var(--color-text-muted); }
 .expense-table table { min-width: 78rem; }
-.expense-table th:last-child, .expense-table td:last-child { position: sticky; right: 0; background: var(--surface-card-strong-bg); }
+.expense-table th:last-child, .expense-table td:last-child { position: sticky; right: 0; box-shadow: -1px 0 0 var(--color-border-soft); }
+.expense-table th:last-child { background: var(--surface-control-muted-bg); }
+.expense-table td:last-child { background: var(--surface-subtle-bg); }
 .stock-linked { display: inline-flex; max-width: 12rem; align-items: center; gap: .4rem; color: var(--color-success-text); font-size: .82rem; }
 .stock-linked i { flex: 0 0 auto; }
 .muted-value { color: var(--color-text-soft); font-size: .82rem; }
