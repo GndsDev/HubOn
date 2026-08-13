@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 @Component
 @RequiredArgsConstructor
@@ -37,25 +38,25 @@ public class InitialCatalogSeeder {
 
     private static final BigDecimal ONE = BigDecimal.ONE;
     private static final List<String> SKEWERS = List.of(
-            "Picanha montada",
-            "Carne de sol",
-            "Contra filé",
+            "Picanha Montada",
+            "Carne de Sol",
+            "Contra Filé",
             "Cupim",
             "Kafta",
-            "Kafta com mussarela",
-            "Medalhão de carne",
-            "Suína gourmet",
-            "Meio asa",
-            "Pão de alho",
-            "Panceta suína",
-            "Alcatra magra",
+            "Kafta com Mussarela",
+            "Medalhão de Carne",
+            "Suína Gourmet",
+            "Meio Asa",
+            "Pão de Alho",
+            "Panceta Suína",
+            "Alcatra Magra",
             "Coração",
-            "Linguiça com pimenta",
-            "Linguiça toscana",
-            "Medalhão de frango",
-            "Peito de frango",
-            "Queijo coalho",
-            "Queijo provolone"
+            "Linguiça com Pimenta",
+            "Linguiça Toscana",
+            "Medalhão de Frango",
+            "Peito de Frango",
+            "Queijo Coalho",
+            "Queijo Provolone"
     );
     private static final List<String> SEPARATED_PORTIONS = List.of(
             "Arroz branco (grande)",
@@ -85,6 +86,9 @@ public class InitialCatalogSeeder {
         User seedOwner = userRepository.getReferenceById(owner.getId());
         migratePreviousDemoCatalog();
         migrateSeparatedPortions();
+        migrateCurrentMenuCategoryOrder();
+        migrateCurrentMenuCatalog();
+        migrateCurrentMenuChoices();
 
         Map<String, Category> categories = new HashMap<>();
         categoryRepository.findAll().forEach(category -> categories.put(key(category.getName()), category));
@@ -311,6 +315,97 @@ public class InitialCatalogSeeder {
                 .forEach(item -> item.setActive(false));
     }
 
+    private void migrateCurrentMenuCatalog() {
+        List<Product> products = productRepository.findAll();
+        List<StockItem> stockItems = stockItemRepository.findAll();
+        for (ProductMigration migration : currentMenuMigrations()) {
+            products.stream()
+                    .filter(product -> hasCategory(product, migration.currentCategory()))
+                    .filter(product -> product.getName().equalsIgnoreCase(migration.currentName()))
+                    .filter(product -> Objects.equals(product.getDescription(), migration.currentDescription()))
+                    .filter(product -> product.getPrice().compareTo(money(migration.currentPrice())) == 0)
+                    .forEach(product -> {
+                        product.setCategory(category(migration.targetCategory()));
+                        product.setName(migration.targetName());
+                        product.setDescription(migration.targetDescription());
+                        product.setPrice(money(migration.targetPrice()));
+                    });
+
+            stockItems.stream()
+                    .filter(item -> item.getName().equalsIgnoreCase(migration.currentName()))
+                    .filter(item -> ("Controle unitário do produto " + migration.currentName())
+                            .equalsIgnoreCase(item.getDescription()))
+                    .forEach(item -> {
+                        item.setName(migration.targetName());
+                        item.setDescription("Controle unitário do produto " + migration.targetName());
+                    });
+        }
+    }
+
+    private void migrateCurrentMenuCategoryOrder() {
+        Map<String, Integer> previousOrders = Map.of(
+                key("Porções"), 1,
+                key("Espetinhos"), 2,
+                key("Bebidas"), 3,
+                key("Drinks"), 4,
+                key("Caldos"), 5
+        );
+        categoryRepository.findAll().forEach(category -> {
+            Integer previousOrder = previousOrders.get(key(category.getName()));
+            if (previousOrder != null && category.getDisplayOrder().equals(previousOrder)) {
+                category.setDisplayOrder(previousOrder + 1);
+            }
+        });
+    }
+
+    private void migrateCurrentMenuChoices() {
+        Map<String, String> skewerNames = new HashMap<>();
+        SKEWERS.forEach(name -> skewerNames.put(key(name), name));
+
+        optionRepository.findAll().forEach(option -> {
+            ProductOptionGroup group = option.getGroup();
+            Product product = group.getProduct();
+            if (!hasCategory(product, "Pratos")) return;
+
+            if ("Escolha o feijão".equalsIgnoreCase(group.getName())) {
+                if ("Feijão tropeiro".equalsIgnoreCase(option.getName())) {
+                    option.setName("Tropeiro");
+                } else if ("Feijão de caldo".equalsIgnoreCase(option.getName())) {
+                    option.setName("De caldo");
+                } else if ("Jantinha Completa".equalsIgnoreCase(product.getName())
+                        && "Nenhum".equalsIgnoreCase(option.getName())) {
+                    option.setActive(false);
+                    optionStockLinkRepository.findByProductOptionIdAndActiveTrue(option.getId())
+                            .ifPresent(link -> link.setActive(false));
+                }
+                return;
+            }
+
+            if ("Escolha o espeto".equalsIgnoreCase(group.getName())) {
+                String normalizedName = skewerNames.get(key(option.getName()));
+                if (normalizedName != null) option.setName(normalizedName);
+            }
+        });
+    }
+
+    private Category category(String name) {
+        return categoryRepository.findAll().stream()
+                .filter(category -> category.getName().equalsIgnoreCase(name))
+                .findFirst()
+                .orElseGet(() -> categoryRepository.save(Category.builder()
+                        .name(name)
+                        .displayOrder("Petiscos".equalsIgnoreCase(name)
+                                ? 1
+                                : categoryRepository.findAll().size())
+                        .active(true)
+                        .build()));
+    }
+
+    private boolean hasCategory(Product product, String categoryName) {
+        return product.getCategory() != null
+                && product.getCategory().getName().equalsIgnoreCase(categoryName);
+    }
+
     private void deactivateSeedProduct(Product product) {
         product.setActive(false);
         product.setAvailable(false);
@@ -327,20 +422,25 @@ public class InitialCatalogSeeder {
     private static List<CategorySeed> catalog() {
         return List.of(
                 category("Pratos",
-                        item("Jantinha completa", "Arroz branco, feijão tropeiro ou de caldo, mandioca, vinagrete e 1 espeto", "30.00", 20, 5, false,
+                        item("Jantinha Completa", "Arroz branco, feijão tropeiro ou de caldo, mandioca, vinagrete e 1 espeto", "34.90", 20, 5, false,
                                 beanChoice(), skewerChoice()),
-                        item("Carreteiro completo", "Arroz carreteiro, feijão tropeiro ou de caldo, mandioca, vinagrete e 1 espeto", "30.00", 20, 5, false,
-                                beanChoice(), skewerChoice())),
+                        item("Carreteiro Completo", "Arroz carreteiro, feijão tropeiro ou de caldo, mandioca, vinagrete e 1 espeto", "34.90", 20, 5, false,
+                                beanChoice(), skewerChoice()),
+                        item("Jantinha Sem Espeto", "Arroz branco, feijão tropeiro ou de caldo, mandioca e vinagrete", "22.00", 20, 5, false,
+                                beanChoice()),
+                        item("Choripan", "1 espeto de preferência, molho da casa, tomate, cebola e mussarela", "25.00", 15, 5, false,
+                                skewerChoice())),
+                category("Petiscos",
+                        item("Batata frita 500 gramas", null, "25.00", 15, 5, false),
+                        item("Frango a passarinho", null, "35.00", 15, 5, false)),
                 category("Porções",
-                        item("Batata frita 500g", null, "25.00", 15, 5, false),
-                        item("Frango a passarinho", null, "35.00", 15, 5, false),
-                        sizedPortion("Arroz branco"),
-                        sizedPortion("Arroz com carne"),
-                        sizedPortion("Feijão tropeiro"),
+                        sizedPortion("Arroz Branco"),
+                        sizedPortion("Arroz com Carne"),
+                        sizedPortion("Feijão Tropeiro"),
                         sizedPortion("Mandioca"),
                         sizedPortion("Vinagrete")),
                 category("Espetinhos", SKEWERS.stream()
-                        .map(name -> item(name, null, "12.00", 25, 5, true))
+                        .map(name -> item(name, null, "12.90", 25, 5, true))
                         .toArray(ProductSeed[]::new)),
                 category("Bebidas",
                         item("Antarctica 600ml", null, "12.00", 24, 8, true),
@@ -351,20 +451,21 @@ public class InitialCatalogSeeder {
                         item("Amstel long neck", null, "10.00", 24, 8, true),
                         item("Corona long neck", null, "10.00", 24, 8, true),
                         item("Heineken long neck", null, "10.00", 24, 8, true),
-                        item("Água com gás", null, "5.00", 24, 8, true),
-                        item("Água natural", null, "4.00", 30, 8, true),
+                        item("Long Neck", null, "10.00", 24, 8, true),
+                        item("Cerveja Lata", null, "7.00", 24, 8, true),
+                        item("Água com Gás", null, "5.00", 24, 8, true),
+                        item("Água Natural", null, "4.00", 30, 8, true),
                         item("Água de coco", null, "5.00", 18, 5, true),
                         item("Coca-Cola KS", null, "5.00", 24, 8, true),
                         item("Refrigerante 2L", null, "12.00", 12, 3, true),
                         item("ICE", null, "10.00", 24, 5, true),
                         item("H2O", null, "8.00", 24, 8, true),
-                        item("Refrigerante 600ml", null, "7.00", 24, 8, true),
-                        item("Refrigerante lata", "Lata 350ml", "5.00", 24, 8, true),
-                        item("Suco lata", null, "5.00", 24, 5, true),
-                        item("Suco de laranja 300ml", null, "5.00", 18, 5, true),
+                        item("Refri 600ml", null, "10.00", 24, 8, true),
+                        item("Refri Lata", null, "7.00", 24, 8, true),
+                        item("Suco Lata", null, "7.00", 24, 5, true),
+                        item("Suco Laranja 300ml", null, "7.00", 18, 5, true),
                         item("Monster latão", null, "13.00", 12, 3, true),
                         item("Red Bull", null, "15.00", 12, 3, true),
-                        item("Cerveja lata", null, "5.00", 24, 8, true),
                         item("Schweppes lata", null, "5.00", 24, 5, true)),
                 category("Drinks",
                         item("Caipirinha", null, "15.00", 20, 5, false),
@@ -385,8 +486,59 @@ public class InitialCatalogSeeder {
 
     private static ChoiceGroupSeed beanChoice() {
         return choiceGroup("Escolha o feijão", 1, 1,
-                choice("Feijão tropeiro", "0.00", null),
-                choice("Feijão de caldo", "0.00", null));
+                choice("Tropeiro", "0.00", null),
+                choice("De caldo", "0.00", null));
+    }
+
+    private static List<ProductMigration> currentMenuMigrations() {
+        List<ProductMigration> migrations = new ArrayList<>(List.of(
+                migration("Pratos", "Jantinha completa", "Arroz branco, feijão tropeiro ou de caldo, mandioca, vinagrete e 1 espeto", "30.00",
+                        "Pratos", "Jantinha Completa", "Arroz branco, feijão tropeiro ou de caldo, mandioca, vinagrete e 1 espeto", "34.90"),
+                migration("Pratos", "Carreteiro completo", "Arroz carreteiro, feijão tropeiro ou de caldo, mandioca, vinagrete e 1 espeto", "30.00",
+                        "Pratos", "Carreteiro Completo", "Arroz carreteiro, feijão tropeiro ou de caldo, mandioca, vinagrete e 1 espeto", "34.90"),
+                migration("Porções", "Batata frita 500g", null, "25.00",
+                        "Petiscos", "Batata frita 500 gramas", null, "25.00"),
+                migration("Porções", "Frango a passarinho", null, "35.00",
+                        "Petiscos", "Frango a passarinho", null, "35.00"),
+                migration("Porções", "Arroz branco", null, "10.00",
+                        "Porções", "Arroz Branco", null, "10.00"),
+                migration("Porções", "Arroz com carne", null, "10.00",
+                        "Porções", "Arroz com Carne", null, "10.00"),
+                migration("Porções", "Feijão tropeiro", null, "10.00",
+                        "Porções", "Feijão Tropeiro", null, "10.00"),
+                migration("Bebidas", "Cerveja lata", null, "5.00",
+                        "Bebidas", "Cerveja Lata", null, "7.00"),
+                migration("Bebidas", "Água com gás", null, "5.00",
+                        "Bebidas", "Água com Gás", null, "5.00"),
+                migration("Bebidas", "Água natural", null, "4.00",
+                        "Bebidas", "Água Natural", null, "4.00"),
+                migration("Bebidas", "Refrigerante 600ml", null, "7.00",
+                        "Bebidas", "Refri 600ml", null, "10.00"),
+                migration("Bebidas", "Refrigerante lata", "Lata 350ml", "5.00",
+                        "Bebidas", "Refri Lata", null, "7.00"),
+                migration("Bebidas", "Suco lata", null, "5.00",
+                        "Bebidas", "Suco Lata", null, "7.00"),
+                migration("Bebidas", "Suco de laranja 300ml", null, "5.00",
+                        "Bebidas", "Suco Laranja 300ml", null, "7.00")
+        ));
+        SKEWERS.forEach(name -> migrations.add(migration(
+                "Espetinhos", name, null, "12.00",
+                "Espetinhos", name, null, "12.90")));
+        return migrations;
+    }
+
+    private static ProductMigration migration(
+            String currentCategory,
+            String currentName,
+            String currentDescription,
+            String currentPrice,
+            String targetCategory,
+            String targetName,
+            String targetDescription,
+            String targetPrice
+    ) {
+        return new ProductMigration(currentCategory, currentName, currentDescription, currentPrice,
+                targetCategory, targetName, targetDescription, targetPrice);
     }
 
     private static ChoiceGroupSeed skewerChoice() {
@@ -471,6 +623,18 @@ public class InitialCatalogSeeder {
             String name,
             String additionalPrice,
             String stockItemName
+    ) {
+    }
+
+    private record ProductMigration(
+            String currentCategory,
+            String currentName,
+            String currentDescription,
+            String currentPrice,
+            String targetCategory,
+            String targetName,
+            String targetDescription,
+            String targetPrice
     ) {
     }
 

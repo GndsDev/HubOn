@@ -106,10 +106,10 @@ class SimplifiedSalesIntegrationTests {
 
     @Test
     void productWithoutCategoryAndOptionsCreateImmutableSnapshots() {
-        ProductResponse product = product(null, "Jantinha", "20.00");
+        ProductResponse product = product(null, "Arroz Branco", "10.00");
         ProductOptionGroupResponse group = optionService.createGroup(product.id(), new ProductOptionGroupRequest(
-                "Escolha o espeto", 1, 1, 0, true,
-                List.of(new ProductOptionRequest("Coracao", money("2.00"), 0, true))));
+                "Tamanho", 1, 1, 0, true,
+                List.of(new ProductOptionRequest("Grande", money("8.00"), 0, true))));
         SaleResponse sale = counter();
 
         assertThatThrownBy(() -> saleService.addItem(sale.id(), new AddSaleItemRequest(product.id(), 1, null, List.of())))
@@ -117,22 +117,22 @@ class SimplifiedSalesIntegrationTests {
 
         Long optionId = group.options().getFirst().id();
         SaleResponse withItem = saleService.addItem(sale.id(),
-                new AddSaleItemRequest(product.id(), 2, "Sem cebola", List.of(optionId)));
+                new AddSaleItemRequest(product.id(), 2, null, List.of(optionId)));
         SaleItemResponse snapshot = withItem.items().getFirst();
         assertThat(snapshot.categoryName()).isNull();
-        assertThat(snapshot.baseUnitPrice()).isEqualByComparingTo("20.00");
-        assertThat(snapshot.unitPrice()).isEqualByComparingTo("22.00");
-        assertThat(snapshot.subtotal()).isEqualByComparingTo("44.00");
-        assertThat(snapshot.options().getFirst().additionalPrice()).isEqualByComparingTo("2.00");
+        assertThat(snapshot.baseUnitPrice()).isEqualByComparingTo("10.00");
+        assertThat(snapshot.unitPrice()).isEqualByComparingTo("18.00");
+        assertThat(snapshot.subtotal()).isEqualByComparingTo("36.00");
+        assertThat(snapshot.options().getFirst().additionalPrice()).isEqualByComparingTo("8.00");
 
-        productService.update(product.id(), new ProductRequest(null, "Jantinha nova", null,
-                money("30.00"), true, true, 0));
+        productService.update(product.id(), new ProductRequest(null, "Arroz Branco atualizado", null,
+                money("12.00"), true, true, 0));
         optionService.updateOption(product.id(), group.id(), optionId,
-                new ProductOptionRequest("Coracao premium", money("4.00"), 0, true));
+                new ProductOptionRequest("Grande atualizada", money("10.00"), 0, true));
         SaleItemResponse historical = saleQueryService.get(sale.id()).items().getFirst();
-        assertThat(historical.productName()).isEqualTo("Jantinha");
-        assertThat(historical.unitPrice()).isEqualByComparingTo("22.00");
-        assertThat(historical.options().getFirst().optionName()).isEqualTo("Coracao");
+        assertThat(historical.productName()).isEqualTo("Arroz Branco");
+        assertThat(historical.unitPrice()).isEqualByComparingTo("18.00");
+        assertThat(historical.options().getFirst().optionName()).isEqualTo("Grande");
     }
 
     @Test
@@ -175,40 +175,40 @@ class SimplifiedSalesIntegrationTests {
 
     @Test
     void quantityUpdatesKeepTheItemAndApplyOnlyTheStockDelta() {
-        ProductResponse product = product(null, "Refrigerante", "8.00");
-        var stock = stockItemService.create(new StockItemRequest("Lata", null, UnitOfMeasure.UN,
+        ProductResponse product = product(null, "Picanha Montada", "12.90");
+        var stock = stockItemService.create(new StockItemRequest("Picanha Montada", null, UnitOfMeasure.UN,
                 money("10.000"), money("2.000"), true));
-        stockLinkService.create(product.id(), new ProductStockLinkRequest(stock.id(), money("2.000")));
+        stockLinkService.create(product.id(), new ProductStockLinkRequest(stock.id(), money("1.000")));
         SaleResponse sale = counter();
         SaleItemResponse first = saleService.addItem(sale.id(),
                 new AddSaleItemRequest(product.id(), 1, null, List.of())).items().getFirst();
-        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("8.000");
+        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("9.000");
 
         SaleResponse increased = saleService.updateItemQuantity(sale.id(), first.id(),
-                new UpdateSaleItemQuantityRequest(2));
+                new UpdateSaleItemQuantityRequest(3));
         assertThat(increased.items()).singleElement().satisfies(item -> {
             assertThat(item.id()).isEqualTo(first.id());
-            assertThat(item.quantity()).isEqualTo(2);
-            assertThat(item.subtotal()).isEqualByComparingTo("16.00");
+            assertThat(item.quantity()).isEqualTo(3);
+            assertThat(item.subtotal()).isEqualByComparingTo("38.70");
             assertThat(item.cancelledAt()).isNull();
             assertThat(item.cancellationReason()).isNull();
         });
-        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("6.000");
+        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("7.000");
 
-        saleService.updateItemQuantity(sale.id(), first.id(), new UpdateSaleItemQuantityRequest(1));
+        saleService.updateItemQuantity(sale.id(), first.id(), new UpdateSaleItemQuantityRequest(2));
         assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("8.000");
-        saleService.updateItemQuantity(sale.id(), first.id(), new UpdateSaleItemQuantityRequest(5));
+        saleService.updateItemQuantity(sale.id(), first.id(), new UpdateSaleItemQuantityRequest(10));
         assertThat(stockItemService.getById(stock.id()).currentStock()).isZero();
         saleService.updateItemQuantity(sale.id(), first.id(), new UpdateSaleItemQuantityRequest(2));
-        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("6.000");
+        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("8.000");
 
         int movementsBeforeFailure = count("stock_movements", "sale_item_id = " + first.id());
         assertThatThrownBy(() -> saleService.updateItemQuantity(sale.id(), first.id(),
-                new UpdateSaleItemQuantityRequest(6)))
+                new UpdateSaleItemQuantityRequest(11)))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("Estoque insuficiente");
         assertThat(saleQueryService.get(sale.id()).items().getFirst().quantity()).isEqualTo(2);
         assertThat(saleItemRepository.countBySaleIdAndCancelledAtIsNullAndRemovedAtIsNull(sale.id())).isEqualTo(1);
-        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("6.000");
+        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("8.000");
         assertThat(count("stock_movements", "sale_item_id = " + first.id())).isEqualTo(movementsBeforeFailure);
 
         saleService.cancelItem(sale.id(), first.id(), new CancellationRequest("Cliente desistiu"));
@@ -221,14 +221,15 @@ class SimplifiedSalesIntegrationTests {
 
     @Test
     void removingAnUnpaidItemRestoresStockWithoutCreatingCancellationData() {
-        ProductResponse product = product(null, "Picanha", "12.00");
-        var stock = stockItemService.create(new StockItemRequest("Picanha", null, UnitOfMeasure.UN,
+        ProductResponse product = product(null, "Picanha Montada", "12.90");
+        var stock = stockItemService.create(new StockItemRequest("Picanha Montada", null, UnitOfMeasure.UN,
                 money("10.000"), money("2.000"), true));
         stockLinkService.create(product.id(), new ProductStockLinkRequest(stock.id(), money("1.000")));
         SaleResponse sale = counter();
         SaleItemResponse item = saleService.addItem(sale.id(),
-                new AddSaleItemRequest(product.id(), 1, null, List.of())).items().getFirst();
-        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("9.000");
+                new AddSaleItemRequest(product.id(), 2, null, List.of())).items().getFirst();
+        assertThat(item.subtotal()).isEqualByComparingTo("25.80");
+        assertThat(stockItemService.getById(stock.id()).currentStock()).isEqualByComparingTo("8.000");
 
         SaleResponse updated = saleService.removeItem(sale.id(), item.id());
 
@@ -263,20 +264,20 @@ class SimplifiedSalesIntegrationTests {
 
     @Test
     void selectedSkewersShareStockWithDirectSalesAndLedgerDrivesDeltasAndCancellation() {
-        ProductResponse jantinha = product(null, "Jantinha completa", "30.00");
-        ProductResponse carreteiro = product(null, "Carreteiro completo", "30.00");
-        ProductResponse picanha = product(null, "Picanha montada", "12.00");
+        ProductResponse jantinha = product(null, "Jantinha Completa", "34.90");
+        ProductResponse carreteiro = product(null, "Carreteiro Completo", "34.90");
+        ProductResponse picanha = product(null, "Picanha Montada", "12.90");
         ProductResponse otherProduct = product(null, "Outro produto", "5.00");
         var picanhaStock = stockItemService.create(new StockItemRequest(
-                "Picanha montada", null, UnitOfMeasure.UN, money("10.000"), money("2.000"), true));
+                "Picanha Montada", null, UnitOfMeasure.UN, money("10.000"), money("2.000"), true));
         var alternateStock = stockItemService.create(new StockItemRequest(
                 "Estoque alternativo", null, UnitOfMeasure.UN, money("10.000"), money("2.000"), true));
         stockLinkService.create(picanha.id(), new ProductStockLinkRequest(picanhaStock.id(), money("1.000")));
 
-        ProductOptionGroupResponse jantinhaBeans = requiredChoice(jantinha, "Escolha o feijao", "Feijao tropeiro");
-        ProductOptionGroupResponse jantinhaSkewers = requiredChoice(jantinha, "Escolha o espeto", "Picanha montada");
-        ProductOptionGroupResponse carreteiroBeans = requiredChoice(carreteiro, "Escolha o feijao", "Feijao de caldo");
-        ProductOptionGroupResponse carreteiroSkewers = requiredChoice(carreteiro, "Escolha o espeto", "Picanha montada");
+        ProductOptionGroupResponse jantinhaBeans = requiredChoice(jantinha, "Escolha o feijão", "Tropeiro");
+        ProductOptionGroupResponse jantinhaSkewers = requiredChoice(jantinha, "Escolha o espeto", "Picanha Montada");
+        ProductOptionGroupResponse carreteiroBeans = requiredChoice(carreteiro, "Escolha o feijão", "De caldo");
+        ProductOptionGroupResponse carreteiroSkewers = requiredChoice(carreteiro, "Escolha o espeto", "Picanha Montada");
         ProductOptionGroupResponse unrelated = requiredChoice(otherProduct, "Escolha", "Invalida");
         Long jantinhaSkewerId = jantinhaSkewers.options().getFirst().id();
         Long carreteiroSkewerId = carreteiroSkewers.options().getFirst().id();
@@ -298,8 +299,22 @@ class SimplifiedSalesIntegrationTests {
                 jantinha.id(), 1, null, List.of(
                         jantinhaBeans.options().getFirst().id(), jantinhaSkewerId)))
                 .items().getFirst();
+        assertThat(jantinhaItem.unitPrice()).isEqualByComparingTo("34.90");
         assertThat(stockItemService.getById(picanhaStock.id()).currentStock()).isEqualByComparingTo("9.000");
         assertThat(count("stock_movements", "sale_item_id = " + jantinhaItem.id())).isEqualTo(1);
+
+        SaleResponse removalSale = counter();
+        SaleItemResponse removableJantinha = saleService.addItem(removalSale.id(), new AddSaleItemRequest(
+                jantinha.id(), 1, null, List.of(
+                        jantinhaBeans.options().getFirst().id(), jantinhaSkewerId)))
+                .items().getFirst();
+        assertThat(stockItemService.getById(picanhaStock.id()).currentStock()).isEqualByComparingTo("8.000");
+        saleService.removeItem(removalSale.id(), removableJantinha.id());
+        assertThat(stockItemService.getById(picanhaStock.id()).currentStock()).isEqualByComparingTo("9.000");
+        assertThat(count("stock_movements", "sale_item_id = " + removableJantinha.id() + " and type = 'SALE'"))
+                .isEqualTo(1);
+        assertThat(count("stock_movements", "sale_item_id = " + removableJantinha.id() + " and type = 'SALE_REVERSAL'"))
+                .isEqualTo(1);
 
         optionStockLinkService.update(jantinha.id(), jantinhaSkewers.id(), jantinhaSkewerId,
                 new ProductOptionStockLinkRequest(alternateStock.id(), money("2.000")));
@@ -316,6 +331,8 @@ class SimplifiedSalesIntegrationTests {
         SaleItemResponse directItem = saleService.addItem(sale.id(), new AddSaleItemRequest(
                 picanha.id(), 1, null, List.of()))
                 .items().stream().filter(item -> item.productId().equals(picanha.id())).findFirst().orElseThrow();
+        assertThat(carreteiroItem.unitPrice()).isEqualByComparingTo("34.90");
+        assertThat(directItem.subtotal()).isEqualByComparingTo("12.90");
         assertThat(stockItemService.getById(picanhaStock.id()).currentStock()).isEqualByComparingTo("7.000");
         assertThat(jdbc.queryForObject("select stock_item_id from stock_movements where sale_item_id = ? and type = 'SALE'",
                 Long.class, carreteiroItem.id())).isEqualTo(picanhaStock.id());
@@ -330,18 +347,18 @@ class SimplifiedSalesIntegrationTests {
         assertThatThrownBy(() -> saleService.addItem(sale.id(), new AddSaleItemRequest(
                 carreteiro.id(), 20, null, List.of(
                         carreteiroBeans.options().getFirst().id(), carreteiroSkewerId))))
-                .isInstanceOf(BusinessException.class).hasMessageContaining("Picanha montada");
+                .isInstanceOf(BusinessException.class).hasMessageContaining("Picanha Montada");
         assertThat(stockItemService.getById(picanhaStock.id()).currentStock()).isEqualByComparingTo("8.000");
         assertThat(count("sale_items", "sale_id = " + sale.id())).isEqualTo(itemsBeforeFailure);
     }
 
     @Test
     void choicesWithoutStockLinksWorkWithoutAutomaticMovement() {
-        ProductResponse portion = product(null, "Arroz branco", "10.00");
+        ProductResponse portion = product(null, "Arroz Branco", "10.00");
         ProductOptionGroupResponse size = optionService.createGroup(portion.id(), new ProductOptionGroupRequest(
                 "Tamanho", 1, 1, 0, true,
                 List.of(
-                        new ProductOptionRequest("Media", money("0.00"), 0, true),
+                        new ProductOptionRequest("Média", money("0.00"), 0, true),
                         new ProductOptionRequest("Grande", money("8.00"), 1, true)
                 )));
         SaleResponse sale = counter();
@@ -357,9 +374,9 @@ class SimplifiedSalesIntegrationTests {
 
     @Test
     void packagedBeverageConsumesOneUnitPerSale() {
-        ProductResponse beverage = product(null, "Refrigerante lata", "5.00");
+        ProductResponse beverage = product(null, "Refri Lata", "7.00");
         var stock = stockItemService.create(new StockItemRequest(
-                "Refrigerante lata", null, UnitOfMeasure.UN, money("5.000"), money("1.000"), true));
+                "Refri Lata", null, UnitOfMeasure.UN, money("5.000"), money("1.000"), true));
         stockLinkService.create(beverage.id(), new ProductStockLinkRequest(stock.id(), money("1.000")));
 
         saleService.addItem(counter().id(), new AddSaleItemRequest(beverage.id(), 1, null, List.of()));

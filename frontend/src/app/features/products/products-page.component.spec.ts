@@ -12,9 +12,9 @@ const uncategorizedProduct: Product = {
   id: 1,
   categoryId: null,
   categoryName: null,
-  name: 'Coca-Cola 350ml',
+  name: 'Refri Lata',
   description: null,
-  price: 6,
+  price: 7,
   active: true,
   available: true,
   displayOrder: 0,
@@ -57,19 +57,19 @@ describe('ProductsPageComponent', () => {
   it('sends the exact simplified product body and preserves nullable category', () => {
     const component = TestBed.createComponent(ProductsPageComponent).componentInstance;
     component.openProduct();
-    component.productForm = { categoryId: null, name: '  Coca-Cola 350ml  ', description: '', price: 6, active: true, available: true, displayOrder: 0 };
+    component.productForm = { categoryId: null, name: '  Refri Lata  ', description: '', price: 7, active: true, available: true, displayOrder: 0 };
     component.saveProduct();
-    expect(api.create).toHaveBeenCalledWith({ categoryId: null, name: 'Coca-Cola 350ml', description: null, price: 6, active: true, available: true, displayOrder: 0 });
+    expect(api.create).toHaveBeenCalledWith({ categoryId: null, name: 'Refri Lata', description: null, price: 7, active: true, available: true, displayOrder: 0 });
     expect(component.products()).toEqual([uncategorizedProduct]);
   });
 
   it('updates the product filter immediately while typing', () => {
     const component = TestBed.createComponent(ProductsPageComponent).componentInstance;
-    component.products.set([uncategorizedProduct, { ...uncategorizedProduct, id: 2, name: 'Jantinha', categoryName: 'Refeições' }]);
+    component.products.set([uncategorizedProduct, { ...uncategorizedProduct, id: 2, name: 'Jantinha Completa', categoryName: 'Pratos' }]);
     component.searchTerm = 'janti';
-    expect(component.filteredProducts().map((product) => product.name)).toEqual(['Jantinha']);
-    component.searchTerm = 'coca';
-    expect(component.filteredProducts().map((product) => product.name)).toEqual(['Coca-Cola 350ml']);
+    expect(component.filteredProducts().map((product) => product.name)).toEqual(['Jantinha Completa']);
+    component.searchTerm = 'refri';
+    expect(component.filteredProducts().map((product) => product.name)).toEqual(['Refri Lata']);
   });
 
   it('creates option groups with the current selection limits', () => {
@@ -129,7 +129,7 @@ describe('ProductsPageComponent', () => {
     const choice = {
       id: 9,
       groupId: 4,
-      name: 'Picanha montada',
+      name: 'Picanha Montada',
       additionalPrice: 0,
       displayOrder: 0,
       active: true,
@@ -141,7 +141,7 @@ describe('ProductsPageComponent', () => {
       id: 12,
       productOptionId: 9,
       stockItemId: 20,
-      stockItemName: 'Picanha montada',
+      stockItemName: 'Picanha Montada',
       unit: 'UN' as const,
       quantityPerSelection: 1,
       active: true,
@@ -157,7 +157,7 @@ describe('ProductsPageComponent', () => {
     component.saveOption({
       id: null,
       groupId: 4,
-      name: 'Picanha montada',
+      name: 'Picanha Montada',
       additionalPrice: 0,
       displayOrder: 0,
       active: true,

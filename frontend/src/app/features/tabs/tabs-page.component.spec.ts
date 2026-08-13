@@ -13,16 +13,16 @@ import { saleMenuProducts } from '../../shared/testing/sale-menu-products.fixtur
 import { TabsPageComponent } from './tabs-page.component';
 
 const line: SaleItem = {
-  id: 9, productId: 3, productName: 'Coca-Cola', categoryName: 'Bebidas', baseUnitPrice: 6, unitPrice: 6,
-  quantity: 2, subtotal: 12, notes: null, options: [], createdByUserId: 1, createdByUserName: 'Gerente',
+  id: 9, productId: 107, productName: 'Refri Lata', categoryName: 'Bebidas', baseUnitPrice: 7, unitPrice: 7,
+  quantity: 2, subtotal: 14, notes: null, options: [], createdByUserId: 1, createdByUserName: 'Gerente',
   createdAt: '', cancelledAt: null, cancelledByUserId: null, cancelledByUserName: null, cancellationReason: null,
 };
 
 function sale(overrides: Partial<Sale> = {}): Sale {
   return {
     id: 20, type: 'TABLE', status: 'OPEN', tableNumber: 4,
-    customerName: null, customerPhone: null, subtotal: 12, serviceFee: 0, discountAmount: 0,
-    finalAmount: 12, paidAmount: 0, remainingAmount: 12, items: [line], payments: [], openedByUserId: 1,
+    customerName: null, customerPhone: null, subtotal: 14, serviceFee: 0, discountAmount: 0,
+    finalAmount: 14, paidAmount: 0, remainingAmount: 14, items: [line], payments: [], openedByUserId: 1,
     openedByUserName: 'Gerente', openedAt: '2026-08-07T12:00:00', closedByUserId: null, closedByUserName: null, closedAt: null,
     closedBusinessDate: null, cancelledByUserId: null, cancelledByUserName: null, cancelledAt: null,
     cancellationReason: null, ...overrides,
@@ -139,7 +139,7 @@ describe('TabsPageComponent', () => {
     expect(feedback.success).not.toHaveBeenCalled();
   });
 
-  it.each(['Jantinha completa', 'Carreteiro completo', 'Arroz branco'])(
+  it.each(['Jantinha Completa', 'Carreteiro Completo', 'Jantinha Sem Espeto', 'Choripan', 'Arroz Branco'])(
     'opens the shared choices dialog for %s in comandas',
     (productName) => {
       const picker = renderCatalog();
@@ -160,12 +160,12 @@ describe('TabsPageComponent', () => {
     renderCatalog();
     const root = fixture.nativeElement as HTMLElement;
     const button = [...root.querySelectorAll<HTMLButtonElement>('.counter-product')]
-      .find((item) => item.querySelector('.counter-product-copy strong')?.textContent?.trim() === 'Água mineral');
+      .find((item) => item.querySelector('.counter-product-copy strong')?.textContent?.trim() === 'Refri Lata');
 
     button?.click();
 
     expect(api.addItem).toHaveBeenCalledWith(20, {
-      productId: 104,
+      productId: 107,
       quantity: 1,
       notes: null,
       optionIds: [],

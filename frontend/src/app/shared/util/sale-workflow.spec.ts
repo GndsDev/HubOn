@@ -15,14 +15,17 @@ import {
 const item: SaleItem = {
   id: 10,
   productId: 2,
-  productName: 'Jantinha',
-  categoryName: null,
-  baseUnitPrice: 20,
-  unitPrice: 22,
+  productName: 'Jantinha Completa',
+  categoryName: 'Pratos',
+  baseUnitPrice: 34.9,
+  unitPrice: 34.9,
   quantity: 1,
-  subtotal: 22,
+  subtotal: 34.9,
   notes: null,
-  options: [{ id: 1, productOptionId: 8, optionGroupName: 'Espeto', optionName: 'Coração', additionalPrice: 2 }],
+  options: [
+    { id: 1, productOptionId: 7, optionGroupName: 'Escolha o feijão', optionName: 'Tropeiro', additionalPrice: 0 },
+    { id: 2, productOptionId: 8, optionGroupName: 'Escolha o espeto', optionName: 'Coração', additionalPrice: 0 },
+  ],
   createdByUserId: 1,
   createdByUserName: 'Gerente',
   createdAt: '2026-08-07T12:00:00',
@@ -40,12 +43,12 @@ function sale(overrides: Partial<Sale> = {}): Sale {
     tableNumber: 4,
     customerName: null,
     customerPhone: null,
-    subtotal: 22,
+    subtotal: 34.9,
     serviceFee: 0,
     discountAmount: 0,
-    finalAmount: 22,
+    finalAmount: 34.9,
     paidAmount: 0,
-    remainingAmount: 22,
+    remainingAmount: 34.9,
     items: [item],
     payments: [],
     openedByUserId: 1,
@@ -66,21 +69,21 @@ function sale(overrides: Partial<Sale> = {}): Sale {
 const choiceGroup: ProductOptionGroup = {
   id: 3,
   productId: 2,
-  name: 'Espeto',
+  name: 'Escolha o espeto',
   minimumSelections: 1,
   maximumSelections: 1,
   displayOrder: 0,
   active: true,
   options: [
-    { id: 7, groupId: 3, name: 'Carne', additionalPrice: 0, displayOrder: 0, active: true, stockLink: null, createdAt: '', updatedAt: '' },
-    { id: 8, groupId: 3, name: 'Coração', additionalPrice: 2, displayOrder: 1, active: true, stockLink: null, createdAt: '', updatedAt: '' },
+    { id: 7, groupId: 3, name: 'Picanha Montada', additionalPrice: 0, displayOrder: 0, active: true, stockLink: null, createdAt: '', updatedAt: '' },
+    { id: 8, groupId: 3, name: 'Coração', additionalPrice: 0, displayOrder: 1, active: true, stockLink: null, createdAt: '', updatedAt: '' },
   ],
   createdAt: '',
   updatedAt: '',
 };
 
 function product(optionGroups: ProductOptionGroup[] = []): Product {
-  return { id: 2, categoryId: null, categoryName: null, name: 'Jantinha', description: null, price: 20, active: true, available: true, displayOrder: 0, optionGroups, createdAt: '', updatedAt: '' };
+  return { id: 2, categoryId: null, categoryName: null, name: 'Jantinha Completa', description: null, price: 34.9, active: true, available: true, displayOrder: 0, optionGroups, createdAt: '', updatedAt: '' };
 }
 
 describe('sale workflow', () => {
@@ -103,8 +106,8 @@ describe('sale workflow', () => {
       name: 'Escolha o feijão',
       displayOrder: 0,
       options: [
-        { ...choiceGroup.options[1], id: 10, groupId: 4, name: 'Feijão de caldo', displayOrder: 1 },
-        { ...choiceGroup.options[0], id: 9, groupId: 4, name: 'Feijão tropeiro', displayOrder: 0 },
+        { ...choiceGroup.options[1], id: 10, groupId: 4, name: 'De caldo', displayOrder: 1 },
+        { ...choiceGroup.options[0], id: 9, groupId: 4, name: 'Tropeiro', displayOrder: 0 },
       ],
     };
     const skewerGroup = { ...choiceGroup, name: 'Escolha o espeto', displayOrder: 1 };
@@ -112,19 +115,19 @@ describe('sale workflow', () => {
     const groups = activeOptionGroups(product([skewerGroup, beanGroup]));
 
     expect(groups.map((group) => group.name)).toEqual(['Escolha o feijão', 'Escolha o espeto']);
-    expect(groups[0].options.map((option) => option.name)).toEqual(['Feijão tropeiro', 'Feijão de caldo']);
+    expect(groups[0].options.map((option) => option.name)).toEqual(['Tropeiro', 'De caldo']);
   });
 
   it('matches repeated items by product, options and notes', () => {
-    expect(itemMatchesRequest(item, { productId: 2, quantity: 1, notes: null, optionIds: [8] })).toBe(true);
+    expect(itemMatchesRequest(item, { productId: 2, quantity: 1, notes: null, optionIds: [7, 8] })).toBe(true);
     expect(itemMatchesRequest(item, { productId: 2, quantity: 1, notes: null, optionIds: [7] })).toBe(false);
   });
 
   it('formats choices with operational question labels', () => {
     expect(saleChoiceSummary([
-      { id: 1, productOptionId: 7, optionGroupName: 'Escolha o feijão', optionName: 'Feijão tropeiro', additionalPrice: 0 },
-      { id: 2, productOptionId: 8, optionGroupName: 'Escolha o espeto', optionName: 'Picanha montada', additionalPrice: 0 },
-    ])).toBe('Feijão: Tropeiro · Espeto: Picanha montada');
+      { id: 1, productOptionId: 7, optionGroupName: 'Escolha o feijão', optionName: 'Tropeiro', additionalPrice: 0 },
+      { id: 2, productOptionId: 8, optionGroupName: 'Escolha o espeto', optionName: 'Picanha Montada', additionalPrice: 0 },
+    ])).toBe('Feijão: Tropeiro · Espeto: Picanha Montada');
   });
 
   it('blocks item changes as soon as a payment exists', () => {

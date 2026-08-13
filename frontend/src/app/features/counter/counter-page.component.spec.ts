@@ -17,9 +17,9 @@ const product: Product = {
   id: 10,
   categoryId: 2,
   categoryName: 'Bebidas',
-  name: 'Suco',
+  name: 'Suco Lata',
   description: null,
-  price: 8,
+  price: 7,
   active: true,
   available: true,
   displayOrder: 0,
@@ -31,12 +31,12 @@ const product: Product = {
 const item: SaleItem = {
   id: 70,
   productId: 10,
-  productName: 'Suco',
+  productName: 'Suco Lata',
   categoryName: 'Bebidas',
-  baseUnitPrice: 8,
-  unitPrice: 8,
+  baseUnitPrice: 7,
+  unitPrice: 7,
   quantity: 1,
-  subtotal: 8,
+  subtotal: 7,
   notes: null,
   options: [],
   createdByUserId: 1,
@@ -56,12 +56,12 @@ function sale(overrides: Partial<Sale> = {}): Sale {
     tableNumber: null,
     customerName: null,
     customerPhone: null,
-    subtotal: 8,
+    subtotal: 7,
     serviceFee: 0,
     discountAmount: 0,
-    finalAmount: 8,
+    finalAmount: 7,
     paidAmount: 0,
-    remainingAmount: 8,
+    remainingAmount: 7,
     items: [item],
     payments: [],
     openedByUserId: 1,
@@ -183,11 +183,11 @@ describe('CounterPageComponent', () => {
     expect(api.addItem).toHaveBeenCalledWith(50, { productId: 10, quantity: 1, notes: null, optionIds: [] });
     expect(instance.currentSale()).toBe(updated);
     expect(instance.openSales()).toEqual([updated]);
-    expect(instance.productFeedback()).toBe('Suco adicionado');
+    expect(instance.productFeedback()).toBe('Suco Lata adicionado');
     expect(feedback.success).not.toHaveBeenCalled();
   });
 
-  it.each(['Jantinha completa', 'Carreteiro completo', 'Arroz branco'])(
+  it.each(['Jantinha Completa', 'Carreteiro Completo', 'Jantinha Sem Espeto', 'Choripan', 'Arroz Branco'])(
     'opens the shared choices dialog for %s at the counter',
     (productName) => {
       const picker = renderCatalog();
@@ -208,12 +208,12 @@ describe('CounterPageComponent', () => {
     renderCatalog();
     const root = fixture.nativeElement as HTMLElement;
     const button = [...root.querySelectorAll<HTMLButtonElement>('.counter-product')]
-      .find((item) => item.querySelector('.counter-product-copy strong')?.textContent?.trim() === 'Água mineral');
+      .find((item) => item.querySelector('.counter-product-copy strong')?.textContent?.trim() === 'Refri Lata');
 
     button?.click();
 
     expect(api.addItem).toHaveBeenCalledWith(50, {
-      productId: 104,
+      productId: 107,
       quantity: 1,
       notes: null,
       optionIds: [],
@@ -232,7 +232,7 @@ describe('CounterPageComponent', () => {
   });
 
   it('increases quantity on the matching sale item', () => {
-    const updated = sale({ items: [{ ...item, quantity: 2, subtotal: 16 }], subtotal: 16, finalAmount: 16, remainingAmount: 16 });
+    const updated = sale({ items: [{ ...item, quantity: 2, subtotal: 14 }], subtotal: 14, finalAmount: 14, remainingAmount: 14 });
     api.updateItemQuantity.mockReturnValueOnce(of(updated));
     const instance = component();
     instance.products.set([product]);
@@ -244,7 +244,7 @@ describe('CounterPageComponent', () => {
     expect(api.removeItem).not.toHaveBeenCalled();
     expect(api.addItem).not.toHaveBeenCalled();
     expect(instance.currentSale()).toBe(updated);
-    expect(instance.productFeedback()).toBe('Suco adicionado');
+    expect(instance.productFeedback()).toBe('Suco Lata adicionado');
     expect(feedback.success).not.toHaveBeenCalled();
   });
 
@@ -271,7 +271,7 @@ describe('CounterPageComponent', () => {
   it('keeps a partial payment in the active sale and updates the remaining amount', () => {
     const partial = sale({
       paidAmount: 3,
-      remainingAmount: 5,
+      remainingAmount: 4,
       payments: [{ id: 1, saleId: 50, method: 'PIX', amount: 3, paidAt: '', receivedByUserId: 1, receivedByUserName: 'Gerente' }],
     });
     api.pay.mockReturnValueOnce(of(partial));
@@ -280,14 +280,14 @@ describe('CounterPageComponent', () => {
 
     instance.quickPay('PIX');
 
-    expect(api.pay).toHaveBeenCalledWith(50, { method: 'PIX', amount: 8 });
+    expect(api.pay).toHaveBeenCalledWith(50, { method: 'PIX', amount: 7 });
     expect(instance.currentSale()).toBe(partial);
-    expect(instance.currentSale()?.remainingAmount).toBe(5);
+    expect(instance.currentSale()?.remainingAmount).toBe(4);
     expect(activity.refresh).not.toHaveBeenCalled();
   });
 
   it('automatically clears a positively settled sale after the backend closes it', () => {
-    const closed = sale({ status: 'CLOSED', paidAmount: 8, remainingAmount: 0 });
+    const closed = sale({ status: 'CLOSED', paidAmount: 7, remainingAmount: 0 });
     api.pay.mockReturnValueOnce(of(closed));
     const instance = component();
     const router = TestBed.inject(Router);

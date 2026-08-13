@@ -207,7 +207,7 @@ describe('StockPageComponent', () => {
       ...movement,
       id: 6,
       stockItemId: 2,
-      stockItemName: 'Refrigerante lata',
+      stockItemName: 'Refri Lata',
       type: 'SALE',
       reason: null,
       createdByUserName: 'Maria',
@@ -219,7 +219,7 @@ describe('StockPageComponent', () => {
     expect(instance.filteredMovements()).toEqual([movement]);
     instance.movementSearchTerm = 'maria';
     expect(instance.filteredMovements()).toEqual([saleMovement]);
-    instance.movementSearchTerm = 'refrigerante';
+    instance.movementSearchTerm = 'refri';
     expect(instance.filteredMovements()).toEqual([saleMovement]);
 
     instance.movementSearchTerm = '';
@@ -240,7 +240,7 @@ describe('StockPageComponent', () => {
     const linkedProduct: Product = {
       ...product,
       id: 21,
-      name: 'Coca-Cola lata',
+      name: 'Refri Lata',
       categoryId: 3,
       categoryName: 'Bebidas',
     };
@@ -248,13 +248,13 @@ describe('StockPageComponent', () => {
       ...link,
       productId: linkedProduct.id,
       productName: linkedProduct.name,
-      stockItemName: 'Latas de refrigerante',
+      stockItemName: 'Refri Lata',
     };
     const instance = component();
     instance.products.set([product, linkedProduct]);
     instance.productLinks.set(new Map([[product.id, null], [linkedProduct.id, linked]]));
 
-    for (const query of ['coca-cola', 'bebidas', 'latas de refrigerante']) {
+    for (const query of ['refri lata', 'bebidas']) {
       instance.linkSearchTerm = query;
       expect(instance.filteredLinkProducts()).toEqual([linkedProduct]);
     }
