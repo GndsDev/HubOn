@@ -31,12 +31,14 @@ class SecurityAuthorizationIntegrationTests {
     @Autowired JdbcTemplate jdbc;
     @Autowired PasswordEncoder passwordEncoder;
     private String ownerUsername;
+    private String adminUsername;
     private String waiterUsername;
     private String kitchenUsername;
 
     @BeforeEach
     void setup() {
         ownerUsername = user("OWNER");
+        adminUsername = user("ADMIN");
         waiterUsername = user("WAITER");
         kitchenUsername = user("KITCHEN");
     }
@@ -76,6 +78,51 @@ class SecurityAuthorizationIntegrationTests {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/dashboard/summary").header("Authorization", bearer(token(waiterUsername))))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void stockConfigurationAndManualMovementsAreRestrictedToOwnerAndAdmin() throws Exception {
+        String linkBody = "{\"stockItemId\":999,\"quantityPerSale\":1}";
+        String optionLinkBody = "{\"stockItemId\":999,\"quantityPerSelection\":1}";
+        String movementBody = "{\"stockItemId\":999,\"quantity\":1,\"reason\":\"Auditoria\"}";
+
+        mockMvc.perform(post("/api/products/999/stock-link")
+                        .header("Authorization", bearer(token(ownerUsername)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(linkBody))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/products/999/stock-link")
+                        .header("Authorization", bearer(token(adminUsername)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(linkBody))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/products/999/stock-link")
+                        .header("Authorization", bearer(token(waiterUsername)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(linkBody))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/products/999/option-groups/999/options/999/stock-link")
+                        .header("Authorization", bearer(token(waiterUsername)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(optionLinkBody))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/stock-movements/entries")
+                        .header("Authorization", bearer(token(waiterUsername)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(movementBody))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/products/999/stock-link")
+                        .header("Authorization", bearer(token(ownerUsername)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"stockItemId\":999,\"quantityPerSale\":0}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/products/999/option-groups/999/options/999/stock-link")
+                        .header("Authorization", bearer(token(ownerUsername)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"stockItemId\":999,\"quantityPerSelection\":-1}"))
+                .andExpect(status().isBadRequest());
     }
 
     private String user(String role) {

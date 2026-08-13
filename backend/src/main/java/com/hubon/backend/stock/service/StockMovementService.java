@@ -73,14 +73,14 @@ public class StockMovementService {
 
     public void applySale(SaleItem saleItem, List<ProductOption> selectedOptions, User user) {
         Map<Long, BigDecimal> quantityPerSale = new LinkedHashMap<>();
-        linkRepository.findByProductIdAndActiveTrue(saleItem.getProduct().getId()).ifPresent(link -> {
-            quantityPerSale.merge(link.getStockItem().getId(), link.getQuantityPerSale(), BigDecimal::add);
+        linkRepository.findActiveConsumptionByProductId(saleItem.getProduct().getId()).ifPresent(link -> {
+            quantityPerSale.merge(link.getStockItemId(), link.getQuantityPerSale(), BigDecimal::add);
         });
         if (!selectedOptions.isEmpty()) {
-            optionLinkRepository.findAllByProductOptionIdInAndActiveTrue(
+            optionLinkRepository.findActiveConsumptionsByProductOptionIdIn(
                             selectedOptions.stream().map(ProductOption::getId).toList())
                     .forEach(link -> quantityPerSale.merge(
-                            link.getStockItem().getId(),
+                            link.getStockItemId(),
                             link.getQuantityPerSelection(),
                             BigDecimal::add
                     ));
