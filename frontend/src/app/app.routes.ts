@@ -123,6 +123,20 @@ export const routes: Routes = [
     },
   },
   {
+    path: 'despesas',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import(
+        './features/expenses/expenses-page.component'
+      ).then(
+        (module) => module.ExpensesPageComponent,
+      ),
+    data: {
+      label: 'Despesas',
+      roles: MANAGEMENT_ROLES,
+    },
+  },
+  {
     path: 'categorias',
     canActivate: [authGuard],
     loadComponent: () =>

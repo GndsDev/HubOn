@@ -81,6 +81,21 @@ class SecurityAuthorizationIntegrationTests {
     }
 
     @Test
+    void expensesAreRestrictedToOwnerAndAdmin() throws Exception {
+        mockMvc.perform(get("/api/expenses").header("Authorization", bearer(token(ownerUsername))))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/expenses").header("Authorization", bearer(token(adminUsername))))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/expenses").header("Authorization", bearer(token(waiterUsername))))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/expenses")
+                        .header("Authorization", bearer(token(kitchenUsername)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void stockConfigurationAndManualMovementsAreRestrictedToOwnerAndAdmin() throws Exception {
         String linkBody = "{\"stockItemId\":999,\"quantityPerSale\":1}";
         String optionLinkBody = "{\"stockItemId\":999,\"quantityPerSelection\":1}";

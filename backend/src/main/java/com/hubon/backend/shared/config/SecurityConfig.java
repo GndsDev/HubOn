@@ -91,6 +91,8 @@ public class SecurityConfig {
 
                         auth.requestMatchers("/api/reports/**").hasAnyRole("OWNER", "ADMIN");
 
+                        auth.requestMatchers("/api/expenses/**").hasAnyRole("OWNER", "ADMIN");
+
                         auth.requestMatchers("/api/cash-shifts/**")
                                 .hasAnyRole("OWNER", "ADMIN", "CASHIER");
 

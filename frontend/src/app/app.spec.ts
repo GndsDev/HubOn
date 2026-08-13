@@ -8,6 +8,7 @@ describe('application routes', () => {
     expect(paths).toContain('balcao');
     expect(paths).toContain('historico');
     expect(paths).toContain('stock');
+    expect(paths).toContain('despesas');
   });
 
   it('does not expose removed order and kitchen modules', () => {

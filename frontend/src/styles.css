@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "primeicons/primeicons.css";
+@import "./app/features/expenses/expenses-page.component.css";
 
 :root,
 :root[data-theme="dark"] {

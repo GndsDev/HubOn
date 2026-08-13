@@ -135,6 +135,12 @@ export class App {
           roles: ['OWNER', 'ADMIN'],
         },
         {
+          path: '/despesas',
+          label: 'Despesas',
+          icon: 'pi pi-receipt',
+          roles: ['OWNER', 'ADMIN'],
+        },
+        {
           path: '/relatorios',
           label: 'Relatórios',
           icon: 'pi pi-chart-bar',

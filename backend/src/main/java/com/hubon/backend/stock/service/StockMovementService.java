@@ -54,6 +54,18 @@ public class StockMovementService {
     }
 
     @Transactional
+    public StockMovement entryForExpense(Long stockItemId, BigDecimal quantity, String reason, User user) {
+        if (quantity == null || quantity.signum() <= 0) {
+            throw new BusinessException("A quantidade de entrada deve ser maior que zero");
+        }
+        StockItem item = findForUpdate(stockItemId);
+        if (!Boolean.TRUE.equals(item.getActive())) {
+            throw new BusinessException("Item de estoque está inativo: " + item.getName());
+        }
+        return record(item, StockMovementType.ENTRY, quantity, null, null, normalize(reason), user);
+    }
+
+    @Transactional
     public StockMovementResponse exit(StockExitRequest request) {
         return toResponse(manual(request.stockItemId(), StockMovementType.EXIT, request.quantity().negate(), request.reason()));
     }
